@@ -21,6 +21,40 @@
 
 ---
 
+## 💻 사용법 (Usage)
+
+본 어플리케이션은 빌드된 바이너리 파일을 단독으로 배포하여 실행할 수 있는 구조입니다. 실행 시 가챠 URL을 플래그로 지정하거나, 로컬 명조 게임 설치 경로를 통해 로그 파일에서 URL을 자동으로 스캔할 수 있습니다.
+
+### 실행 방법 및 플래그 안내
+
+```bash
+# 기본 실행 예시 (가챠 URL을 직접 입력하여 HTML 리포트 생성)
+./wuwa-tracker -url "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html?..."
+
+# 게임 설치 폴더를 통해 가챠 URL 자동 스캔하여 분석
+./wuwa-tracker -path "C:\Program Files\Wuthering Waves\Wuthering Waves Game"
+
+# 포맷을 JSON으로 설정하고 출력 이름을 'my_tuning_stats'로 설정
+./wuwa-tracker -url "URL" -format json -out my_tuning_stats
+```
+
+### 플래그 상세설명
+
+| 플래그 | 타입 | 기본값 | 설명 |
+| :--- | :--- | :--- | :--- |
+| `-url` | `string` | `""` | 분석할 명조 공식 튜닝(가챠) 기록 URL을 입력합니다. (터미널 복사 붙여넣기 시 백슬래시 이스케이프가 포함되어도 자동 정제됩니다.) |
+| `-path` | `string` | `""` | 명조 게임 설치 경로(Wuthering Waves Game 폴더)를 입력하여, 내부 로그 파일에서 가챠 URL을 자동으로 검색 및 조회합니다. (`-url` 플래그 누락 시 필수) |
+| `-format` | `string` | `"html"` | 분석 리포트의 파일 출력 포맷을 설정합니다. (`html`, `csv`, `json` 지원) |
+| `-out` | `string` | `"report"` | 생성할 리포트 파일의 이름을 지정합니다. (확장자는 지정한 포맷에 따라 자동 생성됩니다. 예: `report.html`, `report.csv`) |
+
+### 생성되는 파일 목록
+
+* `[파일명].html`: 웹 브라우저에서 바로 열 수 있는 고해상도 모던 다크 테마 대시보드 (Luck Index 실시간 계산기 포함)
+* `[파일명].csv`: 엑셀이나 Google Sheets에서 로드하여 통계 분석이 가능한 평탄화(Flattened) 1차원 가챠 기록
+* `[파일명].json`: 가챠 유형 및 가챠 명칭이 개별 이력과 Join되어 저장된 JSON 배열 형태 데이터
+
+---
+
 ## 🛠️ 개발 환경 및 빌드 방법
 
 ### 개발 환경 (Prerequisites)
@@ -48,22 +82,6 @@ make build
 # 5. CLI 즉시 빌드 및 실행
 make run
 ```
-
----
-
-## 💻 사용법
-
-빌드된 실행 파일을 실행하거나 `go run` 명령어를 통해 실행 시 Wuthering Waves의 **가챠 기록 URL**을 인자로 전달합니다.
-
-```bash
-# 빌드된 바이너리 실행 예시 (가챠 URL 입력)
-./bin/wuwa-tracker "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html?..."
-```
-
-실행이 완료되면 루트 경로에 다음 파일들이 생성됩니다:
-* `report.html`: 웹 브라우저로 열 수 있는 반응형 인터랙티브 튜닝 리포트 대시보드
-* `report.csv`: 엑셀 분석용 1차원 평탄화 데이터 파일
-* `report.json`: 다른 애플리케이션 연동을 위한 JSON 포맷 파일
 
 ---
 
