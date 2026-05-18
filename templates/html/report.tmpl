@@ -45,35 +45,6 @@
             </div>
         </header>
 
-        <!-- 확률 및 기대값 지표 설정 섹션 -->
-        <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 mb-8 backdrop-blur-sm">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 3m0-3a2 2 0 110 3m-9 8h10M3 5h10m-9 3h10m-9 3h10m1 8h4m-1.9 4H18a2 2 0 002-2v-3a2 2 0 00-2-2h-3.8l-1.8-2H13a2 2 0 00-2 2v3a2 2 0 002 2z"></path></svg>
-                </div>
-                <h2 class="text-lg font-bold text-slate-200">확률 기반 평균 기대 지표 설정</h2>
-            </div>
-            <p class="text-sm text-slate-400 mb-6 leading-relaxed">
-                각 배너별 5성 획득에 소요되는 평균 기대 뽑기 횟수 및 기본 확률을 직접 수정하여 운 점수(Luck Score)를 재계산할 수 있습니다.
-            </p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {{range $index, $stat := .Stats}}
-                <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60">
-                    <label class="block text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">{{ $stat.GachaName }}</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <span class="text-[10px] text-slate-500">기대 횟수</span>
-                            <input type="number" id="cfg-expected-{{ $stat.GachaType }}" value="{{ printf "%.1f" $stat.ExpectedPulls }}" step="0.5" class="w-full bg-slate-900 border border-slate-800 rounded p-1 text-sm text-center text-slate-200 focus:outline-none focus:border-indigo-500" onchange="recalculate()">
-                        </div>
-                        <div>
-                            <span class="text-[10px] text-slate-500">기본 확률 (%)</span>
-                            <input type="number" id="cfg-rate-{{ $stat.GachaType }}" value="{{ printf "%.1f" $stat.BaseRate }}" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded p-1 text-sm text-center text-slate-200 focus:outline-none focus:border-indigo-500" onchange="recalculate()">
-                        </div>
-                    </div>
-                </div>
-                {{end}}
-            </div>
-        </section>
 
         <!-- 배너별 리포트 카드 렌더링 영역 -->
         <div class="space-y-12">
@@ -129,7 +100,7 @@
                                 <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-950 border border-slate-800 p-3 rounded-lg text-[11px] leading-relaxed text-slate-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 shadow-2xl z-30 font-normal">
                                     <p class="font-bold text-indigo-400 mb-1">💡 운 점수 계산 방식</p>
                                     <p class="mb-1.5"><code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-400 font-mono text-[10px]">운 점수 = (평균 기대 획득 횟수 / 나의 5성 평균 소요) * 100</code></p>
-                                    <p>실제 소요된 뽑기 횟수가 기대 평균(기본 55.5회)보다 적을수록 점수가 100% 초과로 상승하며 행운(Lucky) 상태를 나타냅니다.</p>
+                                    <p>실제 소요된 뽑기 횟수가 기대 평균보다 적을수록 점수가 100% 초과로 상승하며 행운(Lucky) 상태를 나타냅니다.</p>
                                     <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-950"></div>
                                 </div>
                             </div>
@@ -164,7 +135,7 @@
                             <span class="font-bold text-slate-200" id="expected-pulls-{{$index}}">{{printf "%.1f" $stat.ExpectedPulls}}회</span>
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
-                            <span class="text-slate-500 text-xs">실제 5성 확률 / 기준 확률</span>
+                            <span class="text-slate-500 text-xs">5★ 획득 비율 / 기본 확률</span>
                             <span class="font-bold text-slate-200" id="rate-compare-{{$index}}">
                                 {{if $stat.HasFiveStar}}
                                     {{$rateClass := "text-rose-400"}}
@@ -281,62 +252,5 @@
             {{end}}
         </div>
     </div>
-
-    <!-- 데이터 주입 및 분석 스크립트 -->
-    <script>
-        // Go로부터 인코딩된 원본 데이터 주입 받음
-        const rawGachaData = {{.StatsJSON}};
-        const thresholds = {{.LuckScoreThresholdsJSON}};
-
-        // 사용자가 설정을 변경할 때 호출되어 실시간 UI 값만 갱신하는 가벼운 함수
-        function recalculate() {
-            if (!rawGachaData || !Array.isArray(rawGachaData)) return;
-
-            rawGachaData.forEach((stat, index) => {
-                const typeCode = stat.GachaType;
-
-                // 동적으로 입력된 기대치 및 기본 확률 가져오기
-                const expectedAvgPulls = parseFloat(document.getElementById(`cfg-expected-${typeCode}`).value) || stat.ExpectedPulls || 55.5;
-                const baseRate = parseFloat(document.getElementById(`cfg-rate-${typeCode}`).value) || stat.BaseRate || 0.8;
-
-                // UI 엘리먼트 획득
-                const expectedPullsEl = document.getElementById(`expected-pulls-${index}`);
-                const rateCompareEl = document.getElementById(`rate-compare-${index}`);
-                const luckValEl = document.getElementById(`luck-val-${index}`);
-                const luckCardEl = document.getElementById(`luck-card-${index}`);
-
-                if (stat.HasFiveStar) {
-                    // 1. 기대 평균 소요 텍스트 갱신
-                    expectedPullsEl.innerText = `${expectedAvgPulls.toFixed(1)}회`;
-                    
-                    // 2. 기준 확률 비교 텍스트 및 스타일 갱신
-                    const rateTextClass = stat.ActualRate >= baseRate ? 'text-emerald-400' : 'text-rose-400';
-                    rateCompareEl.innerHTML = `<span class="${rateTextClass} font-extrabold">${stat.ActualRate.toFixed(2)}%</span> <span class="text-xs text-slate-500">/ ${baseRate.toFixed(1)}%</span>`;
-
-                    // 3. 운 점수 재계산 (기대치 / Go 백엔드에서 미리 계산된 나의 5성 평균 소요)
-                    const luckIndex = (expectedAvgPulls / stat.AvgPulls) * 100;
-                    
-                    // ascending array에서 조건에 맞는 마지막 항목을 탐색
-                    let matchedThreshold = thresholds[0] || {
-                        State: "-",
-                        ColorClass: "text-slate-400",
-                        BgClass: "bg-slate-900/40 border-slate-800/50"
-                    };
-                    for (const th of thresholds) {
-                        if (luckIndex >= th.MinScore) {
-                            matchedThreshold = th;
-                        }
-                    }
-
-                    luckValEl.innerHTML = `<span class="${matchedThreshold.ColorClass}">${matchedThreshold.State}</span> <span class="text-[10px] text-slate-500 block sm:inline font-normal">(${luckIndex.toFixed(0)}%)</span>`;
-                    luckCardEl.className = `p-4 rounded-xl border transition-all duration-300 ${matchedThreshold.BgClass}`;
-                } else {
-                    // 5성이 없는 경우 기준 확률 분모 텍스트만 간단히 변경
-                    expectedPullsEl.innerText = `${expectedAvgPulls.toFixed(1)}회`;
-                    rateCompareEl.innerHTML = `<span class="text-slate-500">0.00% / ${baseRate.toFixed(1)}%</span>`;
-                }
-            });
-        }
-    </script>
 </body>
 </html>

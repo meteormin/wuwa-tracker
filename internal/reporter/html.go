@@ -1,7 +1,6 @@
 package report
 
 import (
-	"encoding/json"
 	"html/template"
 	"os"
 
@@ -14,10 +13,8 @@ import (
 type HTMLExporter struct{}
 
 type htmlContext struct {
-	Stats                   []types.Stats
-	StatsJSON               string
-	LuckScoreThresholds     []types.LuckScoreThreshold
-	LuckScoreThresholdsJSON string
+	Stats               []types.Stats
+	LuckScoreThresholds []types.LuckScoreThreshold
 }
 
 // Export 는 stats 맵을 HTML 템플릿에 주입하여 보고서 파일을 생성합니다.
@@ -38,21 +35,9 @@ func (e *HTMLExporter) Export(stats []types.Stats, outputPath string) error {
 	}
 	defer func() { _ = f.Close() }()
 
-	jsonData, err := json.Marshal(stats)
-	if err != nil {
-		return err
-	}
-
-	thresholdsJSON, err := json.Marshal(cfg.LuckScoreThresholds)
-	if err != nil {
-		return err
-	}
-
 	ctx := htmlContext{
-		Stats:                   stats,
-		StatsJSON:               string(jsonData),
-		LuckScoreThresholds:     cfg.LuckScoreThresholds,
-		LuckScoreThresholdsJSON: string(thresholdsJSON),
+		Stats:               stats,
+		LuckScoreThresholds: cfg.LuckScoreThresholds,
 	}
 
 	return tmpl.ExecuteTemplate(f, "report.tmpl", ctx)
