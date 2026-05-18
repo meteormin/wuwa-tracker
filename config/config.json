@@ -1,0 +1,65 @@
+{
+    "StandardFiveStarResources": {
+        "Items": [
+            {
+                "Name": "앙코",
+                "ResourceID": 1203
+            },
+            {
+                "Name": "카카루",
+                "ResourceID": 1301
+            },
+            {
+                "Name": "감심",
+                "ResourceID": 1405
+            },
+            {
+                "Name": "능양",
+                "ResourceID": 1104
+            },
+            {
+                "Name": "벨리나",
+                "ResourceID": 1503
+            }
+        ]
+    },
+    "GachaTypes": {
+        "Items": [
+            {
+                "ID": 1,
+                "Key": "characterEvent",
+                "HasOffBannerDrop": true
+            },
+            {
+                "ID": 2,
+                "Key": "weaponEvent",
+                "HasOffBannerDrop": false
+            },
+            {
+                "ID": 3,
+                "Key": "characterPermanent",
+                "HasOffBannerDrop": false
+            },
+            {
+                "ID": 4,
+                "Key": "weaponPermanent",
+                "HasOffBannerDrop": false
+            },
+            {
+                "ID": 5,
+                "Key": "beginner",
+                "HasOffBannerDrop": true
+            },
+            {
+                "ID": 6,
+                "Key": "beginnerSelect",
+                "HasOffBannerDrop": false
+            },
+            {
+                "ID": 7,
+                "Key": "characterNovice",
+                "HasOffBannerDrop": false
+            }
+        ]
+    }
+}

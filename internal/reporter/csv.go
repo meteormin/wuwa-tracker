@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/meteormin/wuwa-tracker/internal/tracker"
+	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 // CSVExporter 는 통계 데이터를 CSV 포맷으로 저장합니다.
 type CSVExporter struct{}
 
 // Export 는 stats 맵을 순회하며 배너별 통계와 5성 내역을 평탄화하여 CSV에 씁니다.
-func (e *CSVExporter) Export(stats map[int]tracker.Stats, outputPath string) error {
+func (e *CSVExporter) Export(stats []types.Stats, outputPath string) error {
 	f, err := os.Create(outputPath)
 	if err != nil {
 		return err
@@ -23,31 +23,20 @@ func (e *CSVExporter) Export(stats map[int]tracker.Stats, outputPath string) err
 	defer writer.Flush()
 
 	// 헤더 작성
-	_ = writer.Write([]string{"GachaType", "TotalPulls", "CurrentPity5", "CurrentPity4", "5Star_Name", "5Star_Time", "5Star_Pity", "5Star_IsPickUp"})
+	_ = writer.Write([]string{"GachaType", "GachaName", "CardPoolType", "ResourceID", "QualityLevel", "ResourceType", "Name", "Count", "Time"})
 
-	for gachaType, stat := range stats {
-		if len(stat.FiveStars) == 0 {
+	for _, stat := range stats {
+		for _, rec := range stat.Records {
 			_ = writer.Write([]string{
-				fmt.Sprintf("%d", gachaType),
-				fmt.Sprintf("%d", stat.TotalPulls),
-				fmt.Sprintf("%d", stat.CurrentPity5),
-				fmt.Sprintf("%d", stat.CurrentPity4),
-				"", "", "", "",
-			})
-			continue
-		}
-
-		// 5성 획득 내역이 있는 경우 각각의 로우로 작성
-		for _, fs := range stat.FiveStars {
-			_ = writer.Write([]string{
-				fmt.Sprintf("%d", gachaType),
-				fmt.Sprintf("%d", stat.TotalPulls),
-				fmt.Sprintf("%d", stat.CurrentPity5),
-				fmt.Sprintf("%d", stat.CurrentPity4),
-				fs.Name,
-				fs.Time,
-				fmt.Sprintf("%d", fs.Pity),
-				fmt.Sprintf("%t", fs.IsPickUp),
+				fmt.Sprintf("%d", stat.GachaType),
+				stat.GachaName,
+				rec.CardPoolType,
+				fmt.Sprintf("%d", rec.ResourceID),
+				fmt.Sprintf("%d", rec.QualityLevel),
+				rec.ResourceType,
+				rec.Name,
+				fmt.Sprintf("%d", rec.Count),
+				rec.Time,
 			})
 		}
 	}

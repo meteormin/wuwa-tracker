@@ -3,7 +3,7 @@ package report
 import (
 	"fmt"
 
-	"github.com/meteormin/wuwa-tracker/internal/tracker"
+	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 type Format string
@@ -16,7 +16,7 @@ const (
 
 // Exporter 인터페이스는 다양한 포맷으로 통계 데이터를 출력하는 기능을 정의합니다.
 type Exporter interface {
-	Export(stats map[int]tracker.Stats, outputPath string) error
+	Export(stats []types.Stats, outputPath string) error
 }
 
 // GetExporter 는 주어진 포맷 이름에 따라 적절한 Exporter를 반환합니다.

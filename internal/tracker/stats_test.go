@@ -3,11 +3,23 @@ package tracker
 import (
 	"reflect"
 	"testing"
+
+	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 func TestCalculateStats(t *testing.T) {
+	calc := NewStatsCalculator(types.StandardFiveStarResources{
+		Items: []types.StandardFiveStarResource{
+			{Name: "앙코", ResourceID: 1101},
+			{Name: "기염", ResourceID: 1102},
+			{Name: "이타샤", ResourceID: 1103},
+			{Name: "능양", ResourceID: 1104},
+			{Name: "음림", ResourceID: 1105},
+		},
+	})
+
 	// API는 최신순(내림차순)으로 반환하므로, 배열 앞쪽에 있는 항목이 더 최근 항목입니다.
-	records := []Record{
+	records := []types.Record{
 		{Name: "음림", ResourceID: 1502, QualityLevel: 5, Time: "2024-06-10 10:00:00"},
 		{Name: "3성무기C", ResourceID: 21010013, QualityLevel: 3, Time: "2024-06-09 10:00:00"},
 		{Name: "모르테피", ResourceID: 1401, QualityLevel: 4, Time: "2024-06-08 10:00:00"},
@@ -24,8 +36,7 @@ func TestCalculateStats(t *testing.T) {
 	// 모르테피 (pity5=2, pity4=4) -> 4성 천장 초기화 (pity5=2, pity4=0)
 	// 3성무기C (pity5=3, pity4=1)
 	// 음림 (pity5=4, pity4=2) -> 5성 천장 초기화 (pity5=0, pity4=2)
-
-	stats := CalculateStats(1, records)
+	stats := calc.CalculateStats(records, types.GachaType{ID: 1, HasOffBannerDrop: true})
 
 	if stats.TotalPulls != 6 {
 		t.Errorf("Expected TotalPulls 6, got %d", stats.TotalPulls)
@@ -44,7 +55,7 @@ func TestCalculateStats(t *testing.T) {
 	}
 
 	// FiveStars는 최신순이 되도록 뒤집었으므로 음림이 첫번째여야 함
-	expectedFiveStars := []FiveStarRecord{
+	expectedFiveStars := []types.FiveStarRecord{
 		{Name: "음림", Time: "2024-06-10 10:00:00", Pity: 4, IsPickUp: true},
 		{Name: "앙코", Time: "2024-06-06 10:00:00", Pity: 2, IsPickUp: false},
 	}

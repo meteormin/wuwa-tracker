@@ -4,11 +4,17 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
+	"os"
 	"strings"
+	"time"
 
-	"github.com/meteormin/wuwa-tracker/internal/report"
+	"github.com/meteormin/wuwa-tracker/config"
+	report "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
+	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 func main() {
@@ -19,8 +25,8 @@ func main() {
 
 	flag.Parse()
 
-	targetURL := *urlFlag
-
+	// 터미널에서 복사/붙여넣기 시 자동으로 추가되는 백슬래시(\) 이스케이프 문자 제거
+	targetURL := strings.ReplaceAll(*urlFlag, "\\", "")
 	if targetURL == "" {
 		if *pathFlag == "" {
 			log.Fatalf("No URL or path provided. Please provide either -url or -path.")
@@ -37,14 +43,67 @@ func main() {
 
 	fmt.Println("Fetching gacha data. Please wait...")
 
-	recordsMap, err := tracker.FetchAll(targetURL)
-	if err != nil {
-		log.Fatalf("Failed to fetch data: %v", err)
+	// Extract lang from URL to fetch correct localized banner names
+	var lang string
+	if u, err := url.Parse(targetURL); err == nil {
+		if q := u.Query(); q.Get("lang") != "" {
+			lang = q.Get("lang")
+		} else if u.Fragment != "" { // Sometimes parameters are in the hash fragment
+			parts := strings.SplitN(u.Fragment, "?", 2)
+			if len(parts) == 2 {
+				q, _ := url.ParseQuery(parts[1])
+				if q.Get("lang") != "" {
+					lang = q.Get("lang")
+				}
+			}
+		}
 	}
 
-	statsMap := make(map[int]tracker.Stats)
-	for gachaType, records := range recordsMap {
-		statsMap[gachaType] = tracker.CalculateStats(gachaType, records)
+	if lang == "" {
+		envLang := os.Getenv("LC_ALL")
+		if envLang == "" {
+			envLang = os.Getenv("LANG")
+		}
+
+		if envLang != "" {
+			// 보통 "ko_KR.UTF-8" 형태이므로 앞의 "ko"만 추출
+			parts := strings.Split(envLang, "_")
+			lang = parts[0]
+		}
+
+		if lang == "" {
+			lang = "ko"
+		}
+	}
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Panicf("Failed to load config: %v", err)
+	}
+
+	client := tracker.NewClient(&http.Client{
+		Transport: &tracker.LoggingTransport{
+			Captured: http.DefaultTransport,
+		},
+		Timeout: 5 * time.Second,
+	})
+
+	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
+
+	localeData, err := client.FetchGachaLocale(lang)
+	if err != nil {
+		fmt.Printf("Warning: failed to fetch localized banner names: %v\n", err)
+	}
+
+	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
+
+	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
+	for _, gachaType := range cfg.GachaTypes.Items {
+		records, err := client.FetchRecords(targetURL, gachaType.ID)
+		if err != nil {
+			log.Fatalf("Failed to fetch data: %v", err)
+		}
+		statsList = append(statsList, calc.CalculateStats(records, gachaType))
 	}
 
 	var format report.Format
@@ -69,7 +128,7 @@ func main() {
 		finalOut = finalOut + "." + *formatFlag
 	}
 
-	if err := exporter.Export(statsMap, finalOut); err != nil {
+	if err := exporter.Export(statsList, finalOut); err != nil {
 		log.Fatalf("Failed to generate report: %v", err)
 	}
 
