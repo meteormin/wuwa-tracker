@@ -13,6 +13,7 @@ var FS embed.FS
 type Config struct {
 	StandardFiveStarResources types.StandardFiveStarResources
 	GachaTypes                types.GachaTypes
+	LuckScoreThresholds       []types.LuckScoreThreshold
 }
 
 func LoadConfig() (*Config, error) {

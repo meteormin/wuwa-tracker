@@ -54,6 +54,10 @@ type Stats struct {
 	ExpectedPulls float64
 	FiveStars     []FiveStarRecord
 	Records       []Record
+	AvgPulls      float64
+	ActualRate    float64
+	LuckScore     float64
+	HasFiveStar   bool
 }
 
 type GachaType struct {
@@ -98,4 +102,11 @@ func (s *StandardFiveStarResources) Contains(resourceId int) bool {
 		}
 	}
 	return false
+}
+
+type LuckScoreThreshold struct {
+	MinScore   float64
+	State      string
+	ColorClass string
+	BgClass    string
 }

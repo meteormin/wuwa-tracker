@@ -105,7 +105,21 @@
                         <p class="text-2xl font-extrabold text-purple-400">{{ $stat.CurrentPity4 }}<span class="text-xs text-slate-500 font-normal"> / 10</span></p>
                     </div>
                     <!-- 동적 계산 영역 (운 점수 등) -->
-                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50" id="luck-card-{{$index}}">
+                    {{$luckBgClass := "bg-slate-900/40 border-slate-800/50"}}
+                    {{$luckColorClass := "text-slate-400"}}
+                    {{$luckState := "-"}}
+                    
+                    {{if $stat.HasFiveStar}}
+                        {{range $.LuckScoreThresholds}}
+                            {{if ge $stat.LuckScore .MinScore}}
+                                {{$luckBgClass = .BgClass}}
+                                {{$luckColorClass = .ColorClass}}
+                                {{$luckState = .State}}
+                            {{end}}
+                        {{end}}
+                    {{end}}
+
+                    <div class="p-4 rounded-xl border transition-all duration-300 {{$luckBgClass}}" id="luck-card-{{$index}}">
                         <div class="flex items-center gap-1 mb-1">
                             <span class="text-xs text-slate-500">운 점수 (Luck Score)</span>
                             <div class="group relative cursor-pointer">
@@ -120,7 +134,14 @@
                                 </div>
                             </div>
                         </div>
-                        <p class="text-2xl font-extrabold text-slate-400" id="luck-val-{{$index}}">계산 중...</p>
+                        <p class="text-2xl font-extrabold text-slate-400" id="luck-val-{{$index}}">
+                            {{if $stat.HasFiveStar}}
+                                <span class="{{$luckColorClass}}">{{$luckState}}</span> 
+                                <span class="text-[10px] text-slate-500 block sm:inline font-normal">({{printf "%.0f" $stat.LuckScore}}%)</span>
+                            {{else}}
+                                <span class="text-slate-500 italic">판별 불가 (5성 없음)</span>
+                            {{end}}
+                        </p>
                     </div>
                 </div>
 
@@ -130,15 +151,31 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
                             <span class="text-slate-500 text-xs">나의 5성 평균 소요</span>
-                            <span class="font-bold text-slate-200" id="avg-pulls-{{$index}}">-</span>
+                            <span class="font-bold text-slate-200" id="avg-pulls-{{$index}}">
+                                {{if $stat.HasFiveStar}}
+                                    <span class="text-amber-400 font-extrabold">{{printf "%.1f" $stat.AvgPulls}}</span>회 <span class="text-xs text-slate-500">(누적 {{len $stat.FiveStars}}회)</span>
+                                {{else}}
+                                    <span class="text-slate-500 italic">획득 이력 없음</span>
+                                {{end}}
+                            </span>
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
                             <span class="text-slate-500 text-xs">기대 평균 소요 (기준)</span>
-                            <span class="font-bold text-slate-200" id="expected-pulls-{{$index}}">-</span>
+                            <span class="font-bold text-slate-200" id="expected-pulls-{{$index}}">{{printf "%.1f" $stat.ExpectedPulls}}회</span>
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
                             <span class="text-slate-500 text-xs">실제 5성 확률 / 기준 확률</span>
-                            <span class="font-bold text-slate-200" id="rate-compare-{{$index}}">-</span>
+                            <span class="font-bold text-slate-200" id="rate-compare-{{$index}}">
+                                {{if $stat.HasFiveStar}}
+                                    {{$rateClass := "text-rose-400"}}
+                                    {{if ge $stat.ActualRate $stat.BaseRate}}
+                                        {{$rateClass = "text-emerald-400"}}
+                                    {{end}}
+                                    <span class="{{$rateClass}} font-extrabold">{{printf "%.2f" $stat.ActualRate}}%</span> <span class="text-xs text-slate-500">/ {{printf "%.1f" $stat.BaseRate}}%</span>
+                                {{else}}
+                                    <span class="text-slate-500">0.00% / {{printf "%.1f" $stat.BaseRate}}%</span>
+                                {{end}}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -249,94 +286,57 @@
     <script>
         // Go로부터 인코딩된 원본 데이터 주입 받음
         const rawGachaData = {{.StatsJSON}};
+        const thresholds = {{.LuckScoreThresholdsJSON}};
 
-        // 계산 및 렌더링 동작 수행
+        // 사용자가 설정을 변경할 때 호출되어 실시간 UI 값만 갱신하는 가벼운 함수
         function recalculate() {
             if (!rawGachaData || !Array.isArray(rawGachaData)) return;
 
             rawGachaData.forEach((stat, index) => {
-                const totalPulls = stat.TotalPulls || 0;
-                const fiveStars = stat.FiveStars || [];
-                const fiveStarCount = fiveStars.length;
                 const typeCode = stat.GachaType;
 
                 // 동적으로 입력된 기대치 및 기본 확률 가져오기
                 const expectedAvgPulls = parseFloat(document.getElementById(`cfg-expected-${typeCode}`).value) || stat.ExpectedPulls || 55.5;
                 const baseRate = parseFloat(document.getElementById(`cfg-rate-${typeCode}`).value) || stat.BaseRate || 0.8;
 
-                // 1. 나의 5성 평균 소요 계산
-                let actualAvgPulls = 0;
-                if (fiveStarCount > 0) {
-                    // 5성 기록들의 pity 총합으로 평균 계산
-                    const sumPity = fiveStars.reduce((acc, curr) => acc + (curr.Pity || 0), 0);
-                    actualAvgPulls = sumPity / fiveStarCount;
-                }
-
-                // 2. 나의 실제 5성 확률 계산
-                const actualRate = totalPulls > 0 ? (fiveStarCount / totalPulls) * 100 : 0;
-
-                // UI 바인딩
-                const avgPullsEl = document.getElementById(`avg-pulls-${index}`);
+                // UI 엘리먼트 획득
                 const expectedPullsEl = document.getElementById(`expected-pulls-${index}`);
                 const rateCompareEl = document.getElementById(`rate-compare-${index}`);
                 const luckValEl = document.getElementById(`luck-val-${index}`);
                 const luckCardEl = document.getElementById(`luck-card-${index}`);
 
-                if (fiveStarCount > 0) {
-                    avgPullsEl.innerHTML = `<span class="text-amber-400 font-extrabold">${actualAvgPulls.toFixed(1)}</span>회 <span class="text-xs text-slate-500">(누적 ${fiveStarCount}회)</span>`;
+                if (stat.HasFiveStar) {
+                    // 1. 기대 평균 소요 텍스트 갱신
                     expectedPullsEl.innerText = `${expectedAvgPulls.toFixed(1)}회`;
                     
-                    const rateTextClass = actualRate >= baseRate ? 'text-emerald-400' : 'text-rose-400';
-                    rateCompareEl.innerHTML = `<span class="${rateTextClass} font-extrabold">${actualRate.toFixed(2)}%</span> <span class="text-xs text-slate-500">/ ${baseRate.toFixed(1)}%</span>`;
+                    // 2. 기준 확률 비교 텍스트 및 스타일 갱신
+                    const rateTextClass = stat.ActualRate >= baseRate ? 'text-emerald-400' : 'text-rose-400';
+                    rateCompareEl.innerHTML = `<span class="${rateTextClass} font-extrabold">${stat.ActualRate.toFixed(2)}%</span> <span class="text-xs text-slate-500">/ ${baseRate.toFixed(1)}%</span>`;
 
-                    // 운 점수 계산 (기대치와의 상대 편차 계산)
-                    // 실제 소요가 기대 소요보다 적을수록 운이 좋음 (Lucky)
-                    const luckIndex = (expectedAvgPulls / actualAvgPulls) * 100;
-                    let luckState = "";
-                    let luckColorClass = "";
-                    let luckBgClass = "";
-
-                    if (luckIndex > 115) {
-                        luckState = "비정상적인 행운! 🔥";
-                        luckColorClass = "text-emerald-400 animate-pulse";
-                        luckBgClass = "bg-emerald-500/10 border-emerald-500/30";
-                    } else if (luckIndex > 102) {
-                        luckState = "운이 좋음! ✨";
-                        luckColorClass = "text-emerald-400";
-                        luckBgClass = "bg-emerald-500/5 border-emerald-500/20";
-                    } else if (luckIndex >= 95) {
-                        luckState = "평균 수렴 ⚖️";
-                        luckColorClass = "text-slate-300";
-                        luckBgClass = "bg-slate-900/40 border-slate-800/50";
-                    } else if (luckIndex >= 85) {
-                        luckState = "운이 조금 나쁨 💧";
-                        luckColorClass = "text-rose-300";
-                        luckBgClass = "bg-rose-500/5 border-rose-500/10";
-                    } else {
-                        luckState = "극악의 억까 상태... 💀";
-                        luckColorClass = "text-rose-500 font-extrabold";
-                        luckBgClass = "bg-rose-500/10 border-rose-500/30";
+                    // 3. 운 점수 재계산 (기대치 / Go 백엔드에서 미리 계산된 나의 5성 평균 소요)
+                    const luckIndex = (expectedAvgPulls / stat.AvgPulls) * 100;
+                    
+                    // ascending array에서 조건에 맞는 마지막 항목을 탐색
+                    let matchedThreshold = thresholds[0] || {
+                        State: "-",
+                        ColorClass: "text-slate-400",
+                        BgClass: "bg-slate-900/40 border-slate-800/50"
+                    };
+                    for (const th of thresholds) {
+                        if (luckIndex >= th.MinScore) {
+                            matchedThreshold = th;
+                        }
                     }
 
-                    luckValEl.innerHTML = `<span class="${luckColorClass}">${luckState}</span> <span class="text-[10px] text-slate-500 block sm:inline font-normal">(${luckIndex.toFixed(0)}%)</span>`;
-                    
-                    // Card 스타일 업데이트
-                    luckCardEl.className = `p-4 rounded-xl border transition-all duration-300 ${luckBgClass}`;
+                    luckValEl.innerHTML = `<span class="${matchedThreshold.ColorClass}">${matchedThreshold.State}</span> <span class="text-[10px] text-slate-500 block sm:inline font-normal">(${luckIndex.toFixed(0)}%)</span>`;
+                    luckCardEl.className = `p-4 rounded-xl border transition-all duration-300 ${matchedThreshold.BgClass}`;
                 } else {
-                    // 5성이 아직 없는 경우
-                    avgPullsEl.innerHTML = `<span class="text-slate-500 italic">획득 이력 없음</span>`;
+                    // 5성이 없는 경우 기준 확률 분모 텍스트만 간단히 변경
                     expectedPullsEl.innerText = `${expectedAvgPulls.toFixed(1)}회`;
                     rateCompareEl.innerHTML = `<span class="text-slate-500">0.00% / ${baseRate.toFixed(1)}%</span>`;
-                    luckValEl.innerHTML = `<span class="text-slate-500 italic">판별 불가 (5성 없음)</span>`;
-                    luckCardEl.className = "bg-slate-900/40 p-4 rounded-xl border border-slate-800/50";
                 }
             });
         }
-
-        // 초기 계산 및 자동 바인딩
-        window.addEventListener('DOMContentLoaded', () => {
-            recalculate();
-        });
     </script>
 </body>
 </html>

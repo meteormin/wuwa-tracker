@@ -86,5 +86,5 @@ func main() {
 		log.Fatalf("Failed to export report: %v", err)
 	}
 
-	fmt.Printf("Report successfully generated from logs! File: %s\n", finalOut)
+	fmt.Printf("Report successfully generated! File: %s\n", finalOut)
 }

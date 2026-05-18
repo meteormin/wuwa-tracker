@@ -175,18 +175,17 @@ type LoggingTransport struct {
 }
 
 func (l *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	log.Printf("[REQ] %s %s\n", req.Method, req.URL.String())
-
 	startTime := time.Now()
 
 	resp, err := l.Captured.RoundTrip(req)
 	if err != nil {
+		log.Printf("[Client] %s %s - Error: %v\n", req.Method, req.URL.String(), err)
 		return nil, err
 	}
 
 	duration := time.Since(startTime)
 
-	log.Printf("[RES] %s %s - %s\n", req.Method, req.URL.String(), duration)
+	log.Printf("[Client] %s %s - %d - %s\n", req.Method, req.URL.String(), resp.StatusCode, duration)
 
 	return resp, nil
 }

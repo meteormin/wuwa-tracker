@@ -66,6 +66,28 @@ func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types
 	// 최신 획득 내역이 배열의 앞쪽에 오도록 FiveStars 를 뒤집습니다.
 	reverseFiveStars(stats.FiveStars)
 
+	// 운 점수(Luck Score) 및 관련 통계 지표를 Go 백엔드 측에서 직접 계산합니다.
+	fiveStarCount := len(stats.FiveStars)
+	if fiveStarCount > 0 {
+		stats.HasFiveStar = true
+		sumPity := 0
+		for _, fs := range stats.FiveStars {
+			sumPity += fs.Pity
+		}
+		stats.AvgPulls = float64(sumPity) / float64(fiveStarCount)
+		if stats.TotalPulls > 0 {
+			stats.ActualRate = (float64(fiveStarCount) / float64(stats.TotalPulls)) * 100.0
+		}
+		if stats.AvgPulls > 0 {
+			stats.LuckScore = (stats.ExpectedPulls / stats.AvgPulls) * 100.0
+		}
+	} else {
+		stats.HasFiveStar = false
+		stats.AvgPulls = 0
+		stats.ActualRate = 0
+		stats.LuckScore = 0
+	}
+
 	return stats
 }
 

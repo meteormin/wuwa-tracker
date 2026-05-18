@@ -75,5 +75,37 @@
                 "ExpectedPulls": 55.5
             }
         ]
-    }
+    },
+    "LuckScoreThresholds": [
+        {
+            "MinScore": 0.0,
+            "State": "극악의 억까 상태... 💀",
+            "ColorClass": "text-rose-500 font-extrabold",
+            "BgClass": "bg-rose-500/10 border-rose-500/30"
+        },
+        {
+            "MinScore": 85.0,
+            "State": "운이 조금 나쁨 💧",
+            "ColorClass": "text-rose-300",
+            "BgClass": "bg-rose-500/5 border-rose-500/10"
+        },
+        {
+            "MinScore": 95.0,
+            "State": "평균 수렴 ⚖️",
+            "ColorClass": "text-slate-300",
+            "BgClass": "bg-slate-900/40 border-slate-800/50"
+        },
+        {
+            "MinScore": 102.0,
+            "State": "운이 좋음! ✨",
+            "ColorClass": "text-emerald-400",
+            "BgClass": "bg-emerald-500/5 border-emerald-500/20"
+        },
+        {
+            "MinScore": 115.0,
+            "State": "비정상적인 행운! 🔥",
+            "ColorClass": "text-emerald-400 animate-pulse",
+            "BgClass": "bg-emerald-500/10 border-emerald-500/30"
+        }
+    ]
 }
