@@ -79,7 +79,18 @@ func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types
 			stats.ActualRate = (float64(fiveStarCount) / float64(stats.TotalPulls)) * 100.0
 		}
 		if stats.AvgPulls > 0 {
-			stats.LuckScore = (stats.ExpectedPulls / stats.AvgPulls) * 100.0
+			// 운 점수 계산을 위해 보정된 가중 풀 수 합산(weightedSumPity)을 구합니다.
+			// 픽뚫(IsPickUp == false)인 경우 2.0배의 패널티 가중치를 부여합니다.
+			weightedSumPity := 0.0
+			for _, fs := range stats.FiveStars {
+				if gachaType.HasOffBannerDrop && !fs.IsPickUp {
+					weightedSumPity += float64(fs.Pity) * 2.0
+				} else {
+					weightedSumPity += float64(fs.Pity)
+				}
+			}
+			weightedAvgPulls := weightedSumPity / float64(fiveStarCount)
+			stats.LuckScore = (stats.ExpectedPulls / weightedAvgPulls) * 100.0
 		}
 	} else {
 		stats.HasFiveStar = false

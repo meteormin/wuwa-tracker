@@ -36,7 +36,7 @@ func TestCalculateStats(t *testing.T) {
 	// 모르테피 (pity5=2, pity4=4) -> 4성 천장 초기화 (pity5=2, pity4=0)
 	// 3성무기C (pity5=3, pity4=1)
 	// 음림 (pity5=4, pity4=2) -> 5성 천장 초기화 (pity5=0, pity4=2)
-	stats := calc.CalculateStats(records, types.GachaType{ID: 1, HasOffBannerDrop: true})
+	stats := calc.CalculateStats(records, types.GachaType{ID: 1, HasOffBannerDrop: true, ExpectedPulls: 55.5})
 
 	if stats.TotalPulls != 6 {
 		t.Errorf("Expected TotalPulls 6, got %d", stats.TotalPulls)
@@ -52,6 +52,18 @@ func TestCalculateStats(t *testing.T) {
 
 	if len(stats.FiveStars) != 2 {
 		t.Errorf("Expected 2 FiveStars, got %d", len(stats.FiveStars))
+	}
+
+	// AvgPulls는 픽뚫 가중치 왜곡 없이 실제 평균 풀 수(3.0)로 유지되어야 함
+	if stats.AvgPulls != 3.0 {
+		t.Errorf("Expected AvgPulls 3.0, got %f", stats.AvgPulls)
+	}
+
+	// 픽뚫(앙코: 2스택)에 2배 가중치를 주어 보정된 평균 풀 수는 4.0이 됨
+	// 따라서 운 점수는 (55.5 / 4.0) * 100 = 1387.5
+	expectedLuckScore := 1387.5
+	if stats.LuckScore != expectedLuckScore {
+		t.Errorf("Expected LuckScore %f, got %f", expectedLuckScore, stats.LuckScore)
 	}
 
 	// FiveStars는 최신순이 되도록 뒤집었으므로 음림이 첫번째여야 함
