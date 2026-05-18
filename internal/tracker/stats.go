@@ -18,11 +18,13 @@ func NewStatsCalculator(standardFiveStarResources types.StandardFiveStarResource
 // 입력 배열은 API에서 가져온 기본 순서(최신순)라고 가정합니다.
 func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types.GachaType) types.Stats {
 	stats := types.Stats{
-		GachaType:  gachaType.ID,
-		GachaName:  gachaType.Name,
-		TotalPulls: len(records),
-		FiveStars:  []types.FiveStarRecord{},
-		Records:    []types.Record{},
+		GachaType:     gachaType.ID,
+		GachaName:     gachaType.Name,
+		TotalPulls:    len(records),
+		BaseRate:      gachaType.BaseRate,
+		ExpectedPulls: gachaType.ExpectedPulls,
+		FiveStars:     []types.FiveStarRecord{},
+		Records:       []types.Record{},
 	}
 
 	pity5 := 0

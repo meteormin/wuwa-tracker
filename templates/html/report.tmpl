@@ -54,7 +54,7 @@
                 <h2 class="text-lg font-bold text-slate-200">확률 기반 평균 기대 지표 설정</h2>
             </div>
             <p class="text-sm text-slate-400 mb-6 leading-relaxed">
-                각 배너별 5성 획득에 소요되는 평균 기대 뽑기 횟수 및 기본 확률을 직접 수정하여 운 지수(Luck Index)를 재계산할 수 있습니다.
+                각 배너별 5성 획득에 소요되는 평균 기대 뽑기 횟수 및 기본 확률을 직접 수정하여 운 점수(Luck Score)를 재계산할 수 있습니다.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {{range $index, $stat := .Stats}}
@@ -63,11 +63,11 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <span class="text-[10px] text-slate-500">기대 횟수</span>
-                            <input type="number" id="cfg-expected-{{ $stat.GachaType }}" value="{{ if eq $stat.GachaType 5 }}35.0{{ else }}55.5{{ end }}" step="0.5" class="w-full bg-slate-900 border border-slate-800 rounded p-1 text-sm text-center text-slate-200 focus:outline-none focus:border-indigo-500" onchange="recalculate()">
+                            <input type="number" id="cfg-expected-{{ $stat.GachaType }}" value="{{ printf "%.1f" $stat.ExpectedPulls }}" step="0.5" class="w-full bg-slate-900 border border-slate-800 rounded p-1 text-sm text-center text-slate-200 focus:outline-none focus:border-indigo-500" onchange="recalculate()">
                         </div>
                         <div>
                             <span class="text-[10px] text-slate-500">기본 확률 (%)</span>
-                            <input type="number" id="cfg-rate-{{ $stat.GachaType }}" value="0.8" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded p-1 text-sm text-center text-slate-200 focus:outline-none focus:border-indigo-500" onchange="recalculate()">
+                            <input type="number" id="cfg-rate-{{ $stat.GachaType }}" value="{{ printf "%.1f" $stat.BaseRate }}" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded p-1 text-sm text-center text-slate-200 focus:outline-none focus:border-indigo-500" onchange="recalculate()">
                         </div>
                     </div>
                 </div>
@@ -104,9 +104,22 @@
                         <p class="text-xs text-slate-500 mb-1">현재 4성 천장 스택</p>
                         <p class="text-2xl font-extrabold text-purple-400">{{ $stat.CurrentPity4 }}<span class="text-xs text-slate-500 font-normal"> / 10</span></p>
                     </div>
-                    <!-- 동적 계산 영역 (운 지수 등) -->
+                    <!-- 동적 계산 영역 (운 점수 등) -->
                     <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50" id="luck-card-{{$index}}">
-                        <p class="text-xs text-slate-500 mb-1">운 지수 (Luck Index)</p>
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="text-xs text-slate-500">운 점수 (Luck Score)</span>
+                            <div class="group relative cursor-pointer">
+                                <svg class="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-950 border border-slate-800 p-3 rounded-lg text-[11px] leading-relaxed text-slate-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 shadow-2xl z-30 font-normal">
+                                    <p class="font-bold text-indigo-400 mb-1">💡 운 점수 계산 방식</p>
+                                    <p class="mb-1.5"><code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-400 font-mono text-[10px]">운 점수 = (평균 기대 획득 횟수 / 나의 5성 평균 소요) * 100</code></p>
+                                    <p>실제 소요된 뽑기 횟수가 기대 평균(기본 55.5회)보다 적을수록 점수가 100% 초과로 상승하며 행운(Lucky) 상태를 나타냅니다.</p>
+                                    <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-950"></div>
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-2xl font-extrabold text-slate-400" id="luck-val-{{$index}}">계산 중...</p>
                     </div>
                 </div>
@@ -248,8 +261,8 @@
                 const typeCode = stat.GachaType;
 
                 // 동적으로 입력된 기대치 및 기본 확률 가져오기
-                const expectedAvgPulls = parseFloat(document.getElementById(`cfg-expected-${typeCode}`).value) || 55.5;
-                const baseRate = parseFloat(document.getElementById(`cfg-rate-${typeCode}`).value) || 0.8;
+                const expectedAvgPulls = parseFloat(document.getElementById(`cfg-expected-${typeCode}`).value) || stat.ExpectedPulls || 55.5;
+                const baseRate = parseFloat(document.getElementById(`cfg-rate-${typeCode}`).value) || stat.BaseRate || 0.8;
 
                 // 1. 나의 5성 평균 소요 계산
                 let actualAvgPulls = 0;
@@ -276,7 +289,7 @@
                     const rateTextClass = actualRate >= baseRate ? 'text-emerald-400' : 'text-rose-400';
                     rateCompareEl.innerHTML = `<span class="${rateTextClass} font-extrabold">${actualRate.toFixed(2)}%</span> <span class="text-xs text-slate-500">/ ${baseRate.toFixed(1)}%</span>`;
 
-                    // 운 지수 계산 (기대치와의 상대 편차 계산)
+                    // 운 점수 계산 (기대치와의 상대 편차 계산)
                     // 실제 소요가 기대 소요보다 적을수록 운이 좋음 (Lucky)
                     const luckIndex = (expectedAvgPulls / actualAvgPulls) * 100;
                     let luckState = "";

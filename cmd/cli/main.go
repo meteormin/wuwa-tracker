@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -60,20 +59,7 @@ func main() {
 	}
 
 	if lang == "" {
-		envLang := os.Getenv("LC_ALL")
-		if envLang == "" {
-			envLang = os.Getenv("LANG")
-		}
-
-		if envLang != "" {
-			// 보통 "ko_KR.UTF-8" 형태이므로 앞의 "ko"만 추출
-			parts := strings.Split(envLang, "_")
-			lang = parts[0]
-		}
-
-		if lang == "" {
-			lang = "ko"
-		}
+		lang = scanner.GetSystemLocale()
 	}
 
 	cfg, err := config.LoadConfig()
@@ -92,7 +78,13 @@ func main() {
 
 	localeData, err := client.FetchGachaLocale(lang)
 	if err != nil {
-		fmt.Printf("Warning: failed to fetch localized banner names: %v\n", err)
+		fmt.Printf("Warning: failed to fetch localized banner names for %q: %v. Falling back to 'ko'.\n", lang, err)
+		if lang != "ko" {
+			localeData, err = client.FetchGachaLocale("ko")
+			if err != nil {
+				fmt.Printf("Warning: failed to fetch fallback 'ko' banner names: %v\n", err)
+			}
+		}
 	}
 
 	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)

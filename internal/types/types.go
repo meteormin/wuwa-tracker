@@ -45,13 +45,15 @@ type FiveStarRecord struct {
 
 // Stats 는 특정 가챠 배너에 대한 통계 지표입니다.
 type Stats struct {
-	GachaType    int
-	GachaName    string
-	TotalPulls   int
-	CurrentPity5 int
-	CurrentPity4 int
-	FiveStars    []FiveStarRecord
-	Records      []Record
+	GachaType     int
+	GachaName     string
+	TotalPulls    int
+	CurrentPity5  int
+	CurrentPity4  int
+	BaseRate      float64
+	ExpectedPulls float64
+	FiveStars     []FiveStarRecord
+	Records       []Record
 }
 
 type GachaType struct {
@@ -62,6 +64,8 @@ type GachaType struct {
 	// HasOffBannerDrop : True이면 5성 천장 초기화 여부를 판단해야함 (이중천장 대상)
 	HasOffBannerDrop bool
 	Name             string
+	BaseRate         float64
+	ExpectedPulls    float64
 }
 
 type GachaTypes struct {
