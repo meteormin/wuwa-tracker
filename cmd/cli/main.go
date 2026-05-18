@@ -21,6 +21,7 @@ func main() {
 	pathFlag := flag.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	formatFlag := flag.String("format", "html", "Report format (json, csv, html)")
 	outFlag := flag.String("out", "report", "Output file path (without extension)")
+	debugFlag := flag.Bool("debug", false, "Enable debug logging")
 
 	flag.Parse()
 
@@ -67,12 +68,20 @@ func main() {
 		log.Panicf("Failed to load config: %v", err)
 	}
 
-	client := tracker.NewClient(&http.Client{
-		Transport: &tracker.LoggingTransport{
-			Captured: http.DefaultTransport,
-		},
-		Timeout: 5 * time.Second,
-	})
+	var client *tracker.Client
+	if *debugFlag {
+		client = tracker.NewClient(&http.Client{
+			Transport: &tracker.LoggingTransport{
+				Captured: http.DefaultTransport,
+			},
+			Timeout: 5 * time.Second,
+		})
+		client.EnableDebugLog()
+	} else {
+		client = tracker.NewClient(&http.Client{
+			Timeout: 5 * time.Second,
+		})
+	}
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
 
@@ -90,9 +99,10 @@ func main() {
 	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
 
 	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
+	recordsMap := client.FetchAllRecords(targetURL, cfg.GachaTypes.Items)
 	for _, gachaType := range cfg.GachaTypes.Items {
-		records, err := client.FetchRecords(targetURL, gachaType.ID)
-		if err != nil {
+		records, ok := recordsMap[gachaType.Key]
+		if !ok {
 			log.Fatalf("Failed to fetch data: %v", err)
 		}
 		statsList = append(statsList, calc.CalculateStats(records, gachaType))

@@ -1,9 +1,10 @@
-.PHONY: all build build-cli build-server build-all clean test lint fmt run run-cli run-server audit
+.PHONY: all build build-cli build-server build-reporter build-all clean test lint fmt run run-cli run-server audit
 
 APP_NAME=wuwa-tracker
 BIN_DIR=bin
 CLI_DIR=./cmd/cli
 SERVER_DIR=./cmd/server
+REPORTER_DIR=./tools/reporter
 GOVERSION ?= $(shell go env GOVERSION)
 
 all: clean fmt lint test build-cli
@@ -29,7 +30,13 @@ build-server:
 	@go build -o $(BIN_DIR)/$(APP_NAME)-server $(SERVER_DIR)
 	@echo "Server Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)-server"
 
-build-all: build-cli build-server
+build-reporter:
+	@echo "Building Reporter Tool (wuwa-reporter)..."
+	@mkdir -p $(BIN_DIR)
+	@go build -o $(BIN_DIR)/wuwa-reporter $(REPORTER_DIR)
+	@echo "Reporter Build successful! Executable is located at $(BIN_DIR)/wuwa-reporter"
+
+build-all: build-cli build-server build-reporter
 
 clean:
 	@echo "Cleaning up..."
