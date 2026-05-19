@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -24,8 +23,7 @@ const (
 var ErrMissingRequiredParams = errors.New("missing required parameters in url")
 
 type Client struct {
-	core            *http.Client
-	enabledDebugLog bool
+	core *http.Client
 }
 
 // NewClient 는 Client 를 생성합니다.
@@ -33,14 +31,6 @@ func NewClient(client *http.Client) *Client {
 	return &Client{
 		core: client,
 	}
-}
-
-func (c *Client) EnableDebugLog() {
-	c.enabledDebugLog = true
-}
-
-func (c *Client) DisableDebugLog() {
-	c.enabledDebugLog = false
 }
 
 // FetchRecords 는 지정된 배너(gachaType)의 가챠 기록을 가져옵니다.
@@ -140,8 +130,6 @@ func (c *Client) FetchGachaLocale(lang string) (types.LocaleData, error) {
 }
 
 func (c *Client) FetchAllRecords(urlStr string, gachaTypes []types.GachaType) map[string][]types.Record {
-	// FetchAllRecords 호출 시점의 시간 값을 기준으로 fetchTimestamp를 설정합니다.
-	fetchTimestamp := time.Now().Format("20060102150405")
 	result := make(map[string][]types.Record)
 	for _, gachaType := range gachaTypes {
 		records, err := c.FetchRecords(urlStr, gachaType.ID)
@@ -150,21 +138,6 @@ func (c *Client) FetchAllRecords(urlStr string, gachaTypes []types.GachaType) ma
 			continue
 		}
 		result[gachaType.Key] = records
-	}
-
-	if len(result) > 0 && c.enabledDebugLog {
-		if err := os.MkdirAll("logs", 0o755); err != nil {
-			log.Printf("Warning: failed to create logs directory: %v\n", err)
-		} else {
-			filePath := fmt.Sprintf("logs/%s.json", fetchTimestamp)
-			b, err := json.MarshalIndent(result, "", "    ")
-			if err != nil {
-				log.Printf("Warning: failed to marshal records: %v\n", err)
-			}
-			if err := os.WriteFile(filePath, b, 0o644); err != nil {
-				log.Printf("Warning: failed to save records JSON to %s: %v\n", filePath, err)
-			}
-		}
 	}
 
 	return result

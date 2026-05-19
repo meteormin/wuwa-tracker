@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -76,7 +78,6 @@ func main() {
 			},
 			Timeout: 5 * time.Second,
 		})
-		client.EnableDebugLog()
 	} else {
 		client = tracker.NewClient(&http.Client{
 			Timeout: 5 * time.Second,
@@ -99,7 +100,24 @@ func main() {
 	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
 
 	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
+
 	recordsMap := client.FetchAllRecords(targetURL, cfg.GachaTypes.Items)
+	if len(recordsMap) > 0 && *debugFlag {
+		timestamp := time.Now().Format("20060102150405")
+		if err := os.MkdirAll("logs", 0o755); err != nil {
+			log.Printf("Warning: failed to create logs directory: %v\n", err)
+		} else {
+			filePath := fmt.Sprintf("logs/%s.json", timestamp)
+			b, err := json.MarshalIndent(recordsMap, "", "    ")
+			if err != nil {
+				log.Printf("Warning: failed to marshal records: %v\n", err)
+			}
+			if err := os.WriteFile(filePath, b, 0o644); err != nil {
+				log.Printf("Warning: failed to save records JSON to %s: %v\n", filePath, err)
+			}
+		}
+	}
+
 	for _, gachaType := range cfg.GachaTypes.Items {
 		records, ok := recordsMap[gachaType.Key]
 		if !ok {

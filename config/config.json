@@ -1,111 +1,111 @@
 {
-    "StandardFiveStarResources": {
-        "Items": [
+    "standardFiveStarResources": {
+        "items": [
             {
-                "Name": "앙코",
-                "ResourceID": 1203
+                "name": "앙코",
+                "resourceId": 1203
             },
             {
-                "Name": "카카루",
-                "ResourceID": 1301
+                "name": "카카루",
+                "resourceId": 1301
             },
             {
-                "Name": "감심",
-                "ResourceID": 1405
+                "name": "감심",
+                "resourceId": 1405
             },
             {
-                "Name": "능양",
-                "ResourceID": 1104
+                "name": "능양",
+                "resourceId": 1104
             },
             {
-                "Name": "벨리나",
-                "ResourceID": 1503
+                "name": "벨리나",
+                "resourceId": 1503
             }
         ]
     },
-    "GachaTypes": {
-        "Items": [
+    "gachaTypes": {
+        "items": [
             {
-                "ID": 1,
-                "Key": "characterEvent",
-                "HasOffBannerDrop": true,
-                "BaseRate": 0.8,
-                "ExpectedPulls": 55.5
+                "id": 1,
+                "key": "characterEvent",
+                "hasOffBannerDrop": true,
+                "baseRate": 0.8,
+                "expectedPulls": 55.5
             },
             {
-                "ID": 2,
-                "Key": "weaponEvent",
-                "HasOffBannerDrop": false,
-                "BaseRate": 0.8,
-                "ExpectedPulls": 55.5
+                "id": 2,
+                "key": "weaponEvent",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55.5
             },
             {
-                "ID": 3,
-                "Key": "characterPermanent",
-                "HasOffBannerDrop": false,
-                "BaseRate": 0.8,
-                "ExpectedPulls": 55.5
+                "id": 3,
+                "key": "characterPermanent",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55.5
             },
             {
-                "ID": 4,
-                "Key": "weaponPermanent",
-                "HasOffBannerDrop": false,
-                "BaseRate": 0.8,
-                "ExpectedPulls": 55.5
+                "id": 4,
+                "key": "weaponPermanent",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55.5
             },
             {
-                "ID": 5,
-                "Key": "beginner",
-                "HasOffBannerDrop": true,
-                "BaseRate": 0.8,
-                "ExpectedPulls": 35.0
+                "id": 5,
+                "key": "beginner",
+                "hasOffBannerDrop": true,
+                "baseRate": 0.8,
+                "expectedPulls": 35.0
             },
             {
-                "ID": 6,
-                "Key": "beginnerSelect",
-                "HasOffBannerDrop": false,
-                "BaseRate": 0.8,
-                "ExpectedPulls": 55.5
+                "id": 6,
+                "key": "beginnerSelect",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55.5
             },
             {
-                "ID": 7,
-                "Key": "characterNovice",
-                "HasOffBannerDrop": false,
-                "BaseRate": 0.8,
-                "ExpectedPulls": 55.5
+                "id": 7,
+                "key": "characterNovice",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55.5
             }
         ]
     },
-    "LuckScoreThresholds": [
+    "luckScoreThresholds": [
         {
-            "MinScore": 0.0,
-            "State": "극악의 억까 상태... 💀",
-            "ColorClass": "text-rose-500 font-extrabold",
-            "BgClass": "bg-rose-500/10 border-rose-500/30"
+            "minScore": 0.0,
+            "state": "극악의 억까 상태... 💀",
+            "colorClass": "text-rose-500 font-extrabold",
+            "bgClass": "bg-rose-500/10 border-rose-500/30"
         },
         {
-            "MinScore": 85.0,
-            "State": "운이 조금 나쁨 💧",
-            "ColorClass": "text-rose-300",
-            "BgClass": "bg-rose-500/5 border-rose-500/10"
+            "minScore": 85.0,
+            "state": "운이 조금 나쁨 💧",
+            "colorClass": "text-rose-300",
+            "bgClass": "bg-rose-500/5 border-rose-500/10"
         },
         {
-            "MinScore": 95.0,
-            "State": "평균 수렴 ⚖️",
-            "ColorClass": "text-slate-300",
-            "BgClass": "bg-slate-900/40 border-slate-800/50"
+            "minScore": 95.0,
+            "state": "평균 수렴 ⚖️",
+            "colorClass": "text-slate-300",
+            "bgClass": "bg-slate-900/40 border-slate-800/50"
         },
         {
-            "MinScore": 102.0,
-            "State": "운이 좋음! ✨",
-            "ColorClass": "text-emerald-400",
-            "BgClass": "bg-emerald-500/5 border-emerald-500/20"
+            "minScore": 102.0,
+            "state": "운이 좋음! ✨",
+            "colorClass": "text-emerald-400",
+            "bgClass": "bg-emerald-500/5 border-emerald-500/20"
         },
         {
-            "MinScore": 115.0,
-            "State": "비정상적인 행운! 🔥",
-            "ColorClass": "text-emerald-400 animate-pulse",
-            "BgClass": "bg-emerald-500/10 border-emerald-500/30"
+            "minScore": 115.0,
+            "state": "비정상적인 행운! 🔥",
+            "colorClass": "text-emerald-400 animate-pulse",
+            "bgClass": "bg-emerald-500/10 border-emerald-500/30"
         }
     ]
 }
