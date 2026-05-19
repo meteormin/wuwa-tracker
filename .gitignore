@@ -4,3 +4,4 @@ tmp*
 *.tmp
 logs/
 report.html
+data/
