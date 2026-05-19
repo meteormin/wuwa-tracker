@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -85,13 +83,6 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
-	defer func() {
-		if err := badgerDB.Close(); err != nil {
-			log.Errorf("Failed to close database in defer: %v\n", err)
-		} else {
-			log.Info("Database connection closed cleanly via defer.")
-		}
-	}()
 
 	log.Infof("Successfully started BadgerDB engine under directory: %s\n", dbPath)
 
@@ -107,13 +98,13 @@ func run() error {
 	})
 
 	// 서버 종료 후, DB Close 수행
-	app.Hooks().OnPostShutdown(func(err error) error {
-		if closeErr := badgerDB.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		} else {
-			log.Info("Database connection closed cleanly via OnPostShutdown.")
+	app.Hooks().OnPreShutdown(func() error {
+		if err := badgerDB.Close(); err != nil {
+			log.Errorf("Failed to close database: %v\n", err)
+			return err
 		}
-		return err
+		log.Info("Database connection closed")
+		return nil
 	})
 
 	// 공통 미들웨어 등록
@@ -138,14 +129,9 @@ func run() error {
 	api.Post("/upload", h.Upload)
 	api.Get("/config", h.GetConfig)
 
-	// 1. 빌드된 WebUI 정적 자원들을 Go embed 파일 시스템으로 내장 호스팅 (Fiber v3 static 미들웨어 적용)
-	subFS, err := fs.Sub(webui.DistFS, "dist")
-	if err != nil {
-		return fmt.Errorf("failed to create sub-FS for embedded WebUI: %w", err)
-	}
-
+	// 빌드된 WebUI 정적 자원들을 Go embed 파일 시스템으로 내장 호스팅
 	app.Use("/", static.New("", static.Config{
-		FS:     subFS,
+		FS:     webui.FS,
 		Browse: false,
 	}))
 
