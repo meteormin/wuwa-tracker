@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TestFindURLInDirectory_OSCases 는 Windows, macOS, Linux 각 OS별 가상 게임 루트 폴더를 
+// TestFindURLInDirectory_OSCases 는 Windows, macOS, Linux 각 OS별 가상 게임 루트 폴더를
 // 입력값으로 받았을 때, 하위 로그 파일 경로를 올바르게 탐색하고 가챠 URL을 추출하는지 테스트합니다.
 func TestFindURLInDirectory_OSCases(t *testing.T) {
 	testCases := []struct {

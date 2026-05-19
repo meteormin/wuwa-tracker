@@ -18,8 +18,8 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/meteormin/wuwa-tracker/config"
-	"github.com/meteormin/wuwa-tracker/internal/server/db"
-	"github.com/meteormin/wuwa-tracker/internal/server/handlers"
+	"github.com/meteormin/wuwa-tracker/internal/db"
+	"github.com/meteormin/wuwa-tracker/internal/handler"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 	"github.com/meteormin/wuwa-tracker/webui"
@@ -119,7 +119,7 @@ func run() error {
 	}))
 
 	// 핸들러 인스턴스 생성 및 의존성(DB, Config) 주입
-	h := handlers.NewHandler(badgerDB, cfg)
+	h := handler.NewHandler(badgerDB, cfg)
 
 	// API 라우팅 설정
 	api := app.Group("/api")

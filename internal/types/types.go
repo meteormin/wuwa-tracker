@@ -114,3 +114,28 @@ type LuckScoreThreshold struct {
 	ColorClass string  `json:"colorClass"`
 	BgClass    string  `json:"bgClass"`
 }
+
+// TrackRequest 는 가챠 기록 조회를 위한 URL 입력 요청 데이터 구조체입니다.
+type TrackRequest struct {
+	URL string `json:"url"`
+}
+
+// UploadRequest 는 JSON 로그 데이터를 직접 업로드하기 위한 구조체입니다.
+type UploadRequest struct {
+	PlayerID string              `json:"playerId"`
+	Data     map[string][]Record `json:"data"`
+}
+
+// StatsResponse 는 프론트엔드로 반환될 표준 통계 응답 데이터 구조체입니다.
+type StatsResponse struct {
+	Success  bool    `json:"success"`
+	PlayerID string  `json:"playerId"`
+	Stats    []Stats `json:"stats"`
+}
+
+// ErrorResponse 는 다국어 지원을 위한 에러 응답 구조체입니다.
+type ErrorResponse struct {
+	Success  bool   `json:"success"`
+	Error    string `json:"error"`
+	ErrorKey string `json:"errorKey"`
+}
