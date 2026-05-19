@@ -96,6 +96,7 @@ func main() {
 	api.Get("/stats/:playerId", h.GetStats)
 	api.Get("/players", h.ListPlayers)
 	api.Post("/upload", h.Upload)
+	api.Get("/config", h.GetConfig)
 
 	// 1. 빌드된 WebUI 정적 자원들을 Go embed 파일 시스템으로 내장 호스팅
 	app.Use("/", filesystem.New(filesystem.Config{

@@ -195,6 +195,14 @@ func (h *Handler) ListPlayers(c *fiber.Ctx) error {
 	})
 }
 
+// GetConfig 는 서버의 설정을 프론트엔드로 전달합니다. (운 점수 임계값 등 포함)
+func (h *Handler) GetConfig(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"success":             true,
+		"luckScoreThresholds": h.cfg.LuckScoreThresholds,
+	})
+}
+
 // returnPlayerStats 는 BadgerDB에서 플레이어 가챠 데이터를 가져와 통계(Stats)를 계산하고 JSON 응답을 전송하는 헬퍼 함수입니다.
 func (h *Handler) returnPlayerStats(c *fiber.Ctx, playerID string) error {
 	// 통계 계산 엔진 초기화

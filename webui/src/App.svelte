@@ -54,39 +54,62 @@
   // 호스트 자동 감지 (Vite 개발 모드 시 8080 포트로 라우팅)
   const apiHost = import.meta.env.DEV ? "http://localhost:8080" : "";
 
-  // 운 점수 임계치 정의
-  const thresholds = [
+  interface LuckScoreThreshold {
+    minScore: number;
+    state: string;
+    colorClass: string;
+    bgClass: string;
+  }
+
+  // 운 점수 임계치 정의 (서버 설정을 주입받기 전의 기본 폴백값)
+  let thresholds: LuckScoreThreshold[] = [
     {
       minScore: 0.0,
-      state: "극악의 억까 상태... 💀",
+      state: "WORST",
       colorClass: "text-rose-500 font-extrabold",
       bgClass: "bg-rose-500/10 border-rose-500/30",
     },
     {
       minScore: 85.0,
-      state: "운이 조금 나쁨 💧",
+      state: "BAD",
       colorClass: "text-rose-300",
       bgClass: "bg-rose-500/5 border-rose-500/10",
     },
     {
       minScore: 95.0,
-      state: "평균 수렴 ⚖️",
+      state: "NORMAL",
       colorClass: "text-slate-300",
       bgClass: "bg-slate-900/40 border-slate-800/50",
     },
     {
       minScore: 102.0,
-      state: "운이 좋음! ✨",
+      state: "LUCKY",
       colorClass: "text-emerald-400",
       bgClass: "bg-emerald-500/5 border-emerald-500/20",
     },
     {
       minScore: 115.0,
-      state: "비정상적인 행운! 🔥",
+      state: "LUCKIEST",
       colorClass: "text-emerald-400 animate-pulse",
       bgClass: "bg-emerald-500/10 border-emerald-500/30",
     },
   ];
+
+  // 서버의 가챠 리포트 설정을 유연하게 로드
+  async function loadConfig() {
+    try {
+      const res = await fetch(`${apiHost}/api/config`);
+      const data = await res.json();
+      if (data.success && data.luckScoreThresholds) {
+        thresholds = data.luckScoreThresholds;
+      }
+    } catch (e) {
+      console.warn(
+        "Failed to load server configuration, using local defaults:",
+        e,
+      );
+    }
+  }
 
   // 운 점수별 스타일 정보 매핑 함수
   function getLuckThreshold(score: number) {
@@ -256,6 +279,7 @@
   }
 
   onMount(async () => {
+    await loadConfig();
     await loadPlayers();
     // 데이터가 이미 저장된 기존 첫 번째 유저가 있다면 자동으로 선로딩 수행
     if (playersList.length > 0) {
