@@ -33,11 +33,11 @@ func NewClient(client *http.Client) *Client {
 	}
 }
 
-// FetchRecords 는 지정된 배너(gachaType)의 가챠 기록을 가져옵니다.
-func (c *Client) FetchRecords(urlStr string, gachaType int) ([]types.Record, error) {
+// ParsePayloadFromURL 은 가챠 로그 URL 에서 types.Payload를 추출합니다.
+func (c *Client) ParsePayloadFromURL(urlStr string) (types.Payload, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
-		return nil, err
+		return types.Payload{}, err
 	}
 
 	var q url.Values
@@ -58,12 +58,22 @@ func (c *Client) FetchRecords(urlStr string, gachaType int) ([]types.Record, err
 		LanguageCode: q.Get("lang"),
 		RecordID:     q.Get("record_id"),
 		CardPoolID:   q.Get("gacha_id"),
-		CardPoolType: gachaType,
 	}
 
 	if p.PlayerID == "" || p.ServerID == "" || p.RecordID == "" {
-		return nil, ErrMissingRequiredParams
+		return types.Payload{}, ErrMissingRequiredParams
 	}
+
+	return p, nil
+}
+
+// FetchRecords 는 지정된 배너(gachaType)의 가챠 기록을 가져옵니다.
+func (c *Client) FetchRecords(urlStr string, gachaType int) ([]types.Record, error) {
+	p, err := c.ParsePayloadFromURL(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	p.CardPoolType = gachaType
 
 	body, err := json.Marshal(p)
 	if err != nil {
@@ -129,7 +139,13 @@ func (c *Client) FetchGachaLocale(lang string) (types.LocaleData, error) {
 	return data, nil
 }
 
-func (c *Client) FetchAllRecords(urlStr string, gachaTypes []types.GachaType) map[string][]types.Record {
+// FetchAllRecords 는 모든 배너의 가챠 기록을 가져오고, URL로부터 파싱된 Payload와 함께 단일 구조체(FetchResult)로 반환합니다.
+func (c *Client) FetchAllRecords(urlStr string, gachaTypes []types.GachaType) (*types.FetchResult, error) {
+	p, err := c.ParsePayloadFromURL(urlStr)
+	if err != nil {
+		return nil, err
+	}
+
 	result := make(map[string][]types.Record)
 	for _, gachaType := range gachaTypes {
 		records, err := c.FetchRecords(urlStr, gachaType.ID)
@@ -140,7 +156,10 @@ func (c *Client) FetchAllRecords(urlStr string, gachaTypes []types.GachaType) ma
 		result[gachaType.Key] = records
 	}
 
-	return result
+	return &types.FetchResult{
+		Payload: p,
+		Records: result,
+	}, nil
 }
 
 type LoggingTransport struct {

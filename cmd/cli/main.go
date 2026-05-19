@@ -101,14 +101,17 @@ func main() {
 
 	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
 
-	recordsMap := client.FetchAllRecords(targetURL, cfg.GachaTypes.Items)
-	if len(recordsMap) > 0 && *debugFlag {
+	fetchResult, err := client.FetchAllRecords(targetURL, cfg.GachaTypes.Items)
+	if err != nil {
+		log.Fatalf("Failed to fetch records: %v", err)
+	}
+	if len(fetchResult.Records) > 0 && *debugFlag {
 		timestamp := time.Now().Format("20060102150405")
 		if err := os.MkdirAll("logs", 0o755); err != nil {
 			log.Printf("Warning: failed to create logs directory: %v\n", err)
 		} else {
-			filePath := fmt.Sprintf("logs/%s.json", timestamp)
-			b, err := json.MarshalIndent(recordsMap, "", "    ")
+			filePath := fmt.Sprintf("logs/%s-%s.json", fetchResult.Payload.PlayerID, timestamp)
+			b, err := json.MarshalIndent(fetchResult.Records, "", "    ")
 			if err != nil {
 				log.Printf("Warning: failed to marshal records: %v\n", err)
 			}
@@ -119,7 +122,7 @@ func main() {
 	}
 
 	for _, gachaType := range cfg.GachaTypes.Items {
-		records, ok := recordsMap[gachaType.Key]
+		records, ok := fetchResult.Records[gachaType.Key]
 		if !ok {
 			log.Fatalf("Failed to fetch data: %v", err)
 		}

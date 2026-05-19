@@ -10,6 +10,12 @@ type Payload struct {
 	CardPoolType int    `json:"cardPoolType"`
 }
 
+// FetchResult 는 FetchAllRecords의 전체 반환 결과를 담는 구조체입니다.
+type FetchResult struct {
+	Payload Payload              `json:"payload"`
+	Records map[string][]Record  `json:"records"`
+}
+
 // Record 는 단일 가챠 획득 기록을 나타냅니다.
 type Record struct {
 	CardPoolType string `json:"cardPoolType"`
