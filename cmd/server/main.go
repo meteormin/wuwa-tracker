@@ -13,18 +13,25 @@ import (
 )
 
 func main() {
-	// 데이터베이스 경로 지정 (기본값: wuwa_tracker.db)
-	dbPath := "wuwa_tracker.db"
-	if pathVal := os.Getenv("DATABASE_PATH"); pathVal != "" {
-		dbPath = pathVal
+	// 데이터베이스 저장 디렉터리 경로 지정 (기본값: data/wuwa_badger)
+	dbDir := "data/wuwa_badger"
+	if dirVal := os.Getenv("DATABASE_DIR"); dirVal != "" {
+		dbDir = dirVal
 	}
 
-	// SQLite GORM DB 초기화 및 자동 마이그레이션 실행
-	db, err := models.InitDB(dbPath)
+	// BadgerDB 네이티브 KV 엔진 초기화
+	db, err := models.InitDB(dbDir)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	log.Printf("Successfully connected to SQLite database at %s\n", dbPath)
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Error closing database: %v\n", err)
+		} else {
+			log.Println("Database connection closed cleanly.")
+		}
+	}()
+	log.Printf("Successfully started BadgerDB engine under directory: %s\n", dbDir)
 
 	// Fiber 애플리케이션 생성
 	app := fiber.New(fiber.Config{
