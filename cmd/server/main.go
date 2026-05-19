@@ -8,8 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/meteormin/wuwa-tracker/internal/server/db"
 	"github.com/meteormin/wuwa-tracker/internal/server/handlers"
-	"github.com/meteormin/wuwa-tracker/internal/server/models"
 )
 
 func main() {
@@ -20,12 +20,12 @@ func main() {
 	}
 
 	// BadgerDB 네이티브 KV 엔진 초기화
-	db, err := models.InitDB(dbDir)
+	badgerDB, err := db.NewBadgerDB(dbDir)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
+		if err := badgerDB.Close(); err != nil {
 			log.Printf("Error closing database: %v\n", err)
 		} else {
 			log.Println("Database connection closed cleanly.")
@@ -51,9 +51,9 @@ func main() {
 
 	// API 라우팅 설정
 	api := app.Group("/api")
-	api.Post("/track", handlers.TrackHandler(db))
-	api.Get("/stats/:playerId", handlers.GetStatsHandler(db))
-	api.Get("/players", handlers.ListPlayersHandler(db))
+	api.Post("/track", handlers.TrackHandler(badgerDB))
+	api.Get("/stats/:playerId", handlers.GetStatsHandler(badgerDB))
+	api.Get("/players", handlers.ListPlayersHandler(badgerDB))
 
 	// 프론트엔드 Svelte 정적 빌드본 호스팅 (production 빌드 대응)
 	if _, err := os.Stat("./webui/dist"); err == nil {

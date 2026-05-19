@@ -6,10 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/gofiber/fiber/v2"
 	"github.com/meteormin/wuwa-tracker/config"
-	"github.com/meteormin/wuwa-tracker/internal/server/models"
+	"github.com/meteormin/wuwa-tracker/internal/server/db"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -28,7 +27,7 @@ type StatsResponse struct {
 
 // TrackHandler 는 사용자가 제출한 Kurogame 가챠 로그 URL을 기반으로 데이터를 페치하고,
 // BadgerDB에 덮어쓰기 저장한 뒤 최신 통계 데이터를 반환합니다.
-func TrackHandler(db *badger.DB) fiber.Handler {
+func TrackHandler(badgerDB *db.BadgerDB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req TrackRequest
 		if err := c.BodyParser(&req); err != nil {
@@ -106,7 +105,7 @@ func TrackHandler(db *badger.DB) fiber.Handler {
 			}
 
 			// BadgerDB에 덮어쓰기 방식으로 저장 (기존 데이터와 자동 정합성 일치)
-			err = models.SaveGachaRecords(db, playerID, gachaType.Key, records)
+			err = badgerDB.SaveGachaRecords(playerID, gachaType.Key, records)
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 					"success": false,
@@ -116,12 +115,12 @@ func TrackHandler(db *badger.DB) fiber.Handler {
 		}
 
 		// 동기화된 DB 기반으로 최신 통계 계산 후 반환
-		return returnPlayerStats(c, db, playerID, cfg)
+		return returnPlayerStats(c, badgerDB, playerID, cfg)
 	}
 }
 
 // GetStatsHandler 는 DB에 저장된 특정 플레이어의 가챠 데이터를 조회하여 통계 데이터를 산출합니다.
-func GetStatsHandler(db *badger.DB) fiber.Handler {
+func GetStatsHandler(badgerDB *db.BadgerDB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		playerID := c.Params("playerId")
 		if playerID == "" {
@@ -145,14 +144,14 @@ func GetStatsHandler(db *badger.DB) fiber.Handler {
 		localeData, _ := client.FetchGachaLocale("ko")
 		cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
 
-		return returnPlayerStats(c, db, playerID, cfg)
+		return returnPlayerStats(c, badgerDB, playerID, cfg)
 	}
 }
 
 // ListPlayersHandler 는 DB에 기록이 저장된 모든 고유 플레이어 ID 리스트를 반환합니다.
-func ListPlayersHandler(db *badger.DB) fiber.Handler {
+func ListPlayersHandler(badgerDB *db.BadgerDB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		players, err := models.ListPlayers(db)
+		players, err := badgerDB.ListPlayers()
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
@@ -168,13 +167,13 @@ func ListPlayersHandler(db *badger.DB) fiber.Handler {
 }
 
 // returnPlayerStats 는 BadgerDB에서 플레이어 가챠 데이터를 가져와 통계(Stats)를 계산하고 JSON 응답을 전송하는 헬퍼 함수입니다.
-func returnPlayerStats(c *fiber.Ctx, db *badger.DB, playerID string, cfg *config.Config) error {
+func returnPlayerStats(c *fiber.Ctx, badgerDB *db.BadgerDB, playerID string, cfg *config.Config) error {
 	// 통계 계산 엔진 초기화
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
 	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
 
 	for _, gachaType := range cfg.GachaTypes.Items {
-		records, err := models.GetGachaRecords(db, playerID, gachaType.Key)
+		records, err := badgerDB.GetGachaRecords(playerID, gachaType.Key)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
