@@ -86,11 +86,11 @@ func main() {
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
 
-	localeData, err := client.FetchGachaLocale(lang)
+	localeData, err := client.FetchGachaLocale(targetURL, lang)
 	if err != nil {
 		fmt.Printf("Warning: failed to fetch localized banner names for %q: %v. Falling back to 'ko'.\n", lang, err)
 		if lang != "ko" {
-			localeData, err = client.FetchGachaLocale("ko")
+			localeData, err = client.FetchGachaLocale(targetURL, "ko")
 			if err != nil {
 				fmt.Printf("Warning: failed to fetch fallback 'ko' banner names: %v\n", err)
 			}

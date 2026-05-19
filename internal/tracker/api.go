@@ -9,18 +9,20 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
-const (
-	apiGachaRecordQueryEndpoint = "https://gmserver-api.aki-game2.net/gacha/record/query"
-	apiGachaLocaleEndpoint      = "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/locales/%s.json"
-)
+var (
+	ErrMissingRequiredParams = errors.New("missing required parameters in url")
+	ErrInvalidGachaURL       = errors.New("invalid gacha url or unsupported domain")
 
-var ErrMissingRequiredParams = errors.New("missing required parameters in url")
+	// resourcesRegex 는 리소스 도메인을 API 도메인으로 매핑하기 위한 정규식입니다.
+	resourcesRegex = regexp.MustCompile(`aki-gm-resources(-oversea)?(?:-[a-zA-Z0-9]+)?\.aki-game\.(net|com)`)
+)
 
 type Client struct {
 	core *http.Client
@@ -80,7 +82,11 @@ func (c *Client) FetchRecords(urlStr string, gachaType int) ([]types.Record, err
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, apiGachaRecordQueryEndpoint, bytes.NewBuffer(body))
+	apiEndpoint, err := c.getAPIEndpoint(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -115,13 +121,46 @@ func (c *Client) FetchRecords(urlStr string, gachaType int) ([]types.Record, err
 	return gResp.Data, nil
 }
 
+// getAPIEndpoint 는 가챠 로그 URL 의 호스트에 맞게 가챠 쿼리 API 주소를 결정합니다.
+func (c *Client) getAPIEndpoint(urlStr string) (string, error) {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "", err
+	}
+
+	host := u.Host
+	if resourcesRegex.MatchString(host) {
+		matches := resourcesRegex.FindStringSubmatch(host)
+		if len(matches) >= 3 {
+			// matches[1] 은 "-oversea" 이거나 "" 일 것입니다.
+			// matches[2] 는 "net" 이거나 "com" 일 것입니다.
+			var apiHost string
+			if matches[1] == "-oversea" {
+				apiHost = "gmserver-api.aki-game2." + matches[2]
+			} else {
+				apiHost = "gmserver-api.aki-game." + matches[2]
+			}
+			return fmt.Sprintf("https://%s/gacha/record/query", apiHost), nil
+		}
+	}
+
+	return "", ErrInvalidGachaURL
+}
+
 // FetchGachaLocale 는 원격에서 로컬라이제이션 데이터를 가져와 gachaNamesMap 을 업데이트합니다.
-func (c *Client) FetchGachaLocale(lang string) (types.LocaleData, error) {
+func (c *Client) FetchGachaLocale(urlStr string, lang string) (types.LocaleData, error) {
 	if lang == "" {
 		lang = "ko"
 	}
-	urlStr := fmt.Sprintf(apiGachaLocaleEndpoint, lang)
-	resp, err := c.core.Get(urlStr)
+
+	u, err := url.Parse(urlStr)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return types.LocaleData{}, ErrInvalidGachaURL
+	}
+
+	baseURL := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+	urlStrLocale := fmt.Sprintf("%s/aki/gacha/locales/%s.json", baseURL, lang)
+	resp, err := c.core.Get(urlStrLocale)
 	if err != nil {
 		return types.LocaleData{}, err
 	}

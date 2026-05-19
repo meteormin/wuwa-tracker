@@ -71,7 +71,7 @@ func run() error {
 	// 다국어 배너 이름 사전 매핑 (최초 1회 한국어로 캐싱 매핑 수행)
 	httpClient := &http.Client{Timeout: 5 * time.Second}
 	client := tracker.NewClient(httpClient)
-	localeData, err := client.FetchGachaLocale("ko")
+	localeData, err := client.FetchGachaLocale("", "ko")
 	if err != nil {
 		log.Warnf("Failed to fetch remote 'ko' banner locale on startup: %v. Using defaults.\n", err)
 		localeData = types.LocaleData{SelectList: map[string]string{}}
