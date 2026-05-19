@@ -45,7 +45,6 @@
             </div>
         </header>
 
-
         <!-- 배너별 리포트 카드 렌더링 영역 -->
         <div class="space-y-12">
             {{range $index, $stat := .Stats}}
@@ -76,19 +75,18 @@
                         <p class="text-2xl font-extrabold text-purple-400">{{ $stat.CurrentPity4 }}<span class="text-xs text-slate-500 font-normal"> / 10</span></p>
                     </div>
                     <!-- 동적 계산 영역 (운 점수 등) -->
-                    {{$luckBgClass := "bg-slate-900/40 border-slate-800/50"}}
-                    {{$luckColorClass := "text-slate-400"}}
-                    {{$luckState := "-"}}
-                    
-                    {{if $stat.HasFiveStar}}
-                        {{range $.LuckScoreThresholds}}
-                            {{if ge $stat.LuckScore .MinScore}}
-                                {{$luckBgClass = .BgClass}}
-                                {{$luckColorClass = .ColorClass}}
-                                {{$luckState = .State}}
-                            {{end}}
-                        {{end}}
-                    {{end}}
+                    {{- $luckBgClass := "bg-slate-900/40 border-slate-800/50" -}}
+                    {{- $luckColorClass := "text-slate-400" -}}
+                    {{- $luckState := "-" -}}
+                    {{- if $stat.HasFiveStar -}}
+                        {{- range $.LuckScoreThresholds -}}
+                            {{- if ge $stat.LuckScore .MinScore -}}
+                                {{- $luckBgClass = .BgClass -}}
+                                {{- $luckColorClass = .ColorClass -}}
+                                {{- $luckState = .State -}}
+                            {{- end -}}
+                        {{- end -}}
+                    {{- end}}
 
                     <div class="p-4 rounded-xl border transition-all duration-300 {{$luckBgClass}}" id="luck-card-{{$index}}">
                         <div class="flex items-center gap-1 mb-1">
@@ -124,11 +122,11 @@
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
                             <span class="text-slate-500 text-xs">나의 5성 평균 소요</span>
                             <span class="font-bold text-slate-200" id="avg-pulls-{{$index}}">
-                                {{if $stat.HasFiveStar}}
+                                {{- if $stat.HasFiveStar -}}
                                     <span class="text-amber-400 font-extrabold">{{printf "%.1f" $stat.AvgPulls}}</span>회 <span class="text-xs text-slate-500">(누적 {{len $stat.FiveStars}}회)</span>
-                                {{else}}
+                                {{- else -}}
                                     <span class="text-slate-500 italic">획득 이력 없음</span>
-                                {{end}}
+                                {{- end -}}
                             </span>
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
@@ -138,15 +136,15 @@
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
                             <span class="text-slate-500 text-xs">5★ 획득 비율 / 기본 확률</span>
                             <span class="font-bold text-slate-200" id="rate-compare-{{$index}}">
-                                {{if $stat.HasFiveStar}}
-                                    {{$rateClass := "text-rose-400"}}
-                                    {{if ge $stat.ActualRate $stat.BaseRate}}
-                                        {{$rateClass = "text-emerald-400"}}
-                                    {{end}}
+                                {{- if $stat.HasFiveStar -}}
+                                    {{- $rateClass := "text-rose-400" -}}
+                                    {{- if ge $stat.ActualRate $stat.BaseRate -}}
+                                        {{- $rateClass = "text-emerald-400" -}}
+                                    {{- end -}}
                                     <span class="{{$rateClass}} font-extrabold">{{printf "%.2f" $stat.ActualRate}}%</span> <span class="text-xs text-slate-500">/ {{printf "%.1f" $stat.BaseRate}}%</span>
-                                {{else}}
+                                {{- else -}}
                                     <span class="text-slate-500">0.00% / {{printf "%.1f" $stat.BaseRate}}%</span>
-                                {{end}}
+                                {{- end -}}
                             </span>
                         </div>
                     </div>
