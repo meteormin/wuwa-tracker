@@ -6,14 +6,18 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/server/db"
 	"github.com/meteormin/wuwa-tracker/internal/server/handlers"
+	"github.com/meteormin/wuwa-tracker/internal/tracker"
+	"github.com/meteormin/wuwa-tracker/internal/types"
 	"github.com/meteormin/wuwa-tracker/webui"
 )
 
@@ -36,6 +40,22 @@ func main() {
 
 	port := *portFlag
 	dbDir := *dbDirFlag
+
+	// 설정 로드 (서버 기동 시 최초 1회만 로드하여 메모리에 적재)
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// 다국어 배너 이름 사전 매핑 (최초 1회 한국어로 캐싱 매핑 수행)
+	httpClient := &http.Client{Timeout: 5 * time.Second}
+	client := tracker.NewClient(httpClient)
+	localeData, err := client.FetchGachaLocale("ko")
+	if err != nil {
+		log.Printf("Warning: failed to fetch remote 'ko' banner locale on startup: %v. Using defaults.\n", err)
+		localeData = types.LocaleData{SelectList: map[string]string{}}
+	}
+	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
 
 	// BadgerDB 네이티브 KV 엔진 초기화
 	badgerDB, err := db.NewBadgerDB(dbDir)
@@ -67,8 +87,8 @@ func main() {
 		AllowMethods: "GET, POST, OPTIONS",
 	}))
 
-	// 핸들러 인스턴스 생성 및 의존성 주입
-	h := handlers.NewHandler(badgerDB)
+	// 핸들러 인스턴스 생성 및 의존성(DB, Config) 주입
+	h := handlers.NewHandler(badgerDB, cfg)
 
 	// API 라우팅 설정
 	api := app.Group("/api")

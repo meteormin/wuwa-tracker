@@ -15,13 +15,15 @@ import (
 
 // Handler 는 HTTP 요청을 처리하고 데이터베이스에 협업하는 핸들러 구조체입니다.
 type Handler struct {
-	db *db.BadgerDB
+	db  *db.BadgerDB
+	cfg *config.Config
 }
 
 // NewHandler 는 새로운 Handler 구조체 인스턴스를 생성하고 의존성을 주입합니다.
-func NewHandler(badgerDB *db.BadgerDB) *Handler {
+func NewHandler(badgerDB *db.BadgerDB, cfg *config.Config) *Handler {
 	return &Handler{
-		db: badgerDB,
+		db:  badgerDB,
+		cfg: cfg,
 	}
 }
 
@@ -50,7 +52,7 @@ func (h *Handler) Track(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"error":   "invalid request body",
+			"error":   "invalid request body: " + err.Error(),
 		})
 	}
 
@@ -59,7 +61,7 @@ func (h *Handler) Track(c *fiber.Ctx) error {
 	if targetURL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"error":   "empty url",
+			"error":   "missing url parameter",
 		})
 	}
 
@@ -67,11 +69,10 @@ func (h *Handler) Track(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"error":   "failed to parse url",
+			"error":   "invalid url format",
 		})
 	}
 
-	// URL fragment 혹은 query parameters 에서 player_id 파싱
 	var q url.Values
 	if u.Fragment != "" {
 		parts := strings.SplitN(u.Fragment, "?", 2)
@@ -96,25 +97,8 @@ func (h *Handler) Track(c *fiber.Ctx) error {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	client := tracker.NewClient(httpClient)
 
-	// 다국어 배너 이름 매핑을 위한 설정 로드
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "failed to load config",
-		})
-	}
-
-	// 기본 한국어("ko") 배너 정보 페치
-	localeData, err := client.FetchGachaLocale("ko")
-	if err != nil {
-		// 언어 페치 실패 시에도 동작하도록 처리
-		localeData = types.LocaleData{SelectList: map[string]string{}}
-	}
-	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
-
 	// 각 배너 타입별 가챠 기록 동기화
-	for _, gachaType := range cfg.GachaTypes.Items {
+	for _, gachaType := range h.cfg.GachaTypes.Items {
 		records, err := client.FetchRecords(targetURL, gachaType.ID)
 		if err != nil {
 			// 개별 배너 페치 실패 시 에러 로그는 패스하고 진행
@@ -132,7 +116,7 @@ func (h *Handler) Track(c *fiber.Ctx) error {
 	}
 
 	// 동기화된 DB 기반으로 최신 통계 계산 후 반환
-	return h.returnPlayerStats(c, playerID, cfg)
+	return h.returnPlayerStats(c, playerID)
 }
 
 // Upload 는 클라이언트로부터 직접 JSON 형태의 가챠 데이터 세트를 입력받아 DB에 덮어쓰기 저장하고,
@@ -161,28 +145,15 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 		})
 	}
 
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "failed to load config",
-		})
-	}
-
-	// 오프라인 로딩이므로 외부 언어 페치는 생략하고 기본 배너 매핑값 적용
-	for i := range cfg.GachaTypes.Items {
-		cfg.GachaTypes.Items[i].Name = cfg.GachaTypes.Items[i].Key
-	}
-
 	// 맵 데이터를 BadgerDB에 배너별로 저장
-	for _, gachaType := range cfg.GachaTypes.Items {
+	for _, gachaType := range h.cfg.GachaTypes.Items {
 		records, ok := req.Data[gachaType.Key]
 		if !ok {
 			// 업로드 데이터에 특정 배너가 누락되었을 경우 빈 배열로 처리하여 정합성 유지
 			records = []types.Record{}
 		}
 
-		err = h.db.SaveGachaRecords(playerID, gachaType.Key, records)
+		err := h.db.SaveGachaRecords(playerID, gachaType.Key, records)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
@@ -192,7 +163,7 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 	}
 
 	// 저장된 데이터를 바탕으로 즉시 가챠 분석 리포트 리턴
-	return h.returnPlayerStats(c, playerID, cfg)
+	return h.returnPlayerStats(c, playerID)
 }
 
 // GetStats 는 DB에 저장된 특정 플레이어의 가챠 데이터를 조회하여 통계 데이터를 산출합니다.
@@ -205,21 +176,7 @@ func (h *Handler) GetStats(c *fiber.Ctx) error {
 		})
 	}
 
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "failed to load config",
-		})
-	}
-
-	// 다국어 배너 매핑
-	httpClient := &http.Client{Timeout: 5 * time.Second}
-	client := tracker.NewClient(httpClient)
-	localeData, _ := client.FetchGachaLocale("ko")
-	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
-
-	return h.returnPlayerStats(c, playerID, cfg)
+	return h.returnPlayerStats(c, playerID)
 }
 
 // ListPlayers 는 DB에 기록이 저장된 모든 고유 플레이어 ID 리스트를 반환합니다.
@@ -239,12 +196,12 @@ func (h *Handler) ListPlayers(c *fiber.Ctx) error {
 }
 
 // returnPlayerStats 는 BadgerDB에서 플레이어 가챠 데이터를 가져와 통계(Stats)를 계산하고 JSON 응답을 전송하는 헬퍼 함수입니다.
-func (h *Handler) returnPlayerStats(c *fiber.Ctx, playerID string, cfg *config.Config) error {
+func (h *Handler) returnPlayerStats(c *fiber.Ctx, playerID string) error {
 	// 통계 계산 엔진 초기화
-	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
-	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
+	calc := tracker.NewStatsCalculator(h.cfg.StandardFiveStarResources)
+	statsList := make([]types.Stats, 0, len(h.cfg.GachaTypes.Items))
 
-	for _, gachaType := range cfg.GachaTypes.Items {
+	for _, gachaType := range h.cfg.GachaTypes.Items {
 		records, err := h.db.GetGachaRecords(playerID, gachaType.Key)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
