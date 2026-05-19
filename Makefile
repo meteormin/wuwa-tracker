@@ -36,7 +36,12 @@ build-reporter:
 	@go build -o $(BIN_DIR)/wuwa-reporter $(REPORTER_DIR)
 	@echo "Reporter Build successful! Executable is located at $(BIN_DIR)/wuwa-reporter"
 
-build-all: build-cli build-server build-reporter
+build-webui:
+	@echo "Building WebUI..."
+	@cd webui && yarn install && yarn run build
+	@echo "WebUI Build successful!"
+
+build-all: build-webui build-cli build-server build-reporter
 
 clean:
 	@echo "Cleaning up..."

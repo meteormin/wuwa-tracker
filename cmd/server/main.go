@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -38,6 +40,13 @@ var (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Errorf("Server error: %v", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	// 기본값 정의 및 환경변수(PORT, DB_PATH) 폴백 설정
 	if envPort := os.Getenv("PORT"); envPort != "" {
 		defaultPort = envPort
@@ -58,7 +67,7 @@ func main() {
 	// 설정 로드 (서버 기동 시 최초 1회만 로드하여 메모리에 적재)
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// 다국어 배너 이름 사전 매핑 (최초 1회 한국어로 캐싱 매핑 수행)
@@ -74,15 +83,16 @@ func main() {
 	// BadgerDB 네이티브 KV 엔진 초기화
 	badgerDB, err := db.NewBadgerDB(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	defer func() {
 		if err := badgerDB.Close(); err != nil {
-			log.Errorf("Failed to close database: %v\n", err)
+			log.Errorf("Failed to close database in defer: %v\n", err)
 		} else {
-			log.Info("Database connection closed cleanly.")
+			log.Info("Database connection closed cleanly via defer.")
 		}
 	}()
+
 	log.Infof("Successfully started BadgerDB engine under directory: %s\n", dbPath)
 
 	// Fiber v3 애플리케이션 생성
@@ -94,6 +104,16 @@ func main() {
 	app.Hooks().OnPreStartupMessage(func(sm *fiber.PreStartupMessageData) error {
 		sm.BannerHeader = banner
 		return nil
+	})
+
+	// 서버 종료 후, DB Close 수행
+	app.Hooks().OnPostShutdown(func(err error) error {
+		if closeErr := badgerDB.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		} else {
+			log.Info("Database connection closed cleanly via OnPostShutdown.")
+		}
+		return err
 	})
 
 	// 공통 미들웨어 등록
@@ -121,7 +141,7 @@ func main() {
 	// 1. 빌드된 WebUI 정적 자원들을 Go embed 파일 시스템으로 내장 호스팅 (Fiber v3 static 미들웨어 적용)
 	subFS, err := fs.Sub(webui.DistFS, "dist")
 	if err != nil {
-		log.Fatalf("Failed to create sub-FS for embedded WebUI: %v", err)
+		return fmt.Errorf("failed to create sub-FS for embedded WebUI: %w", err)
 	}
 
 	app.Use("/", static.New("", static.Config{
@@ -129,41 +149,18 @@ func main() {
 		Browse: false,
 	}))
 
-	// 2. SPA 클라이언트 라우팅 대응 (API가 아닌 잘못된 모든 경로는 index.html로 폴백)
-	app.Get("/*", func(c fiber.Ctx) error {
-		if strings.HasPrefix(c.Path(), "/api") {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"success": false,
-				"error":   "API endpoint not found",
-			})
-		}
+	// Graceful shutdown 지원을 위한 시그널 기반 컨텍스트 생성
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-		indexFile, err := webui.DistFS.ReadFile("dist/index.html")
-		if err != nil {
-			return c.Status(fiber.StatusNotFound).SendString("Embedded frontend index.html not found")
-		}
-
-		c.Set("Content-Type", "text/html; charset=utf-8")
-		return c.Send(indexFile)
-	})
-
-	// Graceful shutdown 지원을 위한 시그널 리스너 채널 생성
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	// 서버 수신 리스너를 고루틴으로 실행하여 차단 회피
-	go func() {
-		if err := app.Listen(":" + port); err != nil {
-			log.Errorf("Server listen ended: %v\n", err)
-		}
-	}()
-
-	// 종료 시그널 수신 대기
-	<-stop
-	log.Info("Shutting down server gracefully...")
-
-	// 1. Fiber v3 웹 서버 종료 (신규 연결 요청 차단 및 처리 중인 기존 커넥션 대기)
-	if err := app.Shutdown(); err != nil {
-		log.Errorf("Error shutting down Fiber server: %v\n", err)
+	// 서버 수신 리스너를 동기식으로 실행하여 GracefulContext 주입
+	if err := app.Listen(":"+port, fiber.ListenConfig{
+		GracefulContext: ctx,
+	}); err != nil {
+		return err
 	}
+
+	log.Info("Server stopped.")
+
+	return nil
 }
