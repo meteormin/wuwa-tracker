@@ -30,6 +30,12 @@ type TrackRequest struct {
 	URL string `json:"url"`
 }
 
+// UploadRequest 는 JSON 로그 데이터를 직접 업로드하기 위한 구조체입니다.
+type UploadRequest struct {
+	PlayerID string                    `json:"playerId"`
+	Data     map[string][]types.Record `json:"data"`
+}
+
 // StatsResponse 는 프론트엔드로 반환될 표준 통계 응답 데이터 구조체입니다.
 type StatsResponse struct {
 	Success  bool          `json:"success"`
@@ -126,6 +132,66 @@ func (h *Handler) Track(c *fiber.Ctx) error {
 	}
 
 	// 동기화된 DB 기반으로 최신 통계 계산 후 반환
+	return h.returnPlayerStats(c, playerID, cfg)
+}
+
+// Upload 는 클라이언트로부터 직접 JSON 형태의 가챠 데이터 세트를 입력받아 DB에 덮어쓰기 저장하고,
+// 즉시 분석 통계를 산출하여 반환합니다. 외부 API 요청 없이 오프라인 분석 및 테스트가 가능합니다.
+func (h *Handler) Upload(c *fiber.Ctx) error {
+	var req UploadRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "invalid request body: " + err.Error(),
+		})
+	}
+
+	playerID := strings.TrimSpace(req.PlayerID)
+	if playerID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "playerId is required",
+		})
+	}
+
+	if len(req.Data) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "data map cannot be empty",
+		})
+	}
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   "failed to load config",
+		})
+	}
+
+	// 오프라인 로딩이므로 외부 언어 페치는 생략하고 기본 배너 매핑값 적용
+	for i := range cfg.GachaTypes.Items {
+		cfg.GachaTypes.Items[i].Name = cfg.GachaTypes.Items[i].Key
+	}
+
+	// 맵 데이터를 BadgerDB에 배너별로 저장
+	for _, gachaType := range cfg.GachaTypes.Items {
+		records, ok := req.Data[gachaType.Key]
+		if !ok {
+			// 업로드 데이터에 특정 배너가 누락되었을 경우 빈 배열로 처리하여 정합성 유지
+			records = []types.Record{}
+		}
+
+		err = h.db.SaveGachaRecords(playerID, gachaType.Key, records)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"error":   "failed to save records to database",
+			})
+		}
+	}
+
+	// 저장된 데이터를 바탕으로 즉시 가챠 분석 리포트 리턴
 	return h.returnPlayerStats(c, playerID, cfg)
 }
 

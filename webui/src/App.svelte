@@ -44,6 +44,13 @@
   let playersList: string[] = [];
   let activeStats: Stats[] = [];
 
+  // 오프라인 테스트용 JSON 업로드 상태 정의
+  let showUploadModal = false;
+  let uploadPlayerID = '';
+  let uploadedJSONData: any = null;
+  let uploadFileName = '';
+  let fileInputRef: HTMLInputElement;
+
   // 호스트 자동 감지 (Vite 개발 모드 시 8080 포트로 라우팅)
   const apiHost = import.meta.env.DEV ? 'http://localhost:8080' : '';
 
@@ -139,6 +146,89 @@
     }
   }
 
+  // 파일 선택 감지 및 로드
+  function handleFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    uploadFileName = file.name;
+
+    // 파일 이름에서 플레이어 ID 후보군 추출 (예: 20260518143619.json -> 20260518143619)
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    uploadPlayerID = baseName;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        uploadedJSONData = JSON.parse(text);
+        errorMessage = '';
+        showUploadModal = true; // 유저가 ID를 확인하거나 수정할 수 있도록 모달 팝업 실행
+      } catch (err) {
+        errorMessage = '올바르지 않은 JSON 파일 형식입니다. 다시 확인해 주세요.';
+        uploadedJSONData = null;
+        uploadFileName = '';
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // 파일 선택창 트리거 실행
+  function triggerFileSelect() {
+    if (fileInputRef) {
+      fileInputRef.click();
+    }
+  }
+
+  // JSON 업로드 최종 제출
+  async function submitJSONUpload() {
+    const cleanID = uploadPlayerID.trim();
+    if (!cleanID) {
+      alert('플레이어 ID를 입력해 주세요.');
+      return;
+    }
+
+    if (!uploadedJSONData) {
+      alert('업로드할 JSON 데이터가 존재하지 않습니다.');
+      return;
+    }
+
+    isLoading = true;
+    errorMessage = '';
+    successMessage = '';
+    showUploadModal = false;
+
+    try {
+      const res = await fetch(`${apiHost}/api/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerId: cleanID,
+          data: uploadedJSONData
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        activePlayerID = data.playerId;
+        activeStats = data.stats;
+        successMessage = `JSON 파일 [${uploadFileName}]을 오프라인 등록했습니다! [플레이어 ID: ${data.playerId}]`;
+        uploadedJSONData = null;
+        uploadFileName = '';
+        // 신규 유저 히스토리 갱신
+        await loadPlayers();
+      } else {
+        errorMessage = data.error || 'Failed to upload JSON log';
+      }
+    } catch (e) {
+      errorMessage = 'Network connection failed during JSON upload';
+    } finally {
+      isLoading = false;
+    }
+  }
+
   onMount(async () => {
     await loadPlayers();
     // 데이터가 이미 저장된 기존 첫 번째 유저가 있다면 자동으로 선로딩 수행
@@ -173,7 +263,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- 가챠 URL 입력 영역 -->
       <div class="lg:col-span-2">
-        <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-2">새로운 튜닝 URL 트래킹</h2>
+        <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-2">새로운 튜닝 URL 트래킹 / 오프라인 분석</h2>
         <div class="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
@@ -182,13 +272,31 @@
             class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
             disabled={isLoading}
           />
-          <button
-            on:click={trackURL}
-            class="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
-            disabled={isLoading}
-          >
-            {isLoading ? '조회 중...' : '튜닝 트래킹'}
-          </button>
+          <div class="flex gap-2">
+            <button
+              on:click={trackURL}
+              class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 whitespace-nowrap"
+              disabled={isLoading}
+            >
+              {isLoading ? '조회 중...' : '튜닝 트래킹'}
+            </button>
+            
+            <!-- JSON 업로드 인풋 및 버튼 -->
+            <input
+              type="file"
+              accept=".json"
+              on:change={handleFileChange}
+              bind:this={fileInputRef}
+              class="hidden"
+            />
+            <button
+              on:click={triggerFileSelect}
+              class="flex-1 sm:flex-none bg-slate-850 hover:bg-slate-750 active:bg-slate-900 text-slate-200 font-bold text-sm px-5 py-3 rounded-xl transition-all border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 whitespace-nowrap"
+              disabled={isLoading}
+            >
+              📁 JSON 업로드
+            </button>
+          </div>
         </div>
       </div>
 
@@ -208,7 +316,7 @@
             {/each}
           </div>
         {:else}
-          <p class="text-xs text-slate-500 italic py-3">아직 등록된 플레이어가 없습니다. 위 URL을 통해 가챠 데이터를 트래킹 하세요!</p>
+          <p class="text-xs text-slate-500 italic py-3">아직 등록된 플레이어가 없습니다. 위 URL 입력 혹은 JSON 파일 업로드로 가챠 데이터를 분석 하세요!</p>
         {/if}
       </div>
     </div>
@@ -433,7 +541,48 @@
     <div class="glass-card p-12 text-center text-slate-500 border-dashed">
       <span class="text-4xl block mb-3">🔮</span>
       <p class="text-base font-bold text-slate-300 mb-1">조회된 통계 데이터가 없습니다.</p>
-      <p class="text-xs">상단의 URL 입력창에 Wuthering Waves 가챠 로그 URL을 입력해 트래킹을 진행하세요.</p>
+      <p class="text-xs">상단의 URL 입력창 혹은 JSON 파일 업로드 기능을 통해 분석을 진행하세요.</p>
     </div>
   {/if}
 </div>
+
+<!-- JSON 업로드용 모달 오버레이 -->
+{#if showUploadModal}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
+    <div class="glass-card max-w-md w-full p-6 border border-slate-800 shadow-2xl relative">
+      <h3 class="text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
+        <span>📁</span> 오프라인 JSON 데이터 등록
+      </h3>
+      <p class="text-xs text-slate-400 mb-5 leading-relaxed">
+        선택한 파일: <strong class="text-indigo-400 font-mono">{uploadFileName}</strong><br>
+        이 파일 데이터를 저장할 플레이어 ID를 설정하세요. 기존에 존재하는 플레이어 ID를 입력하면 해당 플레이어의 기록이 이 파일 내용으로 완전히 덮어씌워집니다.
+      </p>
+
+      <div class="mb-5">
+        <label for="playerIdInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">플레이어 ID</label>
+        <input
+          id="playerIdInput"
+          type="text"
+          placeholder="예: player_12345"
+          bind:value={uploadPlayerID}
+          class="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors text-slate-200"
+        />
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button
+          on:click={() => { showUploadModal = false; uploadedJSONData = null; uploadFileName = ''; }}
+          class="px-4 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 text-xs font-semibold bg-slate-900 border border-slate-800 hover:border-slate-700 transition-colors"
+        >
+          취소
+        </button>
+        <button
+          on:click={submitJSONUpload}
+          class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-bold transition-all"
+        >
+          등록 및 분석 시작
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
