@@ -97,9 +97,9 @@
                                 </svg>
                                 <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-950 border border-slate-800 p-3 rounded-lg text-[11px] leading-relaxed text-slate-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 shadow-2xl z-30 font-normal">
                                     <p class="font-bold text-indigo-400 mb-1">💡 운 점수 계산 방식</p>
-                                    <p class="mb-1.5"><code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-400 font-mono text-[10px]">운 점수 = (평균 기대 획득 횟수 / 나의 5성 평균 소요) * 100</code></p>
+                                    <p class="mb-1.5"><code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-400 font-mono text-[10px]">운 점수 = (총 기대 소요 횟수 / 총 실제 소요 횟수) * 100</code></p>
                                     <p class="mb-1">실제 소요된 뽑기 횟수가 기대 평균보다 적을수록 점수가 100% 초과로 상승하며 행운(Lucky) 상태를 나타냅니다.</p>
-                                    <p class="text-rose-400 border-t border-slate-800/80 pt-1 mt-1">⚠️ <strong>한정 튜닝 픽뚫 반영:</strong><br>한정 배너에서 픽뚫(상시 캐릭터) 발생 시, 해당 획득의 소모 풀 수에 <strong>2.0배의 페널티 가중치</strong>가 부여되어 운 점수가 대폭 낮아집니다. (단, 평균 소요 횟수 표기는 실제 물리 횟수로 정확히 유지됩니다.)</p>
+                                    <p class="text-rose-400 border-t border-slate-800/80 pt-1 mt-1">⚠️ <strong>한정 튜닝 픽업 주기 반영:</strong><br>한정 배너에서 픽뚫(상시 캐릭터)이 발생하면 <strong>해당 상시 캐릭터를 뽑는 데 소모된 스택이 다음 픽업 캐릭터 획득 주기(Cycle)에 합산</strong>되어 평가됩니다. 단순히 임의의 가중치를 곱하는 대신, 픽업 캐릭터를 실제로 획득할 때까지 소모한 물리적인 총 뽑기 횟수(예: 픽뚫 20뽑 + 픽업 60뽑 = 80뽑)를 기대 평균값(55.5)과 정밀 비교합니다.</p>
                                     <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-950"></div>
                                 </div>
                             </div>

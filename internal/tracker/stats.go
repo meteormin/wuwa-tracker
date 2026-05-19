@@ -63,9 +63,6 @@ func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types
 	stats.CurrentPity5 = pity5
 	stats.CurrentPity4 = pity4
 
-	// 최신 획득 내역이 배열의 앞쪽에 오도록 FiveStars 를 뒤집습니다.
-	reverseFiveStars(stats.FiveStars)
-
 	// 운 점수(Luck Score) 및 관련 통계 지표를 Go 백엔드 측에서 직접 계산합니다.
 	fiveStarCount := len(stats.FiveStars)
 	if fiveStarCount > 0 {
@@ -79,18 +76,40 @@ func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types
 			stats.ActualRate = (float64(fiveStarCount) / float64(stats.TotalPulls)) * 100.0
 		}
 		if stats.AvgPulls > 0 {
-			// 운 점수 계산을 위해 보정된 가중 풀 수 합산(weightedSumPity)을 구합니다.
-			// 픽뚫(IsPickUp == false)인 경우 2.0배의 패널티 가중치를 부여합니다.
-			weightedSumPity := 0.0
+			// 운 점수 계산: 픽업 캐릭터 획득 주기(PickUp Cycle) 기반으로 산출
+			// 픽업 캐릭터를 획득하기까지 소모된 총 누적 풀(Pulls) 수와 단일 5성 기대치(ExpectedPulls)를 비교
+			expectedTotal := 0.0
+			actualTotal := 0.0
+			currentCyclePulls := 0.0
+
 			for _, fs := range stats.FiveStars {
-				if gachaType.HasOffBannerDrop && !fs.IsPickUp {
-					weightedSumPity += float64(fs.Pity) * 2.0
+				currentCyclePulls += float64(fs.Pity)
+				if !gachaType.HasOffBannerDrop {
+					// 상시 또는 무기 가챠처럼 픽뚫이 없는 경우, 모든 5성 획득이 개별 주기 완성
+					expectedTotal += gachaType.ExpectedPulls
+					actualTotal += currentCyclePulls
+					currentCyclePulls = 0.0
 				} else {
-					weightedSumPity += float64(fs.Pity)
+					if fs.IsPickUp {
+						// 한정 공명자 배너에서 픽업 캐릭터를 뽑은 경우 주기 완성
+						expectedTotal += gachaType.ExpectedPulls
+						actualTotal += currentCyclePulls
+						currentCyclePulls = 0.0
+					}
 				}
 			}
-			weightedAvgPulls := weightedSumPity / float64(fiveStarCount)
-			stats.LuckScore = (stats.ExpectedPulls / weightedAvgPulls) * 100.0
+
+			// 아직 픽업을 뽑지 못하고 상시 5성(픽뚫) 상태에서 끝난 진행 중인 주기 반영
+			if currentCyclePulls > 0.0 {
+				expectedTotal += gachaType.ExpectedPulls
+				actualTotal += currentCyclePulls
+			}
+
+			if actualTotal > 0.0 {
+				stats.LuckScore = (expectedTotal / actualTotal) * 100.0
+			} else {
+				stats.LuckScore = 0.0
+			}
 		}
 	} else {
 		stats.HasFiveStar = false
@@ -98,6 +117,9 @@ func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types
 		stats.ActualRate = 0
 		stats.LuckScore = 0
 	}
+
+	// 최신 획득 내역이 배열의 앞쪽에 오도록 FiveStars 를 뒤집습니다.
+	reverseFiveStars(stats.FiveStars)
 
 	return stats
 }

@@ -59,9 +59,9 @@ func TestCalculateStats(t *testing.T) {
 		t.Errorf("Expected AvgPulls 3.0, got %f", stats.AvgPulls)
 	}
 
-	// 픽뚫(앙코: 2스택)에 2배 가중치를 주어 보정된 평균 풀 수는 4.0이 됨
-	// 따라서 운 점수는 (55.5 / 4.0) * 100 = 1387.5
-	expectedLuckScore := 1387.5
+	// 픽업(음림: 4스택) 및 픽뚫(앙코: 2스택) 합산 총 6스택으로 픽업 완료주기 구성
+	// 따라서 운 점수는 (55.5 / 6.0) * 100 = 925.0
+	expectedLuckScore := 925.0
 	if stats.LuckScore != expectedLuckScore {
 		t.Errorf("Expected LuckScore %f, got %f", expectedLuckScore, stats.LuckScore)
 	}
