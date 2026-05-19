@@ -61,7 +61,7 @@
                 </div>
 
                 <!-- 핵심 지표 요약 대시보드 -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                     <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
                         <p class="text-xs text-slate-500 mb-1">총 뽑기 횟수</p>
                         <p class="text-2xl font-extrabold text-slate-100">{{ $stat.TotalPulls }}</p>
@@ -69,10 +69,6 @@
                     <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
                         <p class="text-xs text-slate-500 mb-1">현재 5성 천장 스택</p>
                         <p class="text-2xl font-extrabold text-amber-400">{{ $stat.CurrentPity5 }}<span class="text-xs text-slate-500 font-normal"> / 80</span></p>
-                    </div>
-                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
-                        <p class="text-xs text-slate-500 mb-1">현재 4성 천장 스택</p>
-                        <p class="text-2xl font-extrabold text-purple-400">{{ $stat.CurrentPity4 }}<span class="text-xs text-slate-500 font-normal"> / 10</span></p>
                     </div>
                     <!-- 동적 계산 영역 (운 점수 등) -->
                     {{- $luckBgClass := "bg-slate-900/40 border-slate-800/50" -}}
@@ -131,7 +127,7 @@
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
                             <span class="text-slate-500 text-xs">기대 평균 소요 (기준)</span>
-                            <span class="font-bold text-slate-200" id="expected-pulls-{{$index}}">{{printf "%.1f" $stat.ExpectedPulls}}회</span>
+                            <span class="font-bold text-slate-200" id="expected-pulls-{{$index}}">{{ $stat.ExpectedPulls }}회</span>
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
                             <span class="text-slate-500 text-xs">5★ 획득 비율 / 기본 확률</span>

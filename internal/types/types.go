@@ -12,8 +12,8 @@ type Payload struct {
 
 // FetchResult 는 FetchAllRecords의 전체 반환 결과를 담는 구조체입니다.
 type FetchResult struct {
-	Payload Payload              `json:"payload"`
-	Records map[string][]Record  `json:"records"`
+	Payload Payload             `json:"payload"`
+	Records map[string][]Record `json:"records"`
 }
 
 // Record 는 단일 가챠 획득 기록을 나타냅니다.
@@ -55,7 +55,7 @@ type Stats struct {
 	CurrentPity5  int              `json:"currentPity5"`
 	CurrentPity4  int              `json:"currentPity4"`
 	BaseRate      float64          `json:"baseRate"`
-	ExpectedPulls float64          `json:"expectedPulls"`
+	ExpectedPulls int              `json:"expectedPulls"`
 	FiveStars     []FiveStarRecord `json:"fiveStars"`
 	Records       []Record         `json:"records"`
 	AvgPulls      float64          `json:"avgPulls"`
@@ -73,7 +73,7 @@ type GachaType struct {
 	HasOffBannerDrop bool    `json:"hasOffBannerDrop"`
 	Name             string  `json:"name"`
 	BaseRate         float64 `json:"baseRate"`
-	ExpectedPulls    float64 `json:"expectedPulls"`
+	ExpectedPulls    int     `json:"expectedPulls"`
 }
 
 type GachaTypes struct {

@@ -78,35 +78,35 @@ func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types
 		if stats.AvgPulls > 0 {
 			// 운 점수 계산: 픽업 캐릭터 획득 주기(PickUp Cycle) 기반으로 산출
 			// 픽업 캐릭터를 획득하기까지 소모된 총 누적 풀(Pulls) 수와 단일 5성 기대치(ExpectedPulls)를 비교
-			expectedTotal := 0.0
-			actualTotal := 0.0
-			currentCyclePulls := 0.0
+			expectedTotal := 0
+			actualTotal := 0
+			currentCyclePulls := 0
 
 			for _, fs := range stats.FiveStars {
-				currentCyclePulls += float64(fs.Pity)
+				currentCyclePulls += fs.Pity
 				if !gachaType.HasOffBannerDrop {
 					// 상시 또는 무기 가챠처럼 픽뚫이 없는 경우, 모든 5성 획득이 개별 주기 완성
 					expectedTotal += gachaType.ExpectedPulls
 					actualTotal += currentCyclePulls
-					currentCyclePulls = 0.0
+					currentCyclePulls = 0
 				} else {
 					if fs.IsPickUp {
 						// 한정 공명자 배너에서 픽업 캐릭터를 뽑은 경우 주기 완성
 						expectedTotal += gachaType.ExpectedPulls
 						actualTotal += currentCyclePulls
-						currentCyclePulls = 0.0
+						currentCyclePulls = 0
 					}
 				}
 			}
 
 			// 아직 픽업을 뽑지 못하고 상시 5성(픽뚫) 상태에서 끝난 진행 중인 주기 반영
-			if currentCyclePulls > 0.0 {
+			if currentCyclePulls > 0 {
 				expectedTotal += gachaType.ExpectedPulls
 				actualTotal += currentCyclePulls
 			}
 
-			if actualTotal > 0.0 {
-				stats.LuckScore = (expectedTotal / actualTotal) * 100.0
+			if actualTotal > 0 {
+				stats.LuckScore = (float64(expectedTotal) / float64(actualTotal)) * 100
 			} else {
 				stats.LuckScore = 0.0
 			}

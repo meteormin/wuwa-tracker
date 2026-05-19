@@ -36,7 +36,7 @@ func TestCalculateStats(t *testing.T) {
 	// 모르테피 (pity5=2, pity4=4) -> 4성 천장 초기화 (pity5=2, pity4=0)
 	// 3성무기C (pity5=3, pity4=1)
 	// 음림 (pity5=4, pity4=2) -> 5성 천장 초기화 (pity5=0, pity4=2)
-	stats := calc.CalculateStats(records, types.GachaType{ID: 1, HasOffBannerDrop: true, ExpectedPulls: 55.5})
+	stats := calc.CalculateStats(records, types.GachaType{ID: 1, HasOffBannerDrop: true, ExpectedPulls: 55})
 
 	if stats.TotalPulls != 6 {
 		t.Errorf("Expected TotalPulls 6, got %d", stats.TotalPulls)
@@ -60,8 +60,8 @@ func TestCalculateStats(t *testing.T) {
 	}
 
 	// 픽업(음림: 4스택) 및 픽뚫(앙코: 2스택) 합산 총 6스택으로 픽업 완료주기 구성
-	// 따라서 운 점수는 (55.5 / 6.0) * 100 = 925.0
-	expectedLuckScore := 925.0
+	// 따라서 운 점수는 (55 / 6.0) * 100 = 916.666667
+	expectedLuckScore := (55.0 / 6.0) * 100
 	if stats.LuckScore != expectedLuckScore {
 		t.Errorf("Expected LuckScore %f, got %f", expectedLuckScore, stats.LuckScore)
 	}

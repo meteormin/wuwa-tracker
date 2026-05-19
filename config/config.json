@@ -30,49 +30,49 @@
                 "key": "characterEvent",
                 "hasOffBannerDrop": true,
                 "baseRate": 0.8,
-                "expectedPulls": 55.5
+                "expectedPulls": 80
             },
             {
                 "id": 2,
                 "key": "weaponEvent",
                 "hasOffBannerDrop": false,
                 "baseRate": 0.8,
-                "expectedPulls": 55.5
+                "expectedPulls": 55
             },
             {
                 "id": 3,
                 "key": "characterPermanent",
                 "hasOffBannerDrop": false,
                 "baseRate": 0.8,
-                "expectedPulls": 55.5
+                "expectedPulls": 55
             },
             {
                 "id": 4,
                 "key": "weaponPermanent",
                 "hasOffBannerDrop": false,
                 "baseRate": 0.8,
-                "expectedPulls": 55.5
+                "expectedPulls": 55
             },
             {
                 "id": 5,
                 "key": "beginner",
                 "hasOffBannerDrop": true,
                 "baseRate": 0.8,
-                "expectedPulls": 35.0
+                "expectedPulls": 55
             },
             {
                 "id": 6,
                 "key": "beginnerSelect",
                 "hasOffBannerDrop": false,
                 "baseRate": 0.8,
-                "expectedPulls": 55.5
+                "expectedPulls": 55
             },
             {
                 "id": 7,
                 "key": "characterNovice",
-                "hasOffBannerDrop": false,
+                "hasOffBannerDrop": true,
                 "baseRate": 0.8,
-                "expectedPulls": 55.5
+                "expectedPulls": 80
             }
         ]
     },
