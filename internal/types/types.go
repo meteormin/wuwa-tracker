@@ -47,23 +47,6 @@ type FiveStarRecord struct {
 	IsPickUp bool   `json:"isPickUp"` // 픽업 캐릭터/무기인지 여부 (픽뚫이면 false)
 }
 
-// Stats 는 특정 가챠 배너에 대한 통계 지표입니다.
-type Stats struct {
-	GachaType     int              `json:"gachaType"`
-	GachaName     string           `json:"gachaName"`
-	TotalPulls    int              `json:"totalPulls"`
-	CurrentPity5  int              `json:"currentPity5"`
-	CurrentPity4  int              `json:"currentPity4"`
-	BaseRate      float64          `json:"baseRate"`
-	ExpectedPulls int              `json:"expectedPulls"`
-	FiveStars     []FiveStarRecord `json:"fiveStars"`
-	Records       []Record         `json:"records"`
-	AvgPulls      float64          `json:"avgPulls"`
-	ActualRate    float64          `json:"actualRate"`
-	LuckScore     float64          `json:"luckScore"`
-	HasFiveStar   bool             `json:"hasFiveStar"`
-}
-
 type GachaType struct {
 	// ID GachaType Code
 	ID int `json:"id"`
@@ -88,6 +71,28 @@ func (gtypes *GachaTypes) MapFromSelectList(selectList map[string]string) {
 			}
 		}
 	}
+}
+
+// Stats 는 특정 가챠 배너에 대한 통계 지표입니다.
+type Stats struct {
+	GachaType     int              `json:"gachaType"`
+	GachaName     string           `json:"gachaName"`
+	TotalPulls    int              `json:"totalPulls"`
+	CurrentPity5  int              `json:"currentPity5"`
+	CurrentPity4  int              `json:"currentPity4"`
+	BaseRate      float64          `json:"baseRate"`
+	ExpectedPulls int              `json:"expectedPulls"`
+	FiveStars     []FiveStarRecord `json:"fiveStars"`
+	Records       []Record         `json:"records"`
+	AvgPulls      float64          `json:"avgPulls"`
+	ActualRate    float64          `json:"actualRate"`
+	LuckScore     float64          `json:"luckScore"`
+	HasFiveStar   bool             `json:"hasFiveStar"`
+}
+
+type ReportData struct {
+	PlayerID string  `json:"playerId"`
+	Stats    []Stats `json:"stats"`
 }
 
 type StandardFiveStarResource struct {

@@ -17,7 +17,9 @@ import (
 
 func main() {
 	in := flag.String("in", "", "Relative path of the single JSON log file (e.g. logs/20260518143618.json)")
-	out := flag.String("out", "report.html", "Relative path to output HTML report")
+	out := flag.String("out", "report", "Relative path to output report (without extension)")
+	formatFlag := flag.String("format", "html", "Report format (json, csv, html)")
+
 	flag.Parse()
 
 	if *in == "" {
@@ -44,14 +46,31 @@ func main() {
 		log.Fatalf("Error: failed to read log file %s: %v", *in, err)
 	}
 
-	// {"{GachaType.Key}": Records[]} 맵 구조로 언마샬링합니다.
-	var dataMap map[string][]types.Record
-	if err := json.Unmarshal(b, &dataMap); err != nil {
-		log.Fatalf("Error: failed to parse JSON from %s: %v", *in, err)
+	var playerID string
+	var recordsMap map[string][]types.Record
+
+	// Try to unmarshal as FetchResult first (new format containing payload and player ID)
+	var fetchResult types.FetchResult
+	if err := json.Unmarshal(b, &fetchResult); err == nil && len(fetchResult.Records) > 0 {
+		playerID = fetchResult.Payload.PlayerID
+		recordsMap = fetchResult.Records
+	} else {
+		// Fallback: try to unmarshal as map[string][]types.Record (old format)
+		if err := json.Unmarshal(b, &recordsMap); err != nil {
+			log.Fatalf("Error: failed to parse JSON from %s: %v", *in, err)
+		}
+		// Try to extract player ID from file name if possible
+		baseName := filepath.Base(*in)
+		baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		if parts := strings.Split(baseName, "-"); len(parts) > 1 {
+			playerID = parts[0]
+		} else {
+			playerID = baseName
+		}
 	}
 
 	for _, gachaType := range cfg.GachaTypes.Items {
-		records, ok := dataMap[gachaType.Key]
+		records, ok := recordsMap[gachaType.Key]
 		if !ok {
 			log.Printf("Warning: gacha type key %q not found in log file. Skipping...", gachaType.Key)
 			continue
@@ -63,15 +82,26 @@ func main() {
 		log.Fatalf("Error: no valid logs found in %s. Report was not generated.", *in)
 	}
 
-	// HTML 리포트 생성
-	exporter, err := report.NewExporter(cfg, report.FormatHTML)
+	var format report.Format
+	switch strings.ToLower(*formatFlag) {
+	case "json":
+		format = report.FormatJSON
+	case "csv":
+		format = report.FormatCSV
+	case "html":
+		format = report.FormatHTML
+	default:
+		log.Fatalf("Unsupported format: %s", *formatFlag)
+	}
+
+	exporter, err := report.NewExporter(cfg, format)
 	if err != nil {
-		log.Fatalf("Failed to get HTML exporter: %v", err)
+		log.Fatalf("Failed to get exporter: %v", err)
 	}
 
 	finalOut := *out
-	if !strings.HasSuffix(finalOut, ".html") {
-		finalOut = finalOut + ".html"
+	if !strings.HasSuffix(finalOut, "."+*formatFlag) {
+		finalOut = finalOut + "." + *formatFlag
 	}
 
 	// 출력 디렉토리가 존재하지 않는다면 자동 생성합니다.
@@ -82,7 +112,12 @@ func main() {
 		}
 	}
 
-	if err := exporter.Export(statsList, finalOut); err != nil {
+	reportData := types.ReportData{
+		PlayerID: playerID,
+		Stats:    statsList,
+	}
+
+	if err := exporter.Export(reportData, finalOut); err != nil {
 		log.Fatalf("Failed to export report: %v", err)
 	}
 

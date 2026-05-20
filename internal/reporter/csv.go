@@ -12,7 +12,7 @@ import (
 type CSVExporter struct{}
 
 // Export 는 stats 맵을 순회하며 배너별 통계와 5성 내역을 평탄화하여 CSV에 씁니다.
-func (e *CSVExporter) Export(stats []types.Stats, outputPath string) error {
+func (e *CSVExporter) Export(data types.ReportData, outputPath string) error {
 	f, err := os.Create(outputPath)
 	if err != nil {
 		return err
@@ -23,11 +23,12 @@ func (e *CSVExporter) Export(stats []types.Stats, outputPath string) error {
 	defer writer.Flush()
 
 	// 헤더 작성
-	_ = writer.Write([]string{"GachaType", "GachaName", "CardPoolType", "ResourceID", "QualityLevel", "ResourceType", "Name", "Count", "Time"})
+	_ = writer.Write([]string{"PlayerID", "GachaType", "GachaName", "CardPoolType", "ResourceID", "QualityLevel", "ResourceType", "Name", "Count", "Time"})
 
-	for _, stat := range stats {
+	for _, stat := range data.Stats {
 		for _, rec := range stat.Records {
 			_ = writer.Write([]string{
+				data.PlayerID,
 				fmt.Sprintf("%d", stat.GachaType),
 				stat.GachaName,
 				rec.CardPoolType,

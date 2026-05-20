@@ -36,7 +36,7 @@
                     <span class="text-xs font-semibold tracking-wider text-indigo-400 uppercase">Wuthering Waves</span>
                 </div>
                 <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent">
-                    튜닝 통계 리포트
+                    튜닝 통계 리포트 {{if .PlayerID}}<span class="text-xl md:text-2xl text-slate-400 font-medium block sm:inline sm:ml-2">(Player ID: {{.PlayerID}})</span>{{end}}
                 </h1>
             </div>
             <div class="text-xs text-slate-500 text-left md:text-right bg-slate-900/40 p-3 rounded-lg border border-slate-800">

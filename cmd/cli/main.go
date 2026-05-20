@@ -101,7 +101,7 @@ func main() {
 			log.Printf("Warning: failed to create logs directory: %v\n", err)
 		} else {
 			filePath := fmt.Sprintf("logs/%s-%s.json", fetchResult.Payload.PlayerID, timestamp)
-			b, err := json.MarshalIndent(fetchResult.Records, "", "    ")
+			b, err := json.MarshalIndent(fetchResult, "", "    ")
 			if err != nil {
 				log.Printf("Warning: failed to marshal records: %v\n", err)
 			}
@@ -141,7 +141,12 @@ func main() {
 		finalOut = finalOut + "." + *formatFlag
 	}
 
-	if err := exporter.Export(statsList, finalOut); err != nil {
+	reportData := types.ReportData{
+		PlayerID: fetchResult.Payload.PlayerID,
+		Stats:    statsList,
+	}
+
+	if err := exporter.Export(reportData, finalOut); err != nil {
 		log.Fatalf("Failed to generate report: %v", err)
 	}
 
