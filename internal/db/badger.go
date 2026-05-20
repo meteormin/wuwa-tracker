@@ -30,14 +30,23 @@ func (b *BadgerDB) Close() error {
 	return b.core.Close()
 }
 
-// SaveGachaRecords 는 특정 플레이어의 특정 배너 가챠 리스트를 JSON 직렬화하여 BadgerDB에 저장합니다.
-// 매번 전체 기록을 Rewrite 하므로 중복 및 동기화 에러 걱정이 없습니다.
+// SaveGachaRecords 는 특정 플레이어의 특정 배너 가챠 리스트를 기존 데이터와 병합하여 BadgerDB에 저장합니다.
+// 명조 API가 최근 6개월 데이터만 제공하므로, 기존 데이터를 보존하면서 새로운 데이터를 증분 병합합니다.
 func (b *BadgerDB) SaveGachaRecords(playerID, cardPoolType string, records []types.Record) error {
 	if records == nil {
 		records = []types.Record{}
 	}
 
-	recordsJSON, err := json.Marshal(records)
+	// 기존 가챠 기록 로드
+	existing, err := b.GetGachaRecords(playerID, cardPoolType)
+	if err != nil {
+		return err
+	}
+
+	// 기존 기록과 신규 기록 병합
+	merged := MergeRecords(existing, records)
+
+	recordsJSON, err := json.Marshal(merged)
 	if err != nil {
 		return err
 	}
