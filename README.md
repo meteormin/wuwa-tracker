@@ -77,10 +77,19 @@ make test
 ./bin/wuwa-tracker -url "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html?..."
 
 # 게임 설치 폴더를 직접 스캔하여 가챠 URL 감지 및 HTML 리포트 생성
-./bin/wuwa-tracker -path "C:\Program Files\Wuthering Waves\Wuthering Waves Game"
+./bin/wuwa-tracker -path "<게임 설치 경로>"
 
-# 상세 로깅 활성화 및 데이터를 JSON 포맷으로 stats 파일에 저장
-./bin/wuwa-tracker -url "가챠URL" -format json -out stats -v
+# 데이터를 JSON 포맷으로 dir/out.json 파일에 저장
+./bin/wuwa-tracker -url "가챠URL" -format json -out dir/out
+
+# 데이터를 CSV 포맷으로 dir/out.csv 파일에 저장
+./bin/wuwa-tracker -url "가챠URL" -format csv -out dir/out
+
+# 데이터를 HTML 포맷으로 dir/out.html 파일에 저장
+./bin/wuwa-tracker -url "가챠URL" -format html -out dir/out
+
+# 상세 로깅 활성화 (logs 디렉터리에 가챠 기록을 JSON으로 저장합니다.)
+./bin/wuwa-tracker -url "가챠URL" -v
 ```
 
 #### CLI 플래그 설명
@@ -90,7 +99,7 @@ make test
 | `-path` | `string` | `""` | 명조 설치 폴더를 지정하여 게임 로그 파일에서 자동으로 URL을 파싱 및 조회합니다. |
 | `-format` | `string` | `"html"` | 분석 리포트의 저장 포맷을 지정합니다. (`html`, `csv`, `json` 지원) |
 | `-out` | `string` | `"report"` | 생성할 리포트 파일의 이름을 지정합니다. (확장자는 포맷에 맞춰 자동 부여) |
-| `-v` | `bool` | `false` | 상세 로깅(Verbose)을 활성화하며, 원격 요청 성공 시 응답받은 가챠 원시 로그 데이터를 `logs/` 디렉터리에 타임스탬프 형식의 백업 파일(JSON)로 자동 기록합니다. |
+| `-v` | `bool` | `false` | 상세 로깅(Verbose)을 활성화하며, 원격 요청 성공 시 응답받은 가챠 원시 로그 데이터를 `logs/` 디렉터리에 타임스탬프 형식의 파일(JSON)로 자동 기록합니다. |
 
 ### 3. 오프라인 리포터 실행 (`wuwa-reporter`)
 ```bash
