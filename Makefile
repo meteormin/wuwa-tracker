@@ -24,7 +24,7 @@ build-cli:
 	@go build -o $(BIN_DIR)/$(APP_NAME) $(CLI_DIR)
 	@echo "CLI Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)"
 
-build-server:
+build-server: build-webui
 	@echo "Building Server ($(APP_NAME)-server)..."
 	@mkdir -p $(BIN_DIR)
 	@go build -o $(BIN_DIR)/$(APP_NAME)-server $(SERVER_DIR)

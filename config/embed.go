@@ -16,7 +16,7 @@ type Config struct {
 	LuckScoreThresholds       []types.LuckScoreThreshold
 }
 
-func LoadConfig() (*Config, error) {
+func Load() (*Config, error) {
 	var cfg *Config
 	raw, err := FS.ReadFile("config.json")
 	if err != nil {

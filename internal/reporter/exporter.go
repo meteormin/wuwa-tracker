@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 
+	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
@@ -19,15 +20,15 @@ type Exporter interface {
 	Export(stats []types.Stats, outputPath string) error
 }
 
-// GetExporter 는 주어진 포맷 이름에 따라 적절한 Exporter를 반환합니다.
-func GetExporter(format Format) (Exporter, error) {
+// NewExporter 는 주어진 포맷 이름에 따라 적절한 Exporter를 반환합니다.
+func NewExporter(cfg *config.Config, format Format) (Exporter, error) {
 	switch format {
 	case FormatJSON:
 		return &JSONExporter{}, nil
 	case FormatCSV:
 		return &CSVExporter{}, nil
 	case FormatHTML:
-		return &HTMLExporter{}, nil
+		return &HTMLExporter{cfg: cfg}, nil
 	default:
 		return nil, fmt.Errorf("unsupported format: %s", format)
 	}

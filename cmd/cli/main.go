@@ -65,7 +65,7 @@ func main() {
 		lang = scanner.GetSystemLocale()
 	}
 
-	cfg, err := config.LoadConfig()
+	cfg, err := config.Load()
 	if err != nil {
 		log.Panicf("Failed to load config: %v", err)
 	}
@@ -86,18 +86,8 @@ func main() {
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
 
-	localeData, err := client.FetchGachaLocale(targetURL, lang)
-	if err != nil {
-		fmt.Printf("Warning: failed to fetch localized banner names for %q: %v. Falling back to 'ko'.\n", lang, err)
-		if lang != "ko" {
-			localeData, err = client.FetchGachaLocale(targetURL, "ko")
-			if err != nil {
-				fmt.Printf("Warning: failed to fetch fallback 'ko' banner names: %v\n", err)
-			}
-		}
-	}
-
-	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
+	selectList := tracker.LoadGachaLocaleWithFallback(client, targetURL, lang)
+	cfg.GachaTypes.MapFromSelectList(selectList)
 
 	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
 
@@ -141,7 +131,7 @@ func main() {
 		log.Fatalf("Unsupported format: %s", *formatFlag)
 	}
 
-	exporter, err := report.GetExporter(format)
+	exporter, err := report.NewExporter(cfg, format)
 	if err != nil {
 		log.Fatalf("Failed to load exporter: %v", err)
 	}

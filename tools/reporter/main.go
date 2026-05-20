@@ -25,7 +25,7 @@ func main() {
 	}
 
 	// config 로드
-	cfg, err := config.LoadConfig()
+	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -64,7 +64,7 @@ func main() {
 	}
 
 	// HTML 리포트 생성
-	exporter, err := report.GetExporter(report.FormatHTML)
+	exporter, err := report.NewExporter(cfg, report.FormatHTML)
 	if err != nil {
 		log.Fatalf("Failed to get HTML exporter: %v", err)
 	}

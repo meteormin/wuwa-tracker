@@ -21,7 +21,6 @@ import (
 	"github.com/meteormin/wuwa-tracker/internal/db"
 	"github.com/meteormin/wuwa-tracker/internal/handler"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
-	"github.com/meteormin/wuwa-tracker/internal/types"
 	"github.com/meteormin/wuwa-tracker/webui"
 )
 
@@ -63,7 +62,7 @@ func run() error {
 	dbPath := *dbPathFlag
 
 	// 설정 로드 (서버 기동 시 최초 1회만 로드하여 메모리에 적재)
-	cfg, err := config.LoadConfig()
+	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -71,12 +70,8 @@ func run() error {
 	// 다국어 배너 이름 사전 매핑 (최초 1회 한국어로 캐싱 매핑 수행)
 	httpClient := &http.Client{Timeout: 5 * time.Second}
 	client := tracker.NewClient(httpClient)
-	localeData, err := client.FetchGachaLocale("", "ko")
-	if err != nil {
-		log.Warnf("Failed to fetch remote 'ko' banner locale on startup: %v. Using defaults.\n", err)
-		localeData = types.LocaleData{SelectList: map[string]string{}}
-	}
-	cfg.GachaTypes.MapFromSelectList(localeData.SelectList)
+	selectList := tracker.LoadGachaLocaleWithFallback(client, "", "ko")
+	cfg.GachaTypes.MapFromSelectList(selectList)
 
 	// BadgerDB 네이티브 KV 엔진 초기화
 	badgerDB, err := db.NewBadgerDB(dbPath)
