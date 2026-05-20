@@ -32,30 +32,18 @@ func NewHandler(badgerDB *db.BadgerDB, cfg *config.Config) *Handler {
 func (h *Handler) Track(c fiber.Ctx) error {
 	var req types.TrackRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "invalid request body: " + err.Error(),
-			ErrorKey: "err.invalid_request_body",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(newInvalidRequestBodyErr(err))
 	}
 
 	targetURL := strings.TrimSpace(req.URL)
 	targetURL = strings.ReplaceAll(targetURL, "\\", "")
 	if targetURL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "missing url parameter",
-			ErrorKey: "err.missing_url",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingURL)
 	}
 
 	u, err := url.Parse(targetURL)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "invalid url format",
-			ErrorKey: "err.invalid_url_format",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(errInvalidURLFormat)
 	}
 
 	var q url.Values
@@ -72,11 +60,7 @@ func (h *Handler) Track(c fiber.Ctx) error {
 
 	playerID := q.Get("player_id")
 	if playerID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "missing player_id in url",
-			ErrorKey: "err.missing_player_id_in_url",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerIDInURL)
 	}
 
 	// Kurogame API 클라이언트 생성
@@ -94,11 +78,7 @@ func (h *Handler) Track(c fiber.Ctx) error {
 		// BadgerDB에 덮어쓰기 방식으로 저장 (기존 데이터와 자동 정합성 일치)
 		err = h.db.SaveGachaRecords(playerID, gachaType.Key, records)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(types.ErrorResponse{
-				Success:  false,
-				Error:    "failed to save records to database",
-				ErrorKey: "err.database_save_failed",
-			})
+			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseSaveFailed)
 		}
 	}
 
@@ -111,28 +91,16 @@ func (h *Handler) Track(c fiber.Ctx) error {
 func (h *Handler) Upload(c fiber.Ctx) error {
 	var req types.UploadRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "invalid request body: " + err.Error(),
-			ErrorKey: "err.invalid_request_body",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(newInvalidRequestBodyErr(err))
 	}
 
 	playerID := strings.TrimSpace(req.PlayerID)
 	if playerID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "playerId is required",
-			ErrorKey: "err.player_id_required",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(errPlayerIDRequired)
 	}
 
 	if len(req.Data) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "data map cannot be empty",
-			ErrorKey: "err.empty_upload_data",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(errEmptyUploadData)
 	}
 
 	// 맵 데이터를 BadgerDB에 배너별로 저장
@@ -145,11 +113,7 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 
 		err := h.db.SaveGachaRecords(playerID, gachaType.Key, records)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(types.ErrorResponse{
-				Success:  false,
-				Error:    "failed to save records to database",
-				ErrorKey: "err.database_save_failed",
-			})
+			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseSaveFailed)
 		}
 	}
 
@@ -161,11 +125,7 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 func (h *Handler) GetStats(c fiber.Ctx) error {
 	playerID := c.Params("playerId")
 	if playerID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "missing playerId parameter",
-			ErrorKey: "err.missing_player_id",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerID)
 	}
 
 	return h.returnPlayerStats(c, playerID)
@@ -175,11 +135,7 @@ func (h *Handler) GetStats(c fiber.Ctx) error {
 func (h *Handler) ListPlayers(c fiber.Ctx) error {
 	players, err := h.db.ListPlayers()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(types.ErrorResponse{
-			Success:  false,
-			Error:    "failed to retrieve player list",
-			ErrorKey: "err.database_list_players_failed",
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseListPlayersFailed)
 	}
 
 	return c.JSON(fiber.Map{
@@ -205,11 +161,7 @@ func (h *Handler) returnPlayerStats(c fiber.Ctx, playerID string) error {
 	for _, gachaType := range h.cfg.GachaTypes.Items {
 		records, err := h.db.GetGachaRecords(playerID, gachaType.Key)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(types.ErrorResponse{
-				Success:  false,
-				Error:    "failed to query player records",
-				ErrorKey: "err.database_query_failed",
-			})
+			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseQueryFailed)
 		}
 		// 기록이 비어 있어도 기본 구조체를 바르게 렌더링하기 위해 무조건 추가
 		statsList = append(statsList, calc.CalculateStats(records, gachaType))
