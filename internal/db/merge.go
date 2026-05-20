@@ -36,7 +36,7 @@ func MergeRecords(dbRecords, newRecords []types.Record) []types.Record {
 		}
 
 		if match {
-			// 오버랩 지점을 찾음! newRecords[0:k]가 DB에 없는 새로운 기록들입니다.
+			// 오버랩 지점 찾기, newRecords[0:k]가 DB에 없는 새로운 기록들입니다.
 			// 이를 기존 DB 기록의 맨 앞에 붙여 병합합니다.
 			merged := make([]types.Record, 0, k+len(dbRecords))
 			merged = append(merged, newRecords[0:k]...)
