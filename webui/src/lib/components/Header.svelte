@@ -14,7 +14,7 @@
   <div>
     <div class="flex items-center gap-2 mb-1">
       <span
-        class="inline-flex h-3 w-3 rounded-full bg-indigo-500 animate-pulse"
+        class="inline-flex h-3 w-3 rounded-full bg-indigo-500"
       ></span>
       <span
         class="text-xs font-semibold tracking-wider text-indigo-400 uppercase"

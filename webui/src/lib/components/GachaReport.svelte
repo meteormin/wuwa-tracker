@@ -205,7 +205,7 @@
         <h4
           class="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2"
         >
-          <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"
+          <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"
           ></span>
           {$t("report.history_title", { count: stat.fiveStars ? stat.fiveStars.length : 0 })}
         </h4>

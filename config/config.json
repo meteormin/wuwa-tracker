@@ -69,11 +69,18 @@
                 "expectedPulls": 55
             },
             {
-                "id": 7,
+                "id": 8,
                 "key": "characterNovice",
                 "hasOffBannerDrop": true,
                 "baseRate": 0.8,
                 "expectedPulls": 80
+            },
+            {
+                "id": 9,
+                "key": "weaponNovice",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55
             }
         ]
     },
@@ -105,7 +112,7 @@
         {
             "minScore": 115.0,
             "state": "비정상적인 행운! 🔥",
-            "colorClass": "text-emerald-400 animate-pulse",
+            "colorClass": "text-emerald-400",
             "bgClass": "bg-emerald-500/10 border-emerald-500/30"
         }
     ]
