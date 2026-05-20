@@ -11,9 +11,10 @@ import (
 var FS embed.FS
 
 type Config struct {
-	StandardFiveStarResources types.StandardFiveStarResources
-	GachaTypes                types.GachaTypes
-	LuckScoreThresholds       []types.LuckScoreThreshold
+	GachaLocaleEndpoint       string                          `json:"gachaLocaleEndpoint"`
+	StandardFiveStarResources types.StandardFiveStarResources `json:"standardFiveStarResources"`
+	GachaTypes                types.GachaTypes                `json:"gachaTypes"`
+	LuckScoreThresholds       []types.LuckScoreThreshold      `json:"luckScoreThresholds"`
 }
 
 func Load() (*Config, error) {

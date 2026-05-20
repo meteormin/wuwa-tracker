@@ -1,4 +1,5 @@
 {
+    "gachaLocaleEndpoint": "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/locales",
     "standardFiveStarResources": {
         "items": [
             {

@@ -70,7 +70,7 @@ func run() error {
 	// 다국어 배너 이름 사전 매핑 (최초 1회 한국어로 캐싱 매핑 수행)
 	httpClient := &http.Client{Timeout: 5 * time.Second}
 	client := tracker.NewClient(httpClient)
-	selectList := tracker.LoadGachaLocaleWithFallback(client, "", "ko")
+	selectList := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, "ko")
 	cfg.GachaTypes.MapFromSelectList(selectList)
 
 	// BadgerDB 네이티브 KV 엔진 초기화

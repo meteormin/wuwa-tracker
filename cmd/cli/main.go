@@ -86,7 +86,7 @@ func main() {
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
 
-	selectList := tracker.LoadGachaLocaleWithFallback(client, targetURL, lang)
+	selectList := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
 	cfg.GachaTypes.MapFromSelectList(selectList)
 
 	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))

@@ -153,13 +153,7 @@ func (c *Client) FetchGachaLocale(urlStr string, lang string) (types.LocaleData,
 		lang = "ko"
 	}
 
-	u, err := url.Parse(urlStr)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return types.LocaleData{}, ErrInvalidGachaURL
-	}
-
-	baseURL := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-	urlStrLocale := fmt.Sprintf("%s/aki/gacha/locales/%s.json", baseURL, lang)
+	urlStrLocale := fmt.Sprintf("%s/%s.json", urlStr, lang)
 	resp, err := c.core.Get(urlStrLocale)
 	if err != nil {
 		return types.LocaleData{}, err
