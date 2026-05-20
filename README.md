@@ -14,7 +14,7 @@
 * **임베디드 프론트엔드**: Svelte 기반으로 개발된 대시보드 정적 리소스를 Go 바이너리 내부에 컴파일 시점(`go:embed`)에 내장하여 별도의 Node.js 설치 없이 실행 가능합니다.
 * **로컬 API 서버**: Go Fiber 프레임워크 기반의 REST API 서버를 내장하고 있습니다.
 * **오프라인 데이터 처리**: 기저장된 로컬 가챠 JSON 파일을 웹 UI에 업로드하여 분석을 수행하고 로컬 데이터베이스(BadgerDB)에 저장할 수 있습니다.
-* **동작 제어**: 포트(`-port`)와 데이터베이스 저장 경로(`-db`)를 CLI 플래그로 변경할 수 있습니다.
+* **동작 제어**: 포트(`-port`)와 데이터베이스 저장 경로(`-dbpath`)를 CLI 플래그로 변경할 수 있습니다.
 
 ### 2. CLI 분석 도구 (`wuwa-tracker`)
 * **게임 로그 스캔**: 명조 설치 경로(`-path`)를 지정하면 게임 로그 파일(`Client.log` / `debug.log`)에서 튜닝 기록 URL을 자동으로 탐색하여 분석합니다.
@@ -64,7 +64,7 @@ make test
 ./bin/wuwa-tracker-server
 
 # 커스텀 포트 및 데이터베이스 경로 설정 구동
-./bin/wuwa-tracker-server -port 9090 -db "./my_data/badger"
+./bin/wuwa-tracker-server -port 9090 -dbpath "./my_data/badger"
 ```
 * 서버 구동 후 브라우저에서 `http://localhost:3000` (또는 지정한 포트)에 접속합니다.
 * 복사한 튜닝 기록 URL을 입력하여 동기화하거나, JSON 백업 파일을 업로드하여 데이터를 영구 저장 및 조회할 수 있습니다.
@@ -109,27 +109,36 @@ wuwa-tracker/
 │   └── server/
 │       └── main.go         # API 웹 서버 구동, CORS 제어, 라우터 매핑, 정적 리소스 호스팅
 ├── config/
-│   ├── config.json         # 가챠 배너별 기대 스택값, 언어 리소스 및 운 점수 임계치 정의
+│   ├── config.json         # 가챠 배너별 기대 스택값, 언어 리소스, 가챠 로케일 엔드포인트 및 운 점수 임계치 정의
 │   └── embed.go            # config.json의 compile-time 임베딩 관리
 ├── internal/
-│   ├── server/
-│   │   ├── db/
-│   │   │   └── badger.go   # BadgerDB 제어 패키지
-│   │   └── handlers/
-│   │       └── handlers.go # REST API 요청 처리 핸들러 (Sync, Upload, Stats 조회, Config 배포)
+│   ├── db/
+│   │   └── badger.go       # BadgerDB 제어 패키지 (플레이어 데이터 영구 보관)
+│   ├── handler/
+│   │   ├── errors.go       # 표준화된 HTTP 에러 응답 정의 및 관리
+│   │   └── handler.go      # REST API 요청 처리 핸들러 (Sync, Upload, Stats 조회, Config 배포)
 │   ├── reporter/
 │   │   ├── csv.go          # CSV 포맷 평탄화 변환기
+│   │   ├── exporter.go     # 익스포터 팩토리 인터페이스 정의
 │   │   ├── html.go         # HTML 대시보드 빌더
 │   │   └── json.go         # JSON Array 평탄화 추출기
 │   ├── tracker/
-│   │   ├── api.go          # Kurogame 공식 가챠 로그 데이터 및 locales 로컬라이제이션 다운로더
+│   │   ├── api.go          # Kurogame 공식 가챠 로그 API 연단용 HTTP 클라이언트
+│   │   ├── locale.go       # 외부 API 페치 실패 시 내장된 로컬 다국어 파일로 fallback 로드 수행
 │   │   └── stats.go        # 가챠 통계 연산 및 픽업 사이클 기반 운 점수(Luck Score) 판별기
 │   └── types/
 │       └── types.go        # 공통 데이터 규격 정의
+├── locales/
+│   ├── ko.json             # 한국어(ko) 가챠 배너 다국어 사전 리소스 파일
+│   ├── locale.go           # 임베딩된 다국어 리소스 로드 헬퍼 패키지
+│   └── locale_test.go      # 다국어 리소스 로딩 단위 테스트
 ├── templates/
 │   ├── html/
 │   │   └── report.tmpl     # 리포트 HTML 대시보드 템플릿
 │   └── template.go         # report.tmpl 컴파일 임베딩 패키지
+├── tools/
+│   └── reporter/
+│       └── main.go         # wuwa-reporter 도구의 진입점 파일
 ├── webui/
 │   ├── src/
 │   │   └── App.svelte      # 대시보드 UI, JSON 업로더 및 플레이어 리스트 관리 컴포넌트
@@ -160,7 +169,7 @@ sequenceDiagram
         User->>UI: 가챠 URL 입력 후 동기화 요청
         UI->>Server: POST /api/track { url }
         Server->>Config: 배너 메타데이터 로드
-        Server->>API: FetchGachaRecords() (페이지네이션 순회)
+        Server->>API: FetchRecords() (페이지네이션 순회)
         API-->>Server: []Record (순수 데이터 목록)
         Server->>DB: SaveGachaRecords() (플레이어별 중복 없는 자동 적층)
     end
