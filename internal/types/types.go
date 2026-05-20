@@ -61,7 +61,7 @@ type Stats struct {
 	AvgPulls      float64          `json:"avgPulls"`
 	ActualRate    float64          `json:"actualRate"`
 	LuckScore     float64          `json:"luckScore"`
-	HasFiveStar   bool
+	HasFiveStar   bool             `json:"hasFiveStar"`
 }
 
 type GachaType struct {
