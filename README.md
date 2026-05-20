@@ -185,5 +185,5 @@ sequenceDiagram
     DB-->>Server: []Record
     Server->>Server: CalculateStats() (5성 스택, 픽업 사이클 및 운 점수 정밀 분석)
     Server-->>UI: StatsResponse { statsList } (최신 통계 렌더링용 JSON 반환)
-    UI-->>User: 3열 모던 대시보드 시각화 정보 출력 완료
+    UI-->>User: 시각화 정보 출력 완료
 ```
