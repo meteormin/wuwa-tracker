@@ -118,13 +118,20 @@ func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types
 		stats.LuckScore = 0
 	}
 
-	// 최신 획득 내역이 배열의 앞쪽에 오도록 FiveStars 를 뒤집습니다.
+	// 최신 획득 내역이 배열의 앞쪽에 오도록 FiveStars 와 Records 를 뒤집습니다.
 	reverseFiveStars(stats.FiveStars)
+	reverseRecords(stats.Records)
 
 	return stats
 }
 
 func reverseFiveStars(s []types.FiveStarRecord) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
+func reverseRecords(s []types.Record) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}

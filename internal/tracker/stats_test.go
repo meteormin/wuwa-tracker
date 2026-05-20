@@ -75,4 +75,9 @@ func TestCalculateStats(t *testing.T) {
 	if !reflect.DeepEqual(stats.FiveStars, expectedFiveStars) {
 		t.Errorf("Expected FiveStars %+v, got %+v", expectedFiveStars, stats.FiveStars)
 	}
+
+	// Records도 최신순(입력 순서)이 되도록 뒤집혔는지 검증
+	if !reflect.DeepEqual(stats.Records, records) {
+		t.Errorf("Expected stats.Records to match input records order, got %+v", stats.Records)
+	}
 }
