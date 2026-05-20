@@ -79,17 +79,18 @@ make test
 # 게임 설치 폴더를 직접 스캔하여 가챠 URL 감지 및 HTML 리포트 생성
 ./bin/wuwa-tracker -path "C:\Program Files\Wuthering Waves\Wuthering Waves Game"
 
-# 데이터 포맷을 JSON으로 지정하고 저장 파일명을 'stats'로 설정
-./bin/wuwa-tracker -url "가챠URL" -format json -out stats
+# 상세 로깅 활성화 및 데이터를 JSON 포맷으로 stats 파일에 저장
+./bin/wuwa-tracker -url "가챠URL" -format json -out stats -v
 ```
 
 #### CLI 플래그 설명
 | 플래그 | 타입 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- |
-| `-url` | `string` | `""` | 분석할 명조 공식 가챠 기록 URL을 입력합니다. |
+| `-url` | `string` | `""` | 분석할 명조 가챠 기록 URL을 입력합니다. |
 | `-path` | `string` | `""` | 명조 설치 폴더를 지정하여 게임 로그 파일에서 자동으로 URL을 파싱 및 조회합니다. |
 | `-format` | `string` | `"html"` | 분석 리포트의 저장 포맷을 지정합니다. (`html`, `csv`, `json` 지원) |
 | `-out` | `string` | `"report"` | 생성할 리포트 파일의 이름을 지정합니다. (확장자는 포맷에 맞춰 자동 부여) |
+| `-v` | `bool` | `false` | 상세 로깅(Verbose)을 활성화하며, 원격 요청 성공 시 응답받은 가챠 원시 로그 데이터를 `logs/` 디렉터리에 타임스탬프 형식의 백업 파일(JSON)로 자동 기록합니다. |
 
 ### 3. 오프라인 리포터 실행 (`wuwa-reporter`)
 ```bash
@@ -123,7 +124,7 @@ wuwa-tracker/
 │   │   ├── html.go         # HTML 대시보드 빌더
 │   │   └── json.go         # JSON Array 평탄화 추출기
 │   ├── tracker/
-│   │   ├── api.go          # Kurogame 공식 가챠 로그 API 연단용 HTTP 클라이언트
+│   │   ├── api.go          # Kurogame 가챠 로그 API 연동용 HTTP 클라이언트
 │   │   ├── locale.go       # 외부 API 페치 실패 시 내장된 로컬 다국어 파일로 fallback 로드 수행
 │   │   └── stats.go        # 가챠 통계 연산 및 픽업 사이클 기반 운 점수(Luck Score) 판별기
 │   └── types/
@@ -158,14 +159,14 @@ sequenceDiagram
     participant Server as Server (Go Fiber)
     participant DB as 로컬 DB (BadgerDB)
     participant Config as config.json
-    participant API as 공식 가챠 API
+    participant API as 가챠 API
 
     User->>UI: 웹 화면 접속 (http://localhost:3000)
     UI->>Server: GET /api/config
     Server-->>UI: 운 점수 임계값(Thresholds) 등 설정 데이터 주입
     
     rect rgb(20, 30, 45)
-        Note over User, API: [방법 A] 공식 URL을 통한 실시간 데이터 동기화
+        Note over User, API: [방법 A] URL을 통한 실시간 데이터 동기화
         User->>UI: 가챠 URL 입력 후 동기화 요청
         UI->>Server: POST /api/track { url }
         Server->>Config: 배너 메타데이터 로드

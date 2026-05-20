@@ -23,7 +23,7 @@ func main() {
 	pathFlag := flag.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	formatFlag := flag.String("format", "html", "Report format (json, csv, html)")
 	outFlag := flag.String("out", "report", "Output file path (without extension)")
-	debugFlag := flag.Bool("debug", false, "Enable debug logging")
+	verboseFlag := flag.Bool("v", false, "Enable verbose logging")
 
 	flag.Parse()
 
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	var client *tracker.Client
-	if *debugFlag {
+	if *verboseFlag {
 		client = tracker.NewClient(&http.Client{
 			Transport: &tracker.LoggingTransport{
 				Captured: http.DefaultTransport,
@@ -95,7 +95,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to fetch records: %v", err)
 	}
-	if len(fetchResult.Records) > 0 && *debugFlag {
+	if len(fetchResult.Records) > 0 && *verboseFlag {
 		timestamp := time.Now().Format("20060102150405")
 		if err := os.MkdirAll("logs", 0o755); err != nil {
 			log.Printf("Warning: failed to create logs directory: %v\n", err)
