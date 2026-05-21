@@ -8,6 +8,7 @@
   "control.tracking_btn_loading": "조회 중...",
   "control.upload_btn": "📁 JSON 업로드",
   "control.saved_players_title": "저장된 플레이어 기록 ({count})",
+  "control.export_report": "리포트 내보내기",
   "control.no_players": "아직 등록된 플레이어가 없습니다. 위 URL 입력 혹은 JSON 파일 업로드로 가챠 데이터를 분석 하세요!",
   "control.invalid_json": "올바르지 않은 JSON 파일 형식입니다. 다시 확인해 주세요.",
   "upload.modal_title": "📁 오프라인 JSON 데이터 등록",

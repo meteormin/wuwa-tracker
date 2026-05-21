@@ -3,7 +3,7 @@ package report
 import (
 	"encoding/csv"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -11,15 +11,9 @@ import (
 // CSVExporter 는 통계 데이터를 CSV 포맷으로 저장합니다.
 type CSVExporter struct{}
 
-// Export 는 stats 맵을 순회하며 배너별 통계와 5성 내역을 평탄화하여 CSV에 씁니다.
-func (e *CSVExporter) Export(data types.ReportData, outputPath string) error {
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-
-	writer := csv.NewWriter(f)
+// Export 는 stats 맵을 순회하며 배너별 통계와 5성 내역을 평탄화하여 w에 씁니다.
+func (e *CSVExporter) Export(w io.Writer, data types.ReportData) error {
+	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
 	// 헤더 작성

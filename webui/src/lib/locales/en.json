@@ -8,6 +8,7 @@
   "control.tracking_btn_loading": "Tracking...",
   "control.upload_btn": "📁 JSON Upload",
   "control.saved_players_title": "Saved Players ({count})",
+  "control.export_report": "Export Report",
   "control.no_players": "No registered players yet. Track a URL or upload a JSON file above to analyze gacha data!",
   "control.invalid_json": "Invalid JSON file format. Please check again.",
   "upload.modal_title": "📁 Register Offline JSON Data",

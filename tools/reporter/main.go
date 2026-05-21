@@ -117,7 +117,13 @@ func main() {
 		Stats:    statsList,
 	}
 
-	if err := exporter.Export(reportData, finalOut); err != nil {
+	f, err := os.Create(finalOut)
+	if err != nil {
+		log.Fatalf("Failed to create report file: %v", err)
+	}
+	defer f.Close()
+
+	if err := exporter.Export(f, reportData); err != nil {
 		log.Fatalf("Failed to export report: %v", err)
 	}
 

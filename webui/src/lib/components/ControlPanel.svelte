@@ -131,6 +131,35 @@
     </div>
   </div>
 
+  {#if activePlayerID}
+    <div class="mt-6 pt-4 border-t border-slate-800/60 flex flex-wrap items-center gap-3">
+      <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">{$t("control.export_report")} :</span>
+      <div class="flex gap-2">
+        <a
+          href="/api/export/{activePlayerID}?format=html"
+          download="report_{activePlayerID}.html"
+          class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-indigo-400 border-indigo-500/30 hover:border-indigo-500/80 hover:bg-indigo-600/10 transition-all flex items-center gap-1 active:scale-95"
+        >
+          📄 HTML
+        </a>
+        <a
+          href="/api/export/{activePlayerID}?format=json"
+          download="report_{activePlayerID}.json"
+          class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-amber-400 border-amber-500/30 hover:border-amber-500/80 hover:bg-amber-600/10 transition-all flex items-center gap-1 active:scale-95"
+        >
+          📦 JSON
+        </a>
+        <a
+          href="/api/export/{activePlayerID}?format=csv"
+          download="report_{activePlayerID}.csv"
+          class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-emerald-400 border-emerald-500/30 hover:border-emerald-500/80 hover:bg-emerald-600/10 transition-all flex items-center gap-1 active:scale-95"
+        >
+          📊 CSV
+        </a>
+      </div>
+    </div>
+  {/if}
+
   <!-- 피드백 알림 메시지 -->
   {#if errorMessage}
     <div

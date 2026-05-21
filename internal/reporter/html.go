@@ -2,7 +2,7 @@ package report
 
 import (
 	"html/template"
-	"os"
+	"io"
 
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/types"
@@ -20,18 +20,12 @@ type htmlContext struct {
 	LuckScoreThresholds []types.LuckScoreThreshold
 }
 
-// Export 는 stats 맵을 HTML 템플릿에 주입하여 보고서 파일을 생성합니다.
-func (e *HTMLExporter) Export(data types.ReportData, outputPath string) error {
+// Export 는 stats 맵을 HTML 템플릿에 주입하여 w에 보고서를 씁니다.
+func (e *HTMLExporter) Export(w io.Writer, data types.ReportData) error {
 	tmpl, err := template.New("report").ParseFS(templates.HTML, "html/report.tmpl")
 	if err != nil {
 		return err
 	}
-
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
 
 	ctx := htmlContext{
 		PlayerID:            data.PlayerID,
@@ -39,5 +33,5 @@ func (e *HTMLExporter) Export(data types.ReportData, outputPath string) error {
 		LuckScoreThresholds: e.cfg.LuckScoreThresholds,
 	}
 
-	return tmpl.ExecuteTemplate(f, "report.tmpl", ctx)
+	return tmpl.ExecuteTemplate(w, "report.tmpl", ctx)
 }

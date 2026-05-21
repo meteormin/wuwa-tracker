@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
+	report "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -172,4 +175,77 @@ func (h *Handler) returnPlayerStats(c fiber.Ctx, playerID string) error {
 		PlayerID: playerID,
 		Stats:    statsList,
 	})
+}
+
+// ExportReport 는 특정 플레이어의 가챠 데이터를 지정된 포맷(html, json, csv)으로 익스포트하여 다운로드하도록 합니다.
+func (h *Handler) ExportReport(c fiber.Ctx) error {
+	playerID := c.Params("playerId")
+	if playerID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerID)
+	}
+
+	formatParam := strings.ToLower(c.Query("format", "html"))
+	var format report.Format
+	switch formatParam {
+	case "json":
+		format = report.FormatJSON
+	case "csv":
+		format = report.FormatCSV
+	case "html":
+		format = report.FormatHTML
+	default:
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Unsupported format: " + formatParam,
+		})
+	}
+
+	// 통계 계산
+	calc := tracker.NewStatsCalculator(h.cfg.StandardFiveStarResources)
+	statsList := make([]types.Stats, 0, len(h.cfg.GachaTypes.Items))
+
+	for _, gachaType := range h.cfg.GachaTypes.Items {
+		records, err := h.db.GetGachaRecords(playerID, gachaType.Key)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseQueryFailed)
+		}
+		statsList = append(statsList, calc.CalculateStats(records, gachaType))
+	}
+
+	reportData := types.ReportData{
+		PlayerID: playerID,
+		Stats:    statsList,
+	}
+
+	// exporter 가져오기
+	exporter, err := report.NewExporter(h.cfg, format)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   "Failed to create exporter: " + err.Error(),
+		})
+	}
+
+	// 메모리 버퍼에 리포트 내용 쓰기
+	var buf bytes.Buffer
+	if err := exporter.Export(&buf, reportData); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   "Failed to generate report: " + err.Error(),
+		})
+	}
+
+	// 컨텐트 타입 지정
+	switch format {
+	case report.FormatJSON:
+		c.Type("json")
+	case report.FormatCSV:
+		c.Set("Content-Type", "text/csv; charset=utf-8")
+	case report.FormatHTML:
+		c.Type("html")
+	}
+
+	// 파일 다운로드 응답 전송
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"report_%s.%s\"", playerID, formatParam))
+	return c.Send(buf.Bytes())
 }
