@@ -9,7 +9,7 @@
 <!-- 우측 전체 히스토리 리스트 파트 (1/3 차지) -->
 <div class="flex flex-col h-[650px] bg-slate-950/40 p-5 rounded-2xl border border-slate-900/60">
   <h4 class="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2 pb-2.5 border-b border-slate-900/60">
-    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
     </svg>
     {$t("full_history.title", { count: records ? records.length : 0 })}

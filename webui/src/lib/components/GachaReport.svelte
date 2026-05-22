@@ -39,7 +39,7 @@
     <h3
       class="text-xl md:text-2xl font-bold text-slate-100 flex items-center gap-2"
     >
-      <span class="w-2 h-6 bg-indigo-500 rounded"></span>
+      <span class="w-2 h-6 bg-blue-500 rounded"></span>
       {stat.gachaName || $t("report.loading")}
     </h3>
     <span
@@ -80,7 +80,7 @@
               class="w-full bg-slate-950/80 rounded-full h-2 overflow-hidden border border-slate-800/80"
             >
               <div
-                class="bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500 h-full rounded-full transition-all duration-500"
+                class="bg-amber-500 h-full rounded-full transition-all duration-500"
                 style="width: {Math.min((stat.currentPity5 / 80) * 100, 100)}%"
               ></div>
             </div>
@@ -113,12 +113,12 @@
               <div
                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-950 border border-slate-800 p-3 rounded-lg text-[11px] leading-relaxed text-slate-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 shadow-2xl z-30 font-normal"
               >
-                <p class="font-bold text-indigo-400 mb-1">
+                <p class="font-bold text-blue-400 mb-1">
                   {$t("report.luck_score_formula_title")}
                 </p>
                 <p class="mb-1.5">
                   <code
-                    class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-400 font-mono text-[10px]"
+                    class="bg-slate-900 px-1.5 py-0.5 rounded text-blue-400 font-mono text-[10px]"
                     >{$t("report.luck_score_formula")}</code
                   >
                 </p>
@@ -152,7 +152,7 @@
       <!-- 획득 확률 효율 분석 지표 -->
       <div class="bg-slate-950/50 rounded-xl border border-slate-850 p-5">
         <h4
-          class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3"
+          class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-3"
         >
           {$t("report.efficiency_analysis")}
         </h4>

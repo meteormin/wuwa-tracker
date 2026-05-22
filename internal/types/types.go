@@ -127,8 +127,7 @@ type TrackRequest struct {
 
 // UploadRequest 는 JSON 로그 데이터를 직접 업로드하기 위한 구조체입니다.
 type UploadRequest struct {
-	PlayerID string              `json:"playerId"`
-	Data     map[string][]Record `json:"data"`
+	FetchResult
 }
 
 // StatsResponse 는 프론트엔드로 반환될 표준 통계 응답 데이터 구조체입니다.

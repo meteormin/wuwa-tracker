@@ -1,6 +1,5 @@
 {
   "header.title": "Tuning Statistics Report Dashboard",
-  "header.author": "Created by Antigravity Tracker",
   "header.timezone_warning": "Time is displayed in local device timezone.",
   "control.title": "New Tuning URL Tracking / Offline Analysis",
   "control.url_placeholder": "https://aki-gm-resources...",
@@ -40,7 +39,7 @@
   "report.history_empty": "No 5-star character/weapon history yet.",
   "table.name": "Name",
   "table.pity": "Pity",
-  "table.pity_suffix": " pity",
+  "table.pity_suffix": "{count} pity",
   "table.time": "Obtained Time",
   "table.category": "Category",
   "table.pickup_success": "Pickup Success",

@@ -97,18 +97,18 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(newInvalidRequestBodyErr(err))
 	}
 
-	playerID := strings.TrimSpace(req.PlayerID)
+	playerID := strings.TrimSpace(req.Payload.PlayerID)
 	if playerID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(errPlayerIDRequired)
 	}
 
-	if len(req.Data) == 0 {
+	if len(req.Records) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(errEmptyUploadData)
 	}
 
 	// 맵 데이터를 BadgerDB에 배너별로 저장
 	for _, gachaType := range h.cfg.GachaTypes.Items {
-		records, ok := req.Data[gachaType.Key]
+		records, ok := req.Records[gachaType.Key]
 		if !ok {
 			// 업로드 데이터에 특정 배너가 누락되었을 경우 빈 배열로 처리하여 정합성 유지
 			records = []types.Record{}

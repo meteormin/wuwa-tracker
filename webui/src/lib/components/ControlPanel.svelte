@@ -52,7 +52,7 @@
 <!-- 컨트롤 판넬 (URL 트래킹 및 유저 목록 전환) -->
 <div class="glass-card p-8 mb-10 relative overflow-hidden">
   <div
-    class="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
+    class="absolute top-0 left-0 right-0 h-[3px] bg-blue-500"
   ></div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -68,13 +68,13 @@
           type="text"
           placeholder="https://aki-gm-resources..."
           bind:value={urlInput}
-          class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors text-slate-200"
+          class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-slate-200"
           disabled={isLoading}
         />
         <div class="flex gap-2">
           <button
             on:click={onTrack}
-            class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 whitespace-nowrap"
+            class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 whitespace-nowrap"
             disabled={isLoading}
           >
             {isLoading ? $t("control.tracking_btn_loading") : $t("control.tracking_btn")}
@@ -115,7 +115,7 @@
               on:click={() => onSelectPlayer(player)}
               class="text-xs px-3 py-1.5 font-bold rounded-lg border transition-all {activePlayerID ===
               player
-                ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500'
+                ? 'bg-blue-600/20 text-blue-400 border-blue-500'
                 : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700'}"
               disabled={isLoading}
             >
@@ -138,7 +138,7 @@
         <a
           href="/api/export/{activePlayerID}?format=html"
           download="report_{activePlayerID}.html"
-          class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-indigo-400 border-indigo-500/30 hover:border-indigo-500/80 hover:bg-indigo-600/10 transition-all flex items-center gap-1 active:scale-95"
+          class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-blue-400 border-blue-500/30 hover:border-blue-500/80 hover:bg-blue-600/10 transition-all flex items-center gap-1 active:scale-95"
         >
           📄 HTML
         </a>

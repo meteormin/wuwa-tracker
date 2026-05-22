@@ -78,16 +78,16 @@ export async function trackURL(url: string): Promise<TrackResponse> {
 /**
  * 오프라인 분석을 위한 JSON 파일 데이터를 서버에 업로드합니다.
  */
-export async function uploadJSON(playerId: string, data: any): Promise<UploadResponse> {
+export async function uploadJSON(data: any): Promise<UploadResponse> {
   const res = await fetch(`${apiHost}/api/upload`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      playerId,
-      data,
-    }),
+    body: JSON.stringify(data),
   });
   return res.json();
 }
+
+
+

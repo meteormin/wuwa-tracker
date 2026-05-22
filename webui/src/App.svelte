@@ -11,7 +11,6 @@
   import { t } from "./lib/i18n";
   import Header from "./lib/components/Header.svelte";
   import ControlPanel from "./lib/components/ControlPanel.svelte";
-  import UploadModal from "./lib/components/UploadModal.svelte";
   import GachaReport from "./lib/components/GachaReport.svelte";
 
   // 상태값 선언
@@ -23,11 +22,7 @@
   let playersList: string[] = [];
   let activeStats: Stats[] = [];
 
-  // 오프라인 테스트용 JSON 업로드 상태 정의
-  let showUploadModal = false;
-  let uploadPlayerID = "";
-  let uploadedJSONData: any = null;
-  let uploadFileName = "";
+
 
   // 운 점수 임계치 정의 (서버 설정을 주입받기 전의 기본 폴백값)
   let thresholds: LuckScoreThreshold[] = [];
@@ -111,57 +106,30 @@
   }
 
   // 파일 분석 성공 콜백
-  function handleFileSelect(data: any, fileName: string) {
-    uploadedJSONData = data;
-    uploadFileName = fileName;
-    const baseName = fileName.replace(/\.[^/.]+$/, "");
-    uploadPlayerID = baseName;
-    errorMessage = "";
-    successMessage = "";
-    showUploadModal = true;
-  }
-
-  // 파일 분석 실패 콜백
-  function handleFileError(message: string) {
-    errorMessage = message;
-    successMessage = "";
-    uploadedJSONData = null;
-    uploadFileName = "";
-  }
-
-  // JSON 업로드 최종 제출
-  async function submitJSONUpload() {
-    const cleanID = uploadPlayerID.trim();
-    if (!cleanID) {
-      window.alert($t("app.player_id_empty"));
-      return;
-    }
-
-    if (!uploadedJSONData) {
-      window.alert($t("app.json_empty"));
+  async function handleFileSelect(data: any, fileName: string) {
+    const playerId = data.payload?.playerId?.trim();
+    if (!playerId) {
+      errorMessage = $t("app.failed_upload");
       return;
     }
 
     isLoading = true;
     errorMessage = "";
     successMessage = "";
-    showUploadModal = false;
 
     try {
-      const data = await uploadJSON(cleanID, uploadedJSONData);
-      if (data.success) {
-        activePlayerID = data.playerId;
-        activeStats = data.stats;
+      const res = await uploadJSON(data);
+      if (res.success) {
+        activePlayerID = res.playerId;
+        activeStats = res.stats;
         successMessage = $t("app.upload_success", {
-          fileName: uploadFileName,
-          playerId: data.playerId,
+          fileName: fileName,
+          playerId: res.playerId,
         });
-        uploadedJSONData = null;
-        uploadFileName = "";
         // 신규 유저 히스토리 갱신
         await loadPlayers();
       } else {
-        errorMessage = data.errorKey ? $t(data.errorKey as any) : (data.error || $t("app.failed_upload"));
+        errorMessage = res.errorKey ? $t(res.errorKey as any) : (res.error || $t("app.failed_upload"));
       }
     } catch (e) {
       errorMessage = $t("app.failed_upload_network");
@@ -170,11 +138,10 @@
     }
   }
 
-  // JSON 업로드 취소 콜백
-  function cancelJSONUpload() {
-    showUploadModal = false;
-    uploadedJSONData = null;
-    uploadFileName = "";
+  // 파일 분석 실패 콜백
+  function handleFileError(message: string) {
+    errorMessage = message;
+    successMessage = "";
   }
 
   onMount(async () => {
@@ -225,11 +192,4 @@
   {/if}
 </div>
 
-<!-- JSON 업로드용 모달 오버레이 -->
-<UploadModal
-  show={showUploadModal}
-  {uploadFileName}
-  bind:uploadPlayerID
-  onCancel={cancelJSONUpload}
-  onSubmit={submitJSONUpload}
-/>
+
