@@ -22,7 +22,7 @@ func main() {
 	urlFlag := flag.String("url", "", "Wuthering Waves gacha record URL")
 	pathFlag := flag.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	formatFlag := flag.String("format", "html", "Report format (json, csv, html)")
-	outFlag := flag.String("out", "report", "Output file path (without extension)")
+	outFlag := flag.String("o", "report", "Output file path (without extension)")
 	verboseFlag := flag.Bool("v", false, "Enable verbose logging")
 
 	flag.Parse()
@@ -41,6 +41,10 @@ func main() {
 		}
 		targetURL = foundURL
 		fmt.Println("Successfully scanned URL.")
+
+		if *verboseFlag {
+			fmt.Printf("URL: %s\n", targetURL)
+		}
 	}
 
 	fmt.Println("Fetching gacha data. Please wait...")
