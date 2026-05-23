@@ -1,7 +1,5 @@
 bin/
-report/
 tmp*
 *.tmp
 logs/
-report.html
 data/

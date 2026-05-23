@@ -1,4 +1,4 @@
-package main
+package report
 
 import (
 	"encoding/json"
@@ -11,59 +11,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meteormin/wuwa-tracker/cmd/cli/report"
-	"github.com/meteormin/wuwa-tracker/cmd/cli/scan"
 	"github.com/meteormin/wuwa-tracker/config"
-	rep "github.com/meteormin/wuwa-tracker/internal/reporter"
+	reporter "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
-func main() {
-	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
-	}
-
-	cmd := os.Args[1]
-	var err error
-
-	switch cmd {
-	case "scan":
-		err = scan.Run(os.Args[2:])
-	case "report":
-		err = report.Run(os.Args[2:])
-	case "run":
-		err = runAll(os.Args[2:])
-	default:
-		fmt.Printf("unknown command: %s\n\n", cmd)
-		printUsage()
-		os.Exit(1)
-	}
-
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-	}
-}
-
-// printUsage 는 CLI 도구의 사용법을 콘솔에 출력합니다.
-func printUsage() {
-	fmt.Println("Usage: wuwa-tracker <command> [arguments]")
-	fmt.Println()
-	fmt.Println("Commands:")
-	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
-	fmt.Println("  report  Fetch gacha records and generate a report using a provided URL")
-	fmt.Println("  run     Run the entire flow (scan for URL, fetch data, and generate report)")
-	fmt.Println()
-	fmt.Println("Use 'wuwa-tracker <command> -h' for more information about a command.")
-}
-
-// runAll 은 전체 가챠 데이터 추출 및 리포트 생성을 실행하는 run 서브커맨드 로직입니다.
-func runAll(args []string) error {
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
+// Run 은 report 서브커맨드를 실행합니다.
+// 제공된 가챠 URL을 바탕으로 가챠 통계 데이터를 조회하고 리포트를 생성합니다.
+func Run(args []string) error {
+	fs := flag.NewFlagSet("report", flag.ExitOnError)
 	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
-	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	formatFlag := fs.String("format", "html", "Report format (json, csv, html)")
 	outFlag := fs.String("o", "report", "Output file path (without extension)")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
@@ -72,24 +31,9 @@ func runAll(args []string) error {
 		return err
 	}
 
-	// 터미널에서 복사/붙여넣기 시 자동으로 추가되는 백슬래시(\) 이스케이프 문자 제거
 	targetURL := strings.ReplaceAll(*urlFlag, "\\", "")
 	if targetURL == "" {
-		if *pathFlag == "" {
-			return fmt.Errorf("no URL or path provided. Please provide either -url or -path")
-		}
-
-		fmt.Printf("No URL provided. Attempting to scan from path: %s\n", *pathFlag)
-		foundURL, err := scanner.FindURLInDirectory(*pathFlag)
-		if err != nil {
-			return fmt.Errorf("failed to auto-scan URL. Please provide it manually via the -url parameter. (Error: %v)", err)
-		}
-		targetURL = foundURL
-		fmt.Println("Successfully scanned URL.")
-
-		if *verboseFlag {
-			fmt.Printf("URL: %s\n", targetURL)
-		}
+		return fmt.Errorf("url parameter is required. Use -url")
 	}
 
 	fmt.Println("Fetching gacha data. Please wait...")
@@ -99,7 +43,7 @@ func runAll(args []string) error {
 	if u, err := url.Parse(targetURL); err == nil {
 		if q := u.Query(); q.Get("lang") != "" {
 			lang = q.Get("lang")
-		} else if u.Fragment != "" { // 해시 플래그먼트에 파라미터가 있는 경우 처리
+		} else if u.Fragment != "" {
 			parts := strings.SplitN(u.Fragment, "?", 2)
 			if len(parts) == 2 {
 				q, _ := url.ParseQuery(parts[1])
@@ -167,19 +111,19 @@ func runAll(args []string) error {
 		statsList = append(statsList, calc.CalculateStats(records, gachaType))
 	}
 
-	var format rep.Format
+	var format reporter.Format
 	switch strings.ToLower(*formatFlag) {
 	case "json":
-		format = rep.FormatJSON
+		format = reporter.FormatJSON
 	case "csv":
-		format = rep.FormatCSV
+		format = reporter.FormatCSV
 	case "html":
-		format = rep.FormatHTML
+		format = reporter.FormatHTML
 	default:
 		return fmt.Errorf("unsupported format: %s", *formatFlag)
 	}
 
-	exporter, err := rep.NewExporter(cfg, format)
+	exporter, err := reporter.NewExporter(cfg, format)
 	if err != nil {
 		return fmt.Errorf("failed to load exporter: %w", err)
 	}

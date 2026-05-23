@@ -121,7 +121,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create report file: %v", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	if err := exporter.Export(f, reportData); err != nil {
 		log.Fatalf("Failed to export report: %v", err)
