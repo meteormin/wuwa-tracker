@@ -5,11 +5,86 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch wuwa-tracker (cmd/server)",
+            "name": "wuwa-tracker-server",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/server",
         },
+        {
+            "name": "wuwa-tracker-webui",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/webui/src",
+            "sourceMaps": true,
+            "preLaunchTask": "webui: dev server",
+        },
+        {
+            "name": "wuwa-tracker-scan",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/cli/main.go",
+            "args": [
+                "scan",
+                "-v",
+                "-path",
+                "${scanPath}"
+            ]
+        },
+        {
+            "name": "wuwa-tracker-report",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/cli/main.go",
+            "args": [
+                "report",
+                "-v",
+                "-url",
+                "${url}",
+                "-format",
+                "${format}",
+                "-o",
+                "${out}"
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "scanPath",
+            "type": "promptString",
+            "description": "Select scan path",
+        },
+        {
+            "id": "url",
+            "type": "promptString",
+            "description": "wuwa gacha history url"
+        },
+        {
+            "id": "format",
+            "type": "pickString",
+            "description": "Select format",
+            "options": [
+                "html",
+                "json",
+                "csv"
+            ]
+        },
+        {
+            "id": "out",
+            "type": "promptString",
+            "description": "Output file name"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack (server + webui)",
+            "configurations": [
+                "wuwa-tracker-server",
+                "wuwa-tracker-webui"
+            ]
+        }
     ]
 }
