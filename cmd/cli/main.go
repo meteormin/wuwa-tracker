@@ -53,7 +53,7 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
-	fmt.Println("  report  Fetch gacha records and generate a report using a provided URL")
+	fmt.Println("  report  Fetch gacha records and generate a report (use -url or -f)")
 	fmt.Println("  run     Run the entire flow (scan for URL, fetch data, and generate report)")
 	fmt.Println()
 	fmt.Println("Use 'wuwa-tracker <command> -h' for more information about a command.")

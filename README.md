@@ -2,7 +2,7 @@
 
 명조: 워더링 웨이브(Wuthering Waves)의 튜닝(가챠) 기록을 수집하고 분석하여 누적 스택, 천장(Pity) 계산, 획득한 5성 캐릭터/무기 히스토리를 시각화하는 도구 패키지입니다. 
 
-실행 파일 내에 내장된 Svelte WebUI 웹 서버, CLI 수집 도구, 그리고 오프라인 리포트 생성 유틸리티를 제공합니다.
+실행 파일 내에 내장된 Svelte WebUI 웹 서버와 CLI 수집 도구를 제공합니다.
 
 ---
 
@@ -21,8 +21,8 @@
 * **데이터 내보내기**: 수집된 가챠 상세 정보를 CSV 및 JSON 포맷의 1차원 데이터로 평탄화하여 출력합니다.
 * **운 점수 (Luck Score) 계산**: 한정 캐릭터 배너의 픽업 사이클(상시 5성 픽뚫 확률 포함)을 고려하여 스택을 누적 산정하고 설정된 기댓값과 비교한 점수를 산출합니다.
 
-### 3. 오프라인 리포터 (`wuwa-reporter`)
-* 로컬에 저장된 백업 가챠 JSON 데이터를 가공하여, 웹 브라우저에서 바로 열 수 있는 대시보드 HTML 파일(`report.html`)을 생성하는 독립형 변환 도구입니다.
+### 3. 오프라인 리포트 생성 (`wuwa-tracker report -f`)
+* CLI의 `report` 서브커맨드에 `-f` 플래그로 로컬 JSON 파일을 지정하면, 외부 API 요청 없이 오프라인으로 HTML/CSV/JSON 리포트를 생성할 수 있습니다.
 
 ---
 
@@ -44,7 +44,6 @@ make build-all
 # 2. 개별 모듈 빌드
 make build-cli        # CLI 도구 빌드 (bin/wuwa-tracker)
 make build-server     # WebUI 포함 API 서버 빌드 (bin/wuwa-tracker-server)
-make build-reporter   # 리포터 유틸리티 빌드 (bin/wuwa-reporter)
 
 # 3. 코드 포맷터, 린터 및 테스트 실행
 make fmt
@@ -101,10 +100,13 @@ make test
 | `-out` | `string` | `"report"` | 생성할 리포트 파일의 이름을 지정합니다. (확장자는 포맷에 맞춰 자동 부여) |
 | `-v` | `bool` | `false` | 상세 로깅(Verbose)을 활성화하며, 원격 요청 성공 시 응답받은 가챠 기록 데이터를 `logs/` 디렉터리에 타임스탬프 형식의 파일(JSON)로 자동 기록합니다. |
 
-### 3. 오프라인 리포터 실행 (`wuwa-reporter`)
+### 3. 오프라인 리포트 생성 (`wuwa-tracker report -f`)
 ```bash
-# 가챠 JSON 로컬 파일 데이터를 report.html 파일로 변환
-./bin/wuwa-reporter -in logs/my_history.json -out my_report.html
+# 로컬 JSON 파일에서 HTML 리포트 생성
+./bin/wuwa-tracker report -f logs/my_history.json -o my_report
+
+# 로컬 JSON 파일에서 CSV 리포트 생성
+./bin/wuwa-tracker report -f logs/my_history.json -format csv -o my_report
 ```
 
 ---
@@ -146,9 +148,7 @@ wuwa-tracker/
 │   ├── html/
 │   │   └── report.tmpl     # 리포트 HTML 대시보드 템플릿
 │   └── template.go         # report.tmpl 컴파일 임베딩 패키지
-├── tools/
-│   └── reporter/
-│       └── main.go         # wuwa-reporter 도구의 진입점 파일
+
 ├── webui/
 │   ├── src/
 │   │   └── App.svelte      # 대시보드 UI, JSON 업로더 및 플레이어 리스트 관리 컴포넌트
