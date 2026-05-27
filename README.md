@@ -76,7 +76,7 @@ CLI는 서브커맨드 기반입니다.
 ./bin/wuwa-tracker report -url "가챠URL" -format csv -o out/history
 ```
 
-지원 포맷은 `html`, `json`, `csv`입니다. `-v`를 추가하면 조회 결과를 `logs/<playerId>-<timestamp>.json`으로 저장합니다.
+지원 포맷은 `html`, `json`, `csv`입니다. 조회 결과는 기본 `data/wuwa_badger` DB에 병합 저장되며, `-dbpath`로 저장 경로를 바꿀 수 있습니다. `-v`를 추가하면 조회 결과를 `logs/<playerId>-<timestamp>.json`으로도 저장합니다.
 
 ### 오프라인 리포트 생성
 
@@ -84,7 +84,7 @@ CLI는 서브커맨드 기반입니다.
 ./bin/wuwa-tracker report -f logs/history.json -format html -o report -lang en
 ```
 
-오프라인 모드는 `FetchResult` 형식과 legacy `map[string][]Record` 형식 JSON을 모두 읽을 수 있습니다.
+오프라인 모드는 `FetchResult` 형식과 legacy `map[string][]Record` 형식 JSON을 모두 읽을 수 있으며, 읽은 기록을 DB에 병합 저장한 뒤 리포트를 생성합니다.
 
 ### 전체 흐름 실행
 
@@ -93,7 +93,7 @@ CLI는 서브커맨드 기반입니다.
 ./bin/wuwa-tracker run -url "가챠URL" -format html -o report
 ```
 
-`run`은 URL이 없으면 경로에서 URL을 스캔한 뒤, 기록 조회와 리포트 생성을 이어서 수행합니다.
+`run`은 URL이 없으면 경로에서 URL을 스캔한 뒤, 기록 조회, DB 병합 저장, 리포트 생성을 이어서 수행합니다.
 
 ## WebUI 서버 사용법
 

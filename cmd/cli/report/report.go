@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/meteormin/wuwa-tracker/config"
+	"github.com/meteormin/wuwa-tracker/internal/db"
 	reporter "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
+	"github.com/meteormin/wuwa-tracker/internal/service"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -28,6 +30,7 @@ func Run(args []string) error {
 	formatFlag := fs.String("format", "html", "Report format (json, csv, html)")
 	outFlag := fs.String("o", "report", "Output file path (without extension)")
 	langFlag := fs.String("lang", "ko", "Report UI language (ko, en)")
+	dbPathFlag := fs.String("dbpath", "data/wuwa_badger", "BadgerDB storage directory")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -48,19 +51,38 @@ func Run(args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	client := newTrackerClient(*verboseFlag)
+
+	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
+	badgerDB, err := db.NewBadgerDB(*dbPathFlag)
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+	defer func() {
+		_ = badgerDB.Close()
+	}()
+
+	svc, err := service.New(service.Deps{
+		DB:     badgerDB,
+		Config: cfg,
+		Client: client,
+		Calc:   calc,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize service: %w", err)
+	}
+
 	var (
 		statsList []types.Stats
 		playerID  string
 	)
 
-	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
-
 	if *fileFlag != "" {
 		// 오프라인 모드: 로컬 JSON 파일에서 리포트 생성
-		statsList, playerID, err = runOffline(cfg, calc, *fileFlag)
+		statsList, playerID, err = runOffline(cfg, svc, *fileFlag)
 	} else {
 		// 온라인 모드: URL에서 가챠 데이터를 가져와 리포트 생성
-		statsList, playerID, err = runOnline(cfg, calc, targetURL, *verboseFlag)
+		statsList, playerID, err = runOnline(cfg, client, svc, targetURL, *verboseFlag)
 	}
 	if err != nil {
 		return err
@@ -74,7 +96,7 @@ func Run(args []string) error {
 }
 
 // runOffline 은 로컬 JSON 파일에서 데이터를 읽어 통계를 계산합니다.
-func runOffline(cfg *config.Config, calc *tracker.StatsCalculator, filePath string) ([]types.Stats, string, error) {
+func runOffline(cfg *config.Config, svc *service.Service, filePath string) ([]types.Stats, string, error) {
 	fmt.Printf("Reading local file: %s\n", filePath)
 
 	b, err := os.ReadFile(filePath)
@@ -95,36 +117,41 @@ func runOffline(cfg *config.Config, calc *tracker.StatsCalculator, filePath stri
 		if err := json.Unmarshal(b, &recordsMap); err != nil {
 			return nil, "", fmt.Errorf("failed to parse JSON from %s: %w", filePath, err)
 		}
-		// 파일명에서 player ID 추출 시도
-		baseName := filepath.Base(filePath)
-		baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
-		if parts := strings.Split(baseName, "-"); len(parts) > 1 {
-			playerID = parts[0]
-		} else {
-			playerID = baseName
-		}
+		playerID = playerIDFromFileName(filePath)
 	}
+	if playerID == "" {
+		playerID = playerIDFromFileName(filePath)
+	}
+	fetchResult.Payload.PlayerID = playerID
+	fetchResult.Records = recordsMap
 
 	// 오프라인에서는 locale API를 호출하지 않으므로 Key를 Name으로 사용
 	for i := range cfg.GachaTypes.Items {
 		cfg.GachaTypes.Items[i].Name = cfg.GachaTypes.Items[i].Key
 	}
 
-	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
-	for _, gachaType := range cfg.GachaTypes.Items {
-		records, ok := recordsMap[gachaType.Key]
-		if !ok {
-			log.Printf("Warning: gacha type key %q not found in log file. Skipping...", gachaType.Key)
-			continue
-		}
-		statsList = append(statsList, calc.Calc(records, gachaType))
+	if _, err := svc.Upload(fetchResult); err != nil {
+		return nil, "", err
+	}
+	statsResponse, err := svc.GetStats(playerID)
+	if err != nil {
+		return nil, "", err
 	}
 
-	return statsList, playerID, nil
+	return statsResponse.Stats, statsResponse.PlayerID, nil
+}
+
+func playerIDFromFileName(filePath string) string {
+	baseName := filepath.Base(filePath)
+	baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+	if parts := strings.Split(baseName, "-"); len(parts) > 1 {
+		return parts[0]
+	}
+	return baseName
 }
 
 // runOnline 은 URL에서 가챠 데이터를 가져와 통계를 계산합니다.
-func runOnline(cfg *config.Config, calc *tracker.StatsCalculator, targetURL string, verbose bool) ([]types.Stats, string, error) {
+func runOnline(cfg *config.Config, client *tracker.Client, svc *service.Service, targetURL string, verbose bool) ([]types.Stats, string, error) {
 	fmt.Println("Fetching gacha data. Please wait...")
 
 	// URL에서 lang 파라미터 추출하여 지역화에 사용
@@ -147,24 +174,10 @@ func runOnline(cfg *config.Config, calc *tracker.StatsCalculator, targetURL stri
 		lang = scanner.GetSystemLocale()
 	}
 
-	var client *tracker.Client
-	if verbose {
-		client = tracker.NewClient(&http.Client{
-			Transport: &tracker.LoggingTransport{
-				Captured: http.DefaultTransport,
-			},
-			Timeout: 5 * time.Second,
-		})
-	} else {
-		client = tracker.NewClient(&http.Client{
-			Timeout: 5 * time.Second,
-		})
-	}
-
 	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
 	cfg.GachaTypes.MapFromLocaleData(localeData)
 
-	fetchResult, err := client.FetchAllRecords(targetURL, cfg.GachaTypes.Items)
+	fetchResult, err := svc.FetchAndSave(targetURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to fetch records: %w", err)
 	}
@@ -185,16 +198,26 @@ func runOnline(cfg *config.Config, calc *tracker.StatsCalculator, targetURL stri
 		}
 	}
 
-	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
-	for _, gachaType := range cfg.GachaTypes.Items {
-		records, ok := fetchResult.Records[gachaType.Key]
-		if !ok {
-			return nil, "", fmt.Errorf("failed to fetch data: record for %s not found", gachaType.Key)
-		}
-		statsList = append(statsList, calc.Calc(records, gachaType))
+	statsResponse, err := svc.GetStats(fetchResult.Payload.PlayerID)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to load stats from database: %w", err)
 	}
 
-	return statsList, fetchResult.Payload.PlayerID, nil
+	return statsResponse.Stats, statsResponse.PlayerID, nil
+}
+
+func newTrackerClient(verbose bool) *tracker.Client {
+	if verbose {
+		return tracker.NewClient(&http.Client{
+			Transport: &tracker.LoggingTransport{
+				Captured: http.DefaultTransport,
+			},
+			Timeout: 5 * time.Second,
+		})
+	}
+	return tracker.NewClient(&http.Client{
+		Timeout: 5 * time.Second,
+	})
 }
 
 // exportReport 는 통계 데이터를 지정된 포맷으로 파일에 출력합니다.

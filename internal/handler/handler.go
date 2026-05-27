@@ -2,32 +2,26 @@ package handler
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/meteormin/wuwa-tracker/config"
-	"github.com/meteormin/wuwa-tracker/internal/db"
 	report "github.com/meteormin/wuwa-tracker/internal/reporter"
-	"github.com/meteormin/wuwa-tracker/internal/tracker"
+	"github.com/meteormin/wuwa-tracker/internal/service"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 	"github.com/meteormin/wuwa-tracker/locales"
 )
 
-// Handler 는 HTTP 요청을 처리하고 데이터베이스에 협업하는 핸들러 구조체입니다.
+// Handler 는 HTTP 요청을 처리하고 service 계층에 위임하는 핸들러 구조체입니다.
 type Handler struct {
-	db  *db.BadgerDB
-	cfg *config.Config
+	svc *service.Service
 }
 
 // NewHandler 는 새로운 Handler 구조체 인스턴스를 생성하고 의존성을 주입합니다.
-func NewHandler(badgerDB *db.BadgerDB, cfg *config.Config) *Handler {
+func NewHandler(svc *service.Service) *Handler {
 	return &Handler{
-		db:  badgerDB,
-		cfg: cfg,
+		svc: svc,
 	}
 }
 
@@ -39,55 +33,11 @@ func (h *Handler) Track(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(newInvalidRequestBodyErr(err))
 	}
 
-	targetURL := strings.TrimSpace(req.URL)
-	targetURL = strings.ReplaceAll(targetURL, "\\", "")
-	if targetURL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(errMissingURL)
-	}
-
-	u, err := url.Parse(targetURL)
+	statsResponse, err := h.svc.TrackURL(req.URL)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errInvalidURLFormat)
+		return h.handleTrackErr(c, err)
 	}
-
-	var q url.Values
-	if u.Fragment != "" {
-		parts := strings.SplitN(u.Fragment, "?", 2)
-		if len(parts) == 2 {
-			q, _ = url.ParseQuery(parts[1])
-		} else {
-			q = u.Query()
-		}
-	} else {
-		q = u.Query()
-	}
-
-	playerID := q.Get("player_id")
-	if playerID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerIDInURL)
-	}
-
-	// Kurogame API 클라이언트 생성
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-	client := tracker.NewClient(httpClient)
-
-	// 각 배너 타입별 가챠 기록 동기화
-	for _, gachaType := range h.cfg.GachaTypes.Items {
-		records, err := client.FetchRecords(targetURL, gachaType.ID)
-		if err != nil {
-			// 개별 배너 페치 실패 시 에러 로그는 패스하고 진행
-			continue
-		}
-
-		// BadgerDB에 기존 데이터와 병합 저장
-		err = h.db.SaveGachaRecords(playerID, gachaType.Key, records)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseSaveFailed)
-		}
-	}
-
-	// 동기화된 DB 기반으로 최신 통계 계산 후 반환
-	return h.returnPlayerStats(c, playerID)
+	return c.JSON(statsResponse)
 }
 
 // Upload 는 클라이언트로부터 직접 JSON 형태의 가챠 데이터 세트를 입력받아 DB에 병합 저장하고,
@@ -98,31 +48,35 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(newInvalidRequestBodyErr(err))
 	}
 
-	playerID := strings.TrimSpace(req.Payload.PlayerID)
-	if playerID == "" {
+	statsResponse, err := h.svc.Upload(req.FetchResult)
+	if err != nil {
+		return h.handleUploadErr(c, err)
+	}
+	return c.JSON(statsResponse)
+}
+
+func (h *Handler) handleTrackErr(c fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, service.ErrMissingURL):
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingURL)
+	case errors.Is(err, service.ErrMissingPlayerID):
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerIDInURL)
+	case errors.Is(err, service.ErrInvalidURL):
+		return c.Status(fiber.StatusBadRequest).JSON(errInvalidURLFormat)
+	default:
+		return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseSaveFailed)
+	}
+}
+
+func (h *Handler) handleUploadErr(c fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, service.ErrMissingPlayerID):
 		return c.Status(fiber.StatusBadRequest).JSON(errPlayerIDRequired)
-	}
-
-	if len(req.Records) == 0 {
+	case errors.Is(err, service.ErrEmptyUploadData):
 		return c.Status(fiber.StatusBadRequest).JSON(errEmptyUploadData)
+	default:
+		return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseSaveFailed)
 	}
-
-	// 맵 데이터를 BadgerDB에 배너별로 저장
-	for _, gachaType := range h.cfg.GachaTypes.Items {
-		records, ok := req.Records[gachaType.Key]
-		if !ok {
-			// 업로드 데이터에 특정 배너가 누락되었을 경우 빈 배열로 처리하여 정합성 유지
-			records = []types.Record{}
-		}
-
-		err := h.db.SaveGachaRecords(playerID, gachaType.Key, records)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseSaveFailed)
-		}
-	}
-
-	// 저장된 데이터를 바탕으로 즉시 가챠 분석 리포트 리턴
-	return h.returnPlayerStats(c, playerID)
 }
 
 // GetStats 는 DB에 저장된 특정 플레이어의 가챠 데이터를 조회하여 통계 데이터를 산출합니다.
@@ -132,12 +86,16 @@ func (h *Handler) GetStats(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerID)
 	}
 
-	return h.returnPlayerStats(c, playerID)
+	statsResponse, err := h.svc.GetStats(playerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseQueryFailed)
+	}
+	return c.JSON(statsResponse)
 }
 
 // ListPlayers 는 DB에 기록이 저장된 모든 고유 플레이어 ID 리스트를 반환합니다.
 func (h *Handler) ListPlayers(c fiber.Ctx) error {
-	players, err := h.db.ListPlayers()
+	players, err := h.svc.ListPlayers()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseListPlayersFailed)
 	}
@@ -152,7 +110,7 @@ func (h *Handler) ListPlayers(c fiber.Ctx) error {
 func (h *Handler) GetConfig(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success":             true,
-		"luckScoreThresholds": h.cfg.LuckScoreThresholds,
+		"luckScoreThresholds": h.svc.LuckScoreThresholds(),
 	})
 }
 
@@ -171,28 +129,6 @@ func (h *Handler) GetI18n(c fiber.Ctx) error {
 		"success":      true,
 		"lang":         resolvedLang,
 		"translations": translations,
-	})
-}
-
-// returnPlayerStats 는 BadgerDB에서 플레이어 가챠 데이터를 가져와 통계(Stats)를 계산하고 JSON 응답을 전송하는 헬퍼 함수입니다.
-func (h *Handler) returnPlayerStats(c fiber.Ctx, playerID string) error {
-	// 통계 계산 엔진 초기화
-	calc := tracker.NewStatsCalculator(h.cfg.StandardFiveStarResources)
-	statsList := make([]types.Stats, 0, len(h.cfg.GachaTypes.Items))
-
-	for _, gachaType := range h.cfg.GachaTypes.Items {
-		records, err := h.db.GetGachaRecords(playerID, gachaType.Key)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseQueryFailed)
-		}
-		// 기록이 비어 있어도 기본 구조체를 바르게 렌더링하기 위해 무조건 추가
-		statsList = append(statsList, calc.Calc(records, gachaType))
-	}
-
-	return c.JSON(types.StatsResponse{
-		Success:  true,
-		PlayerID: playerID,
-		Stats:    statsList,
 	})
 }
 
@@ -220,35 +156,9 @@ func (h *Handler) ExportReport(c fiber.Ctx) error {
 		})
 	}
 
-	// 통계 계산
-	calc := tracker.NewStatsCalculator(h.cfg.StandardFiveStarResources)
-	statsList := make([]types.Stats, 0, len(h.cfg.GachaTypes.Items))
-
-	for _, gachaType := range h.cfg.GachaTypes.Items {
-		records, err := h.db.GetGachaRecords(playerID, gachaType.Key)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseQueryFailed)
-		}
-		statsList = append(statsList, calc.Calc(records, gachaType))
-	}
-
-	reportData := types.ReportData{
-		PlayerID: playerID,
-		Stats:    statsList,
-	}
-
-	// exporter 가져오기
-	exporter, err := report.NewExporter(h.cfg, format, lang)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "Failed to create exporter: " + err.Error(),
-		})
-	}
-
 	// 메모리 버퍼에 리포트 내용 쓰기
 	var buf bytes.Buffer
-	if err := exporter.Export(&buf, reportData); err != nil {
+	if err := h.svc.ExportReport(&buf, playerID, format, lang); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"error":   "Failed to generate report: " + err.Error(),

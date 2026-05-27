@@ -22,6 +22,7 @@ import (
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 	"github.com/meteormin/wuwa-tracker/internal/handler"
+	"github.com/meteormin/wuwa-tracker/internal/service"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/webui"
 )
@@ -143,7 +144,17 @@ func run() error {
 	}))
 
 	// 핸들러 인스턴스 생성 및 의존성(DB, Config) 주입
-	h := handler.NewHandler(badgerDB, cfg)
+	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
+	svc, err := service.New(service.Deps{
+		DB:     badgerDB,
+		Config: cfg,
+		Client: client,
+		Calc:   calc,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize service: %w", err)
+	}
+	h := handler.NewHandler(svc)
 
 	// API 라우팅 설정
 	api := app.Group("/api")

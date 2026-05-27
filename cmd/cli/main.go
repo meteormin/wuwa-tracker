@@ -14,8 +14,10 @@ import (
 	"github.com/meteormin/wuwa-tracker/cmd/cli/report"
 	"github.com/meteormin/wuwa-tracker/cmd/cli/scan"
 	"github.com/meteormin/wuwa-tracker/config"
+	"github.com/meteormin/wuwa-tracker/internal/db"
 	rep "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
+	"github.com/meteormin/wuwa-tracker/internal/service"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -72,6 +74,7 @@ func runAll(args []string) error {
 	formatFlag := fs.String("format", "html", "Report format (json, csv, html)")
 	outFlag := fs.String("o", "report", "Output file path (without extension)")
 	langFlag := fs.String("lang", "ko", "Report UI language (ko, en)")
+	dbPathFlag := fs.String("dbpath", "data/wuwa_badger", "BadgerDB storage directory")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -139,14 +142,29 @@ func runAll(args []string) error {
 		})
 	}
 
-	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
-
 	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
 	cfg.GachaTypes.MapFromLocaleData(localeData)
 
-	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
+	badgerDB, err := db.NewBadgerDB(*dbPathFlag)
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+	defer func() {
+		_ = badgerDB.Close()
+	}()
 
-	fetchResult, err := client.FetchAllRecords(targetURL, cfg.GachaTypes.Items)
+	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
+	svc, err := service.New(service.Deps{
+		DB:     badgerDB,
+		Config: cfg,
+		Client: client,
+		Calc:   calc,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize service: %w", err)
+	}
+
+	fetchResult, err := svc.FetchAndSave(targetURL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch records: %w", err)
 	}
@@ -165,12 +183,9 @@ func runAll(args []string) error {
 		}
 	}
 
-	for _, gachaType := range cfg.GachaTypes.Items {
-		records, ok := fetchResult.Records[gachaType.Key]
-		if !ok {
-			return fmt.Errorf("failed to fetch data: record for %s not found", gachaType.Key)
-		}
-		statsList = append(statsList, calc.Calc(records, gachaType))
+	statsResponse, err := svc.GetStats(fetchResult.Payload.PlayerID)
+	if err != nil {
+		return fmt.Errorf("failed to load stats from database: %w", err)
 	}
 
 	var format rep.Format
@@ -197,7 +212,7 @@ func runAll(args []string) error {
 
 	reportData := types.ReportData{
 		PlayerID: fetchResult.Payload.PlayerID,
-		Stats:    statsList,
+		Stats:    statsResponse.Stats,
 	}
 
 	f, err := os.Create(finalOut)
