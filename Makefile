@@ -2,10 +2,18 @@
 
 APP_NAME=wuwa-tracker
 BIN_DIR=bin
+CACHE_DIR=.cache
 CLI_DIR=./cmd/cli
 SERVER_DIR=./cmd/server
+WEBUI_DIR=webui
+GO_BUILD_CACHE_DIR=$(CACHE_DIR)/go-build
+GO_MOD_CACHE_DIR=$(CACHE_DIR)/go-mod
+YARN_CACHE_DIR=$(CACHE_DIR)/yarn
 
 GOVERSION ?= $(shell go env GOVERSION)
+export GOCACHE ?= $(CURDIR)/$(GO_BUILD_CACHE_DIR)
+export GOMODCACHE ?= $(CURDIR)/$(GO_MOD_CACHE_DIR)
+export YARN_CACHE_FOLDER ?= $(CURDIR)/$(YARN_CACHE_DIR)
 
 all: clean fmt lint test build-all
 
@@ -30,11 +38,9 @@ build-server: build-webui
 	@go build -o $(BIN_DIR)/$(APP_NAME)-server $(SERVER_DIR)
 	@echo "Server Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)-server"
 
-
-
 build-webui:
 	@echo "Building WebUI..."
-	@cd webui && yarn install && yarn run build
+	@cd $(WEBUI_DIR) && yarn install && yarn run build
 	@echo "WebUI Build successful!"
 
 build-all: build-webui build-cli build-server
@@ -42,7 +48,11 @@ build-all: build-webui build-cli build-server
 clean:
 	@echo "Cleaning up..."
 	@rm -rf $(BIN_DIR)
-	@go clean
+	@go clean -cache
+	@go clean -modcache
+	@rm -rf $(GO_BUILD_CACHE_DIR) $(GO_MOD_CACHE_DIR)
+	@cd $(WEBUI_DIR) && yarn cache clean
+	@rm -rf $(YARN_CACHE_DIR) $(WEBUI_DIR)/node_modules $(WEBUI_DIR)/dist
 	@echo "Clean successful!"
 
 test:
