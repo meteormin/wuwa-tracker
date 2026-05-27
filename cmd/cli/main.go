@@ -136,8 +136,8 @@ func runAll(args []string) error {
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
 
-	selectList := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
-	cfg.GachaTypes.MapFromSelectList(selectList)
+	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
+	cfg.GachaTypes.MapFromLocaleData(localeData)
 
 	statsList := make([]types.Stats, 0, len(cfg.GachaTypes.Items))
 

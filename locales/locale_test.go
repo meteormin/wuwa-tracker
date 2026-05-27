@@ -4,13 +4,14 @@ import (
 	"testing"
 )
 
-func TestLoadSelectList(t *testing.T) {
-	// 한국어(ko) 로케일에서 selectList를 불러올 수 있는지 검증
-	selectList, err := LoadSelectList("ko")
+func TestLoadLocaleData(t *testing.T) {
+	// 한국어(ko) 로케일에서 LocaleData를 불러올 수 있는지 검증
+	localeData, err := LoadLocaleData("ko")
 	if err != nil {
-		t.Fatalf("Failed to load 'ko' selectList: %v", err)
+		t.Fatalf("Failed to load 'ko' localeData: %v", err)
 	}
 
+	selectList := localeData.SelectList
 	if len(selectList) == 0 {
 		t.Error("Loaded selectList is empty")
 	}

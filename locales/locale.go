@@ -3,6 +3,8 @@ package locales
 import (
 	"embed"
 	"encoding/json"
+
+	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 const fallbackLang = "ko"
@@ -24,24 +26,13 @@ func loadJSON[T any](path string) (T, error) {
 	return target, nil
 }
 
-// LoadSelectList 는 지정된 언어 파일에서 가챠 배너 선택 리스트(selectList)를 불러옵니다.
-func LoadSelectList(lang string) (map[string]string, error) {
-	type localesMap map[string]any
-
-	loadedMap, err := loadJSON[localesMap](lang + ".json")
+// LoadLocaleData 는 지정된 언어 파일에서 가챠 배너 관련 데이터를 불러옵니다.
+func LoadLocaleData(lang string) (types.LocaleData, error) {
+	localeData, err := loadJSON[types.LocaleData](lang + ".json")
 	if err != nil {
-		return nil, err
+		return types.LocaleData{}, err
 	}
-
-	selectList := make(map[string]string)
-	if rawSelectList, ok := loadedMap["selectList"].(localesMap); ok {
-		for k, v := range rawSelectList {
-			if strVal, ok := v.(string); ok {
-				selectList[k] = strVal
-			}
-		}
-	}
-	return selectList, nil
+	return localeData, nil
 }
 
 // LoadUITranslations 는 지정된 언어의 UI 번역 리소스를 불러옵니다.

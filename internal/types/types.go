@@ -63,7 +63,10 @@ type GachaTypes struct {
 	Items []GachaType `json:"items"`
 }
 
-func (gtypes *GachaTypes) MapFromSelectList(selectList map[string]string) {
+func (gtypes *GachaTypes) MapFromLocaleData(localeData LocaleData) {
+	// 현재는 select list만 필요하지만
+	// 혹시 localeData에서 다른 필드들이 필요하게 되면 사용하기 위해
+	selectList := localeData.SelectList
 	for k, v := range selectList {
 		for i, gt := range gtypes.Items {
 			if gt.Key == k {

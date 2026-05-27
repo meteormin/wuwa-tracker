@@ -161,8 +161,8 @@ func runOnline(cfg *config.Config, calc *tracker.StatsCalculator, targetURL stri
 		})
 	}
 
-	selectList := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
-	cfg.GachaTypes.MapFromSelectList(selectList)
+	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
+	cfg.GachaTypes.MapFromLocaleData(localeData)
 
 	fetchResult, err := client.FetchAllRecords(targetURL, cfg.GachaTypes.Items)
 	if err != nil {
