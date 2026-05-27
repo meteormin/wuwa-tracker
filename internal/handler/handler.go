@@ -186,7 +186,7 @@ func (h *Handler) returnPlayerStats(c fiber.Ctx, playerID string) error {
 			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseQueryFailed)
 		}
 		// 기록이 비어 있어도 기본 구조체를 바르게 렌더링하기 위해 무조건 추가
-		statsList = append(statsList, calc.CalculateStats(records, gachaType))
+		statsList = append(statsList, calc.Calc(records, gachaType))
 	}
 
 	return c.JSON(types.StatsResponse{
@@ -229,7 +229,7 @@ func (h *Handler) ExportReport(c fiber.Ctx) error {
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseQueryFailed)
 		}
-		statsList = append(statsList, calc.CalculateStats(records, gachaType))
+		statsList = append(statsList, calc.Calc(records, gachaType))
 	}
 
 	reportData := types.ReportData{

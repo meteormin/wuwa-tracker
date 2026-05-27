@@ -36,7 +36,7 @@ func TestCalculateStats(t *testing.T) {
 	// 모르테피 (pity5=2, pity4=4) -> 4성 천장 초기화 (pity5=2, pity4=0)
 	// 3성무기C (pity5=3, pity4=1)
 	// 음림 (pity5=4, pity4=2) -> 5성 천장 초기화 (pity5=0, pity4=2)
-	stats := calc.CalculateStats(records, types.GachaType{ID: 1, HasOffBannerDrop: true, ExpectedPulls: 55})
+	stats := calc.Calc(records, types.GachaType{ID: 1, HasOffBannerDrop: true, ExpectedPulls: 55})
 
 	if stats.TotalPulls != 6 {
 		t.Errorf("Expected TotalPulls 6, got %d", stats.TotalPulls)

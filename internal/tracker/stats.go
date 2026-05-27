@@ -4,19 +4,19 @@ import (
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
-type StatsCalulator struct {
+type StatsCalculator struct {
 	standardFiveStarResources types.StandardFiveStarResources
 }
 
-func NewStatsCalculator(standardFiveStarResources types.StandardFiveStarResources) *StatsCalulator {
-	return &StatsCalulator{
+func NewStatsCalculator(standardFiveStarResources types.StandardFiveStarResources) *StatsCalculator {
+	return &StatsCalculator{
 		standardFiveStarResources: standardFiveStarResources,
 	}
 }
 
-// CalculateStats 는 배열의 Record 들을 바탕으로 통계 지표를 계산합니다.
+// Calc 는 배열의 Record 들을 바탕으로 통계 지표를 계산합니다.
 // 입력 배열은 API에서 가져온 기본 순서(최신순)라고 가정합니다.
-func (sc *StatsCalulator) CalculateStats(records []types.Record, gachaType types.GachaType) types.Stats {
+func (sc *StatsCalculator) Calc(records []types.Record, gachaType types.GachaType) types.Stats {
 	stats := types.Stats{
 		GachaType:     gachaType.ID,
 		GachaName:     gachaType.Name,

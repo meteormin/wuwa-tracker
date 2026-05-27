@@ -195,14 +195,6 @@ sequenceDiagram
     Reporter-->>User: report file
 ```
 
-## Known Limitations
-
-- `FetchAllRecords`와 서버 `Track`은 개별 배너 조회 실패를 전체 실패로 처리하지 않고 계속 진행합니다. 일부 배너 누락 가능성이 있으므로 UI/문서에서 부분 성공 상태를 별도로 표현하지 못합니다.
-- `Upload`는 누락된 배너를 빈 배열로 저장 요청하지만, `SaveGachaRecords`가 기존 DB 기록과 병합하므로 누락 배너 기록을 삭제하지는 않습니다.
-- CLI 오프라인 리포트는 가챠 배너 이름 로케일을 적용하지 않고 배너 key를 표시 이름으로 사용합니다. 단, 리포트 UI 문구는 `-lang`으로 선택한 embed 번역을 사용합니다.
-- HTML 리포트 템플릿은 Tailwind CDN과 Google Fonts를 참조합니다. 완전 오프라인 렌더링을 목표로 한다면 스타일 번들링 전략이 필요합니다.
-- Go 구조체 이름 `StatsCalulator`에 오타가 있습니다. 공개 API 수준에서는 큰 문제는 아니지만 향후 정리 여지가 있습니다.
-
 ## Operational Notes
 
 - CGO는 사용하지 않습니다.

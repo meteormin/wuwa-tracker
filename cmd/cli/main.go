@@ -165,7 +165,7 @@ func runAll(args []string) error {
 		if !ok {
 			return fmt.Errorf("failed to fetch data: record for %s not found", gachaType.Key)
 		}
-		statsList = append(statsList, calc.CalculateStats(records, gachaType))
+		statsList = append(statsList, calc.Calc(records, gachaType))
 	}
 
 	var format rep.Format

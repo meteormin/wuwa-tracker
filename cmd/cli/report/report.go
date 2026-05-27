@@ -74,7 +74,7 @@ func Run(args []string) error {
 }
 
 // runOffline 은 로컬 JSON 파일에서 데이터를 읽어 통계를 계산합니다.
-func runOffline(cfg *config.Config, calc *tracker.StatsCalulator, filePath string) ([]types.Stats, string, error) {
+func runOffline(cfg *config.Config, calc *tracker.StatsCalculator, filePath string) ([]types.Stats, string, error) {
 	fmt.Printf("Reading local file: %s\n", filePath)
 
 	b, err := os.ReadFile(filePath)
@@ -117,14 +117,14 @@ func runOffline(cfg *config.Config, calc *tracker.StatsCalulator, filePath strin
 			log.Printf("Warning: gacha type key %q not found in log file. Skipping...", gachaType.Key)
 			continue
 		}
-		statsList = append(statsList, calc.CalculateStats(records, gachaType))
+		statsList = append(statsList, calc.Calc(records, gachaType))
 	}
 
 	return statsList, playerID, nil
 }
 
 // runOnline 은 URL에서 가챠 데이터를 가져와 통계를 계산합니다.
-func runOnline(cfg *config.Config, calc *tracker.StatsCalulator, targetURL string, verbose bool) ([]types.Stats, string, error) {
+func runOnline(cfg *config.Config, calc *tracker.StatsCalculator, targetURL string, verbose bool) ([]types.Stats, string, error) {
 	fmt.Println("Fetching gacha data. Please wait...")
 
 	// URL에서 lang 파라미터 추출하여 지역화에 사용
@@ -191,7 +191,7 @@ func runOnline(cfg *config.Config, calc *tracker.StatsCalulator, targetURL strin
 		if !ok {
 			return nil, "", fmt.Errorf("failed to fetch data: record for %s not found", gachaType.Key)
 		}
-		statsList = append(statsList, calc.CalculateStats(records, gachaType))
+		statsList = append(statsList, calc.Calc(records, gachaType))
 	}
 
 	return statsList, fetchResult.Payload.PlayerID, nil
