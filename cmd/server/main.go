@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -32,15 +34,23 @@ wuwa-tracker
 
 // EnvVars key
 const (
-	envVarPort   = "WUWA_TRACKER_PORT"
-	envVarDBPath = "WUWA_TRACKER_DB_PATH"
+	envVarHost        = "WUWA_TRACKER_HOST"
+	envVarPort        = "WUWA_TRACKER_PORT"
+	envVarDBPath      = "WUWA_TRACKER_DB_PATH"
+	envVarCORSOrigins = "WUWA_TRACKER_CORS_ORIGINS"
 )
 
 // default values
 var (
-	appName       = "wuwa-tracker"
-	defaultPort   = "3000"
-	defaultDBPath = "data/wuwa_badger"
+	appName            = "wuwa-tracker"
+	defaultHost        = "127.0.0.1"
+	defaultPort        = "3000"
+	defaultDBPath      = "data/wuwa_badger"
+	defaultCORSOrigins = []string{
+		"http://localhost:5173",
+		"http://127.0.0.1:5173",
+		"http://[::1]:5173",
+	}
 )
 
 func main() {
@@ -52,6 +62,10 @@ func main() {
 
 func run() error {
 	// 기본값 정의 및 환경변수 폴백 설정
+	if envHost := os.Getenv(envVarHost); envHost != "" {
+		defaultHost = envHost
+	}
+
 	if envPort := os.Getenv(envVarPort); envPort != "" {
 		defaultPort = envPort
 	}
@@ -61,12 +75,18 @@ func run() error {
 	}
 
 	// CLI 플래그 파싱 정의
+	hostFlag := flag.String("host", defaultHost, "Host address to listen on")
 	portFlag := flag.String("port", defaultPort, "Port to listen on")
 	dbPathFlag := flag.String("dbpath", defaultDBPath, "BadgerDB storage directory")
 	flag.Parse()
 
+	host := *hostFlag
 	port := *portFlag
 	dbPath := *dbPathFlag
+	corsOrigins := defaultCORSOrigins
+	if envCORSOrigins := os.Getenv(envVarCORSOrigins); envCORSOrigins != "" {
+		corsOrigins = splitCSV(envCORSOrigins)
+	}
 
 	// 설정 로드 (서버 기동 시 최초 1회만 로드하여 메모리에 적재)
 	cfg, err := config.Load()
@@ -115,7 +135,7 @@ func run() error {
 
 	// Svelte 로컬 개발 환경과의 통신을 위해 CORS 활성화
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
+		AllowOrigins: corsOrigins,
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept"},
 		AllowMethods: []string{"GET", "POST", "OPTIONS"},
 	}))
@@ -143,8 +163,9 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	addr := net.JoinHostPort(host, port)
 	// 서버 수신 리스너를 동기식으로 실행하여 GracefulContext 주입
-	if err := app.Listen(":"+port, fiber.ListenConfig{
+	if err := app.Listen(addr, fiber.ListenConfig{
 		GracefulContext: ctx,
 	}); err != nil {
 		return err
@@ -153,4 +174,16 @@ func run() error {
 	log.Info("Server stopped.")
 
 	return nil
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+	return items
 }

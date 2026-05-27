@@ -55,7 +55,7 @@ flowchart TD
 
 `cmd/server/main.go`는 다음 작업을 수행합니다.
 
-- `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH` 환경 변수와 `-port`, `-dbpath` 플래그를 처리합니다.
+- `WUWA_TRACKER_HOST`, `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`, `WUWA_TRACKER_CORS_ORIGINS` 환경 변수와 `-host`, `-port`, `-dbpath` 플래그를 처리합니다.
 - `config.Load()`로 설정을 로드합니다.
 - 원격 또는 로컬 fallback 로케일을 이용해 가챠 배너 이름을 매핑합니다.
 - BadgerDB를 열고 Fiber 미들웨어(`recover`, `logger`, `cors`)와 API 라우트를 등록합니다.
@@ -199,5 +199,5 @@ sequenceDiagram
 
 - CGO는 사용하지 않습니다.
 - 외부 통신은 Go 표준 `net/http` 클라이언트를 통해 수행합니다.
-- 서버 기본 포트는 `3000`, 기본 DB 경로는 `data/wuwa_badger`입니다. 환경 변수는 `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`를 사용하며, CLI 플래그가 환경 변수보다 우선합니다.
+- 서버 기본 수신 주소는 `127.0.0.1:3000`, 기본 DB 경로는 `data/wuwa_badger`입니다. 환경 변수는 `WUWA_TRACKER_HOST`, `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`, `WUWA_TRACKER_CORS_ORIGINS`를 사용하며, CLI 플래그가 환경 변수보다 우선합니다.
 - Makefile은 Go/Yarn 캐시를 `.cache/` 아래로 고정하고, `make clean`으로 빌드 산출물과 로컬 캐시를 정리합니다.

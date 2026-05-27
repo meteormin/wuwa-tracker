@@ -96,11 +96,11 @@ CLI는 서브커맨드 기반입니다.
 
 ```bash
 ./bin/wuwa-tracker-server
-./bin/wuwa-tracker-server -port 9090 -dbpath "./data/wuwa_badger"
-WUWA_TRACKER_PORT=9090 WUWA_TRACKER_DB_PATH="./data/wuwa_badger" ./bin/wuwa-tracker-server
+./bin/wuwa-tracker-server -host 127.0.0.1 -port 9090 -dbpath "./data/wuwa_badger"
+WUWA_TRACKER_HOST=127.0.0.1 WUWA_TRACKER_PORT=9090 WUWA_TRACKER_DB_PATH="./data/wuwa_badger" ./bin/wuwa-tracker-server
 ```
 
-환경 변수 `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`도 기본값으로 사용할 수 있습니다. CLI 플래그 `-port`, `-dbpath`를 함께 지정하면 플래그 값이 우선합니다. 서버가 실행되면 브라우저에서 `http://localhost:3000` 또는 지정한 포트로 접속합니다.
+환경 변수 `WUWA_TRACKER_HOST`, `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`도 기본값으로 사용할 수 있습니다. CLI 플래그 `-host`, `-port`, `-dbpath`를 함께 지정하면 플래그 값이 우선합니다. 서버는 기본적으로 `127.0.0.1:3000`에서만 수신하며, 개발용 CORS 허용 origin은 `WUWA_TRACKER_CORS_ORIGINS`에 쉼표로 구분해 지정할 수 있습니다.
 
 WebUI에서 가능한 작업:
 
