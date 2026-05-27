@@ -1,47 +1,44 @@
-# Svelte + TS + Vite
+# Wuwa Tracker WebUI
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+Svelte, TypeScript, Vite로 작성된 Wuwa Tracker 프론트엔드입니다. 빌드 결과물은 `webui/dist`에 생성되고, Go 서버 바이너리에 `go:embed`로 포함됩니다.
 
-## Recommended IDE Setup
+## 개발 명령
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
-
-## Need an official Svelte framework?
-
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
-
-## Technical considerations
-
-**Why use this over SvelteKit?**
-
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```bash
+yarn install
+yarn dev
+yarn check
+yarn build
 ```
+
+Vite 개발 서버에서 실행할 때 API 요청과 i18n 로딩은 `http://localhost:3000`으로 전달됩니다. 따라서 개발 중에는 Go 서버도 함께 실행해야 실제 데이터를 조회할 수 있습니다.
+
+```bash
+make build-server
+./bin/wuwa-tracker-server
+```
+
+## 주요 구성
+
+- `src/App.svelte`: 전체 화면 상태, 설정 로드, 플레이어 목록, URL 동기화, JSON 업로드 흐름 관리
+- `src/lib/api/index.ts`: Go 서버 API 호출 wrapper
+- `src/lib/types.ts`: Go API 응답과 맞춘 프론트 타입
+- `src/lib/components/ControlPanel.svelte`: URL 입력, JSON 업로드, 저장 플레이어 선택, 리포트 다운로드 UI
+- `src/lib/components/GachaReport.svelte`: 배너별 통계와 Luck Score 렌더링
+- `src/lib/i18n.ts`: 서버 `/api/i18n` 응답 기반 클라이언트 UI 다국어 처리
+
+UI 번역 원본은 프론트엔드 폴더가 아니라 Go 서버의 `locales/ui/*.json`에 있습니다. 새 문구를 추가할 때는 서버 embed 리소스의 JSON key를 추가하고, 프론트에서는 `$t("key")` 형태로 참조합니다.
+
+## API 의존성
+
+WebUI는 다음 API를 사용합니다.
+
+- `GET /api/config`
+- `GET /api/i18n?lang=ko|en`
+- `GET /api/players`
+- `GET /api/stats/:playerId`
+- `POST /api/track`
+- `POST /api/upload`
+- `GET /api/export/:playerId?format=html|json|csv&lang=ko|en`
+
+Luck Score의 점수 구간과 상태 값은 서버 설정에서 받고, 표시 문구는 서버 embed i18n 응답으로, Tailwind 클래스 매핑은 프론트에서 `worst`, `bad`, `normal`, `good`, `best` 상태 값 기준으로 처리합니다.

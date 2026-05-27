@@ -1,9 +1,13 @@
 <script lang="ts">
-    import { locale, t } from "../i18n";
+    import { locale, setLocale, t } from "../i18n";
 
     // 로케일 언어 변경 함수
-    function changeLocale(newLocale: "ko" | "en") {
-        locale.set(newLocale);
+    async function changeLocale(newLocale: "ko" | "en") {
+        try {
+            await setLocale(newLocale);
+        } catch (e) {
+            console.warn("Failed to change locale:", e);
+        }
     }
 </script>
 

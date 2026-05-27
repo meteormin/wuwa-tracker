@@ -66,6 +66,7 @@ func runAll(args []string) error {
 	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	formatFlag := fs.String("format", "html", "Report format (json, csv, html)")
 	outFlag := fs.String("o", "report", "Output file path (without extension)")
+	langFlag := fs.String("lang", "ko", "Report UI language (ko, en)")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -179,7 +180,7 @@ func runAll(args []string) error {
 		return fmt.Errorf("unsupported format: %s", *formatFlag)
 	}
 
-	exporter, err := rep.NewExporter(cfg, format)
+	exporter, err := rep.NewExporter(cfg, format, *langFlag)
 	if err != nil {
 		return fmt.Errorf("failed to load exporter: %w", err)
 	}

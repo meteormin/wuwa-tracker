@@ -87,27 +87,22 @@
     "luckScoreThresholds": [
         {
             "minScore": 0.0,
-            "message": "-",
             "state": "worst"
         },
         {
             "minScore": 85.0,
-            "message": "평균이하",
             "state": "bad"
         },
         {
             "minScore": 95.0,
-            "message": "평균",
             "state": "normal"
         },
         {
             "minScore": 102.0,
-            "message": "평균이상",
             "state": "good"
         },
         {
             "minScore": 115.0,
-            "message": "?!",
             "state": "best"
         }
     ]

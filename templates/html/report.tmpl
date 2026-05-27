@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="{{.Lang}}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>명조: 워더링 웨이브 - 튜닝 통계 리포트</title>
+    <title>{{t "report.html_title"}}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -36,12 +36,12 @@
                     <span class="text-xs font-semibold tracking-wider text-indigo-400 uppercase">Wuthering Waves</span>
                 </div>
                 <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent">
-                    튜닝 통계 리포트 {{if .PlayerID}}<span class="text-xl md:text-2xl text-slate-400 font-medium block sm:inline sm:ml-2">(Player ID: {{.PlayerID}})</span>{{end}}
+                    {{t "report.title"}} {{if .PlayerID}}<span class="text-xl md:text-2xl text-slate-400 font-medium block sm:inline sm:ml-2">({{t "report.player_id" "playerId" .PlayerID}})</span>{{end}}
                 </h1>
             </div>
             <div class="text-xs text-slate-500 text-left md:text-right bg-slate-900/40 p-3 rounded-lg border border-slate-800">
-                <p>제작: Antigravity Tracker</p>
-                <p class="mt-1">시간 표시는 로컬 장치 기준입니다.</p>
+                <p>{{t "report.created_by"}}</p>
+                <p class="mt-1">{{t "header.timezone_warning"}}</p>
             </div>
         </header>
 
@@ -56,19 +56,19 @@
                         {{ $stat.GachaName }}
                     </h3>
                     <span class="text-xs font-semibold text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
-                        Type Code: {{ $stat.GachaType }}
+                        {{t "report.type_code" "code" $stat.GachaType}}
                     </span>
                 </div>
 
                 <!-- 핵심 지표 요약 대시보드 -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                     <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
-                        <p class="text-xs text-slate-500 mb-1">총 뽑기 횟수</p>
+                        <p class="text-xs text-slate-500 mb-1">{{t "report.total_pulls"}}</p>
                         <p class="text-2xl font-extrabold text-slate-100">{{ $stat.TotalPulls }}</p>
                     </div>
                     <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
-                        <p class="text-xs text-slate-500 mb-1">현재 5성 천장 스택</p>
-                        <p class="text-2xl font-extrabold text-amber-400">{{ $stat.CurrentPity5 }}<span class="text-xs text-slate-500 font-normal"> / 80</span></p>
+                        <p class="text-xs text-slate-500 mb-1">{{t "report.current_pity"}}</p>
+                        <p class="text-2xl font-extrabold text-amber-400">{{ $stat.CurrentPity5 }}<span class="text-xs text-slate-500 font-normal">{{t "report.pity_suffix"}}</span></p>
                     </div>
                     <!-- 동적 계산 영역 (운 점수 등) -->
                     {{- $luckBgClass := "bg-slate-900/40 border-slate-800/50" -}}
@@ -78,7 +78,6 @@
                     {{- if $stat.HasFiveStar -}}
                         {{- range $.LuckScoreThresholds -}}
                             {{- if ge $stat.LuckScore .MinScore -}}
-                                {{- $luckMessage = .Message -}}
                                 {{- $luckState = .State -}}
                             {{- end -}}
                         {{- end -}}
@@ -86,32 +85,37 @@
                     {{- if eq $luckState "worst" -}}
                         {{- $luckBgClass = "bg-rose-500/10 border-rose-500/30" -}}
                         {{- $luckColorClass = "text-rose-500 font-extrabold" -}}
+                        {{- $luckMessage = (t "report.luck_score_state.worst") -}}
                     {{- else if eq $luckState "bad" -}}
                         {{- $luckBgClass = "bg-rose-500/5 border-rose-500/10" -}}
                         {{- $luckColorClass = "text-rose-300" -}}
+                        {{- $luckMessage = (t "report.luck_score_state.bad") -}}
                     {{- else if eq $luckState "good" -}}
                         {{- $luckBgClass = "bg-emerald-500/5 border-emerald-500/20" -}}
                         {{- $luckColorClass = "text-emerald-400" -}}
+                        {{- $luckMessage = (t "report.luck_score_state.good") -}}
                     {{- else if eq $luckState "best" -}}
                         {{- $luckBgClass = "bg-emerald-500/10 border-emerald-500/30" -}}
                         {{- $luckColorClass = "text-emerald-400" -}}
+                        {{- $luckMessage = (t "report.luck_score_state.best") -}}
                     {{- else -}}
                         {{- $luckBgClass = "bg-slate-900/40 border-slate-800/50" -}}
                         {{- $luckColorClass = "text-slate-300" -}}
+                        {{- $luckMessage = (t "report.luck_score_state.normal") -}}
                     {{- end -}}
 
                     <div class="p-4 rounded-xl border transition-all duration-300 {{$luckBgClass}}" id="luck-card-{{$index}}">
                         <div class="flex items-center gap-1 mb-1">
-                            <span class="text-xs text-slate-500">운 점수 (Luck Score)</span>
+                            <span class="text-xs text-slate-500">{{t "report.luck_score"}}</span>
                             <div class="group relative cursor-pointer">
                                 <svg class="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                                 <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-950 border border-slate-800 p-3 rounded-lg text-[11px] leading-relaxed text-slate-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 shadow-2xl z-30 font-normal">
-                                    <p class="font-bold text-indigo-400 mb-1">💡 운 점수 계산 방식</p>
-                                    <p class="mb-1.5"><code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-400 font-mono text-[10px]">운 점수 = (총 기대 소요 횟수 / 총 실제 소요 횟수) * 100</code></p>
-                                    <p class="mb-1">실제 소요된 뽑기 횟수가 기대 평균보다 적을수록 점수가 100% 초과로 상승하며 행운(Lucky) 상태를 나타냅니다.</p>
-                                    <p class="text-rose-400 border-t border-slate-800/80 pt-1 mt-1">⚠️ <strong>한정 튜닝 픽업 주기 반영:</strong><br>한정 배너에서 픽뚫(상시 캐릭터)이 발생하면 <strong>해당 상시 캐릭터를 뽑는 데 소모된 스택이 다음 픽업 캐릭터 획득 주기(Cycle)에 합산</strong>되어 평가됩니다. 단순히 임의의 가중치를 곱하는 대신, 픽업 캐릭터를 실제로 획득할 때까지 소모한 물리적인 총 뽑기 횟수(예: 픽뚫 20뽑 + 픽업 60뽑 = 80뽑)를 기대 평균값(55.5)과 정밀 비교합니다.</p>
+                                    <p class="font-bold text-indigo-400 mb-1">{{t "report.luck_score_formula_title"}}</p>
+                                    <p class="mb-1.5"><code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-400 font-mono text-[10px]">{{t "report.luck_score_formula"}}</code></p>
+                                    <p class="mb-1">{{t "report.luck_score_description"}}</p>
+                                    <p class="text-rose-400 border-t border-slate-800/80 pt-1 mt-1">{{t "report.luck_score_pity_warn"}}</p>
                                     <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-950"></div>
                                 </div>
                             </div>
@@ -121,7 +125,7 @@
                                 <span class="{{$luckColorClass}}">{{$luckMessage}}</span> 
                                 <span class="text-[10px] text-slate-500 block sm:inline font-normal">({{printf "%.0f" $stat.LuckScore}}%)</span>
                             {{else}}
-                                <span class="text-slate-500 italic">판별 불가 (5성 없음)</span>
+                                <span class="text-slate-500 italic">{{t "report.luck_score_unknown"}}</span>
                             {{end}}
                         </p>
                     </div>
@@ -129,24 +133,24 @@
 
                 <!-- 획득 확률 분석 지표 -->
                 <div class="bg-slate-950/50 rounded-xl border border-slate-850 p-4 mb-8">
-                    <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">5★ 획득 효율 분석</h4>
+                    <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">{{t "report.efficiency_analysis"}}</h4>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
-                            <span class="text-slate-500 text-xs">나의 5성 평균 소요</span>
+                            <span class="text-slate-500 text-xs">{{t "report.my_avg_pulls"}}</span>
                             <span class="font-bold text-slate-200" id="avg-pulls-{{$index}}">
                                 {{- if $stat.HasFiveStar -}}
-                                    <span class="text-amber-400 font-extrabold">{{printf "%.1f" $stat.AvgPulls}}</span>회 <span class="text-xs text-slate-500">(누적 {{len $stat.FiveStars}}회)</span>
+                                    <span class="text-amber-400 font-extrabold">{{printf "%.1f" $stat.AvgPulls}}</span>{{t "report.avg_pulls_suffix"}} <span class="text-xs text-slate-500">{{t "report.avg_pulls_accumulated" "count" (len $stat.FiveStars)}}</span>
                                 {{- else -}}
-                                    <span class="text-slate-500 italic">획득 이력 없음</span>
+                                    <span class="text-slate-500 italic">{{t "report.no_avg_pulls"}}</span>
                                 {{- end -}}
                             </span>
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
-                            <span class="text-slate-500 text-xs">기대 평균 소요 (기준)</span>
-                            <span class="font-bold text-slate-200" id="expected-pulls-{{$index}}">{{ $stat.ExpectedPulls }}회</span>
+                            <span class="text-slate-500 text-xs">{{t "report.expected_avg_pulls"}}</span>
+                            <span class="font-bold text-slate-200" id="expected-pulls-{{$index}}">{{ $stat.ExpectedPulls }}{{t "report.avg_pulls_suffix"}}</span>
                         </div>
                         <div class="flex justify-between sm:flex-col sm:justify-start gap-1">
-                            <span class="text-slate-500 text-xs">5★ 획득 비율 / 기본 확률</span>
+                            <span class="text-slate-500 text-xs">{{t "report.actual_rate_vs_base"}}</span>
                             <span class="font-bold text-slate-200" id="rate-compare-{{$index}}">
                                 {{- if $stat.HasFiveStar -}}
                                     {{- $rateClass := "text-rose-400" -}}
@@ -166,17 +170,17 @@
                 <div class="mb-8">
                     <h4 class="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
                         <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
-                        5★ 획득 히스토리 (총 {{len $stat.FiveStars}}회)
+                        {{t "report.history_title" "count" (len $stat.FiveStars)}}
                     </h4>
                     {{if $stat.FiveStars}}
                     <div class="overflow-hidden border border-slate-800/80 rounded-xl bg-slate-950/30">
                         <table class="min-w-full divide-y divide-slate-800">
                             <thead class="bg-slate-900/60">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">이름</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">획득 시점 (스택)</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">획득 일시</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">구분</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.name"}}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.pity"}}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.time"}}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.category"}}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-800/60 bg-transparent">
@@ -187,14 +191,14 @@
                                         {{.Name}}
                                     </td>
                                     <td class="px-4 py-3.5 whitespace-nowrap text-sm text-slate-200">
-                                        <span class="font-extrabold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">{{.Pity}}스택</span>
+                                        <span class="font-extrabold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">{{t "table.pity_suffix" "count" .Pity}}</span>
                                     </td>
                                     <td class="px-4 py-3.5 whitespace-nowrap text-xs text-slate-400">{{.Time}}</td>
                                     <td class="px-4 py-3.5 whitespace-nowrap text-sm">
                                         {{if .IsPickUp}}
-                                        <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">픽업 완료</span>
+                                        <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{{t "table.pickup_success"}}</span>
                                         {{else}}
-                                        <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">픽뚫 (상시)</span>
+                                        <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">{{t "table.pickup_fail"}}</span>
                                         {{end}}
                                     </td>
                                 </tr>
@@ -204,7 +208,7 @@
                     </div>
                     {{else}}
                     <div class="bg-slate-950/20 border border-dashed border-slate-800 rounded-xl p-6 text-center text-slate-500 text-sm">
-                        아직 5성 캐릭터/무기 획득 이력이 없습니다.
+                        {{t "report.history_empty"}}
                     </div>
                     {{end}}
                 </div>
@@ -214,7 +218,7 @@
                     <summary class="flex justify-between items-center p-4 font-bold text-slate-300 cursor-pointer hover:bg-slate-900/40 select-none transition-colors duration-200">
                         <span class="flex items-center gap-2 text-sm md:text-base">
                             <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                            전체 튜닝 획득 리스트 (최신순 - 총 {{len $stat.Records}}회)
+                            {{t "full_history.title" "count" (len $stat.Records)}}
                         </span>
                         <span class="transition-transform duration-200 group-open:rotate-180">
                             <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -225,10 +229,10 @@
                         <table class="min-w-full divide-y divide-slate-900">
                             <thead class="bg-slate-950/80 sticky top-0 z-10">
                                 <tr>
-                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">이름</th>
-                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">등급</th>
-                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">유형</th>
-                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">획득 일시</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.name"}}</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.rarity"}}</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.type"}}</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{{t "table.time"}}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-900 bg-transparent">
@@ -254,7 +258,7 @@
                         </table>
                         {{else}}
                         <div class="p-6 text-center text-slate-500 text-sm">
-                            획득 기록이 없습니다.
+                            {{t "full_history.empty"}}
                         </div>
                         {{end}}
                     </div>

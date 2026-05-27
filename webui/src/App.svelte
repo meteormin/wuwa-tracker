@@ -8,7 +8,7 @@
     trackURL as apiTrackURL,
     uploadJSON,
   } from "./lib/api";
-  import { t } from "./lib/i18n";
+  import { initI18n, t } from "./lib/i18n";
   import Header from "./lib/components/Header.svelte";
   import ControlPanel from "./lib/components/ControlPanel.svelte";
   import GachaReport from "./lib/components/GachaReport.svelte";
@@ -54,7 +54,7 @@
     }
   }
 
-  // 플레이어 선택 시 로컬 SQLite 데이터 즉각 조회
+  // 플레이어 선택 시 로컬 BadgerDB 데이터 즉각 조회
   async function selectPlayer(playerId: string) {
     isLoading = true;
     errorMessage = "";
@@ -145,6 +145,11 @@
   }
 
   onMount(async () => {
+    try {
+      await initI18n();
+    } catch (e) {
+      console.warn("Failed to initialize translations:", e);
+    }
     await loadConfig();
     await loadPlayers();
     // 데이터가 이미 저장된 기존 첫 번째 유저가 있다면 자동으로 선로딩 수행
@@ -191,5 +196,3 @@
     </div>
   {/if}
 </div>
-
-

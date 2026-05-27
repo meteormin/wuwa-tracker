@@ -30,6 +30,13 @@ wuwa-tracker
 
 `
 
+// EnvVars key
+const (
+	envVarPort   = "WUWA_TRACKER_PORT"
+	envVarDBPath = "WUWA_TRACKER_DB_PATH"
+)
+
+// default values
 var (
 	appName       = "wuwa-tracker"
 	defaultPort   = "3000"
@@ -44,12 +51,12 @@ func main() {
 }
 
 func run() error {
-	// 기본값 정의 및 환경변수(PORT, DB_PATH) 폴백 설정
-	if envPort := os.Getenv("PORT"); envPort != "" {
+	// 기본값 정의 및 환경변수 폴백 설정
+	if envPort := os.Getenv(envVarPort); envPort != "" {
 		defaultPort = envPort
 	}
 
-	if envDBPath := os.Getenv("DB_PATH"); envDBPath != "" {
+	if envDBPath := os.Getenv(envVarDBPath); envDBPath != "" {
 		defaultDBPath = envDBPath
 	}
 
@@ -123,6 +130,7 @@ func run() error {
 	api.Get("/players", h.ListPlayers)
 	api.Post("/upload", h.Upload)
 	api.Get("/config", h.GetConfig)
+	api.Get("/i18n", h.GetI18n)
 	api.Get("/export/:playerId", h.ExportReport)
 
 	// 빌드된 WebUI 정적 자원들을 Go embed 파일 시스템으로 내장 호스팅

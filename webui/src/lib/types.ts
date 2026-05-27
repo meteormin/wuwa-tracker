@@ -39,6 +39,5 @@ export type LuckScoreState = "worst" | "bad" | "normal" | "good" | "best";
 
 export interface LuckScoreThreshold {
   minScore: number;
-  message: string;
   state: LuckScoreState;
 }

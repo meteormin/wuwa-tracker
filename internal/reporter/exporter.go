@@ -22,14 +22,19 @@ type Exporter interface {
 }
 
 // NewExporter 는 주어진 포맷 이름에 따라 적절한 Exporter를 반환합니다.
-func NewExporter(cfg *config.Config, format Format) (Exporter, error) {
+func NewExporter(cfg *config.Config, format Format, lang ...string) (Exporter, error) {
+	reportLang := "ko"
+	if len(lang) > 0 && lang[0] != "" {
+		reportLang = lang[0]
+	}
+
 	switch format {
 	case FormatJSON:
 		return &JSONExporter{}, nil
 	case FormatCSV:
 		return &CSVExporter{}, nil
 	case FormatHTML:
-		return &HTMLExporter{cfg: cfg}, nil
+		return &HTMLExporter{cfg: cfg, lang: reportLang}, nil
 	default:
 		return nil, fmt.Errorf("unsupported format: %s", format)
 	}

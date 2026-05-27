@@ -14,6 +14,7 @@ import (
 	report "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
+	"github.com/meteormin/wuwa-tracker/locales"
 )
 
 // Handler 는 HTTP 요청을 처리하고 데이터베이스에 협업하는 핸들러 구조체입니다.
@@ -31,7 +32,7 @@ func NewHandler(badgerDB *db.BadgerDB, cfg *config.Config) *Handler {
 }
 
 // Track 은 사용자가 제출한 Kurogame 가챠 로그 URL을 기반으로 데이터를 페치하고,
-// BadgerDB에 덮어쓰기 저장한 뒤 최신 통계 데이터를 반환합니다.
+// BadgerDB에 기존 기록과 병합 저장한 뒤 최신 통계 데이터를 반환합니다.
 func (h *Handler) Track(c fiber.Ctx) error {
 	var req types.TrackRequest
 	if err := c.Bind().Body(&req); err != nil {
@@ -78,7 +79,7 @@ func (h *Handler) Track(c fiber.Ctx) error {
 			continue
 		}
 
-		// BadgerDB에 덮어쓰기 방식으로 저장 (기존 데이터와 자동 정합성 일치)
+		// BadgerDB에 기존 데이터와 병합 저장
 		err = h.db.SaveGachaRecords(playerID, gachaType.Key, records)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(errDatabaseSaveFailed)
@@ -89,7 +90,7 @@ func (h *Handler) Track(c fiber.Ctx) error {
 	return h.returnPlayerStats(c, playerID)
 }
 
-// Upload 는 클라이언트로부터 직접 JSON 형태의 가챠 데이터 세트를 입력받아 DB에 덮어쓰기 저장하고,
+// Upload 는 클라이언트로부터 직접 JSON 형태의 가챠 데이터 세트를 입력받아 DB에 병합 저장하고,
 // 즉시 분석 통계를 산출하여 반환합니다. 외부 API 요청 없이 오프라인 분석 및 테스트가 가능합니다.
 func (h *Handler) Upload(c fiber.Ctx) error {
 	var req types.UploadRequest
@@ -155,6 +156,24 @@ func (h *Handler) GetConfig(c fiber.Ctx) error {
 	})
 }
 
+// GetI18n 은 프론트엔드와 HTML 리포트에서 공유하는 UI 번역 리소스를 반환합니다.
+func (h *Handler) GetI18n(c fiber.Ctx) error {
+	lang := c.Query("lang", "ko")
+	resolvedLang, translations, err := locales.LoadUITranslationsWithFallback(lang)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   "failed to load translations",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success":      true,
+		"lang":         resolvedLang,
+		"translations": translations,
+	})
+}
+
 // returnPlayerStats 는 BadgerDB에서 플레이어 가챠 데이터를 가져와 통계(Stats)를 계산하고 JSON 응답을 전송하는 헬퍼 함수입니다.
 func (h *Handler) returnPlayerStats(c fiber.Ctx, playerID string) error {
 	// 통계 계산 엔진 초기화
@@ -185,6 +204,7 @@ func (h *Handler) ExportReport(c fiber.Ctx) error {
 	}
 
 	formatParam := strings.ToLower(c.Query("format", "html"))
+	lang := c.Query("lang", "ko")
 	var format report.Format
 	switch formatParam {
 	case "json":
@@ -218,7 +238,7 @@ func (h *Handler) ExportReport(c fiber.Ctx) error {
 	}
 
 	// exporter 가져오기
-	exporter, err := report.NewExporter(h.cfg, format)
+	exporter, err := report.NewExporter(h.cfg, format, lang)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,

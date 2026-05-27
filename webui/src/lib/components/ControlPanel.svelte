@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "../i18n";
+  import { locale, t } from "../i18n";
 
   // Props 정의
   export let urlInput: string;
@@ -136,21 +136,21 @@
       <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">{$t("control.export_report")} :</span>
       <div class="flex gap-2">
         <a
-          href="/api/export/{activePlayerID}?format=html"
+          href="/api/export/{activePlayerID}?format=html&lang={$locale}"
           download="report_{activePlayerID}.html"
           class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-blue-400 border-blue-500/30 hover:border-blue-500/80 hover:bg-blue-600/10 transition-all flex items-center gap-1 active:scale-95"
         >
           📄 HTML
         </a>
         <a
-          href="/api/export/{activePlayerID}?format=json"
+          href="/api/export/{activePlayerID}?format=json&lang={$locale}"
           download="report_{activePlayerID}.json"
           class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-amber-400 border-amber-500/30 hover:border-amber-500/80 hover:bg-amber-600/10 transition-all flex items-center gap-1 active:scale-95"
         >
           📦 JSON
         </a>
         <a
-          href="/api/export/{activePlayerID}?format=csv"
+          href="/api/export/{activePlayerID}?format=csv&lang={$locale}"
           download="report_{activePlayerID}.csv"
           class="text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-emerald-400 border-emerald-500/30 hover:border-emerald-500/80 hover:bg-emerald-600/10 transition-all flex items-center gap-1 active:scale-95"
         >

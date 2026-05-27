@@ -115,7 +115,6 @@ func (s *StandardFiveStarResources) Contains(resourceId int) bool {
 
 type LuckScoreThreshold struct {
 	MinScore float64 `json:"minScore"`
-	Message  string  `json:"message"`
 	State    string  `json:"state"`
 }
 

@@ -19,7 +19,6 @@
 
   const DEFAULT_LUCK_STYLE: LuckScoreThreshold = {
     minScore: 0.0,
-    message: "-",
     state: "normal",
   };
 
@@ -62,6 +61,10 @@
 
   function getLuckStateClasses(state: LuckScoreState) {
     return LUCK_SCORE_STATE_CLASSES[state] || LUCK_SCORE_STATE_CLASSES.normal;
+  }
+
+  function getLuckStateMessage(state: LuckScoreState) {
+    return $t(`report.luck_score_state.${state}` as any);
   }
 </script>
 
@@ -170,7 +173,7 @@
           </div>
           <p class="text-2xl font-extrabold">
             {#if stat.hasFiveStar}
-              <span class={luckStyleClasses.colorClass}>{luckStyle.message}</span>
+              <span class={luckStyleClasses.colorClass}>{getLuckStateMessage(luckStyle.state)}</span>
               <span class="text-[10px] text-slate-500 font-normal"
                 >({stat.luckScore.toFixed(0)}%)</span
               >

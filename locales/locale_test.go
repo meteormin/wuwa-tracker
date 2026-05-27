@@ -37,3 +37,27 @@ func TestLoadSelectList(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadUITranslationsWithFallback(t *testing.T) {
+	lang, translations, err := LoadUITranslationsWithFallback("en")
+	if err != nil {
+		t.Fatalf("Failed to load UI translations: %v", err)
+	}
+	if lang != "en" {
+		t.Fatalf("Expected resolved lang 'en', got %q", lang)
+	}
+	if translations["report.title"] == "" {
+		t.Fatal("Expected report.title translation")
+	}
+
+	lang, translations, err = LoadUITranslationsWithFallback("missing")
+	if err != nil {
+		t.Fatalf("Failed to fallback UI translations: %v", err)
+	}
+	if lang != "ko" {
+		t.Fatalf("Expected fallback lang 'ko', got %q", lang)
+	}
+	if translations["report.title"] == "" {
+		t.Fatal("Expected fallback report.title translation")
+	}
+}

@@ -27,6 +27,7 @@ func Run(args []string) error {
 	fileFlag := fs.String("f", "", "Path to a local JSON log file (offline mode)")
 	formatFlag := fs.String("format", "html", "Report format (json, csv, html)")
 	outFlag := fs.String("o", "report", "Output file path (without extension)")
+	langFlag := fs.String("lang", "ko", "Report UI language (ko, en)")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -69,7 +70,7 @@ func Run(args []string) error {
 		return fmt.Errorf("no valid records found. Report was not generated")
 	}
 
-	return exportReport(cfg, statsList, playerID, *formatFlag, *outFlag)
+	return exportReport(cfg, statsList, playerID, *formatFlag, *outFlag, *langFlag)
 }
 
 // runOffline 은 로컬 JSON 파일에서 데이터를 읽어 통계를 계산합니다.
@@ -197,7 +198,7 @@ func runOnline(cfg *config.Config, calc *tracker.StatsCalulator, targetURL strin
 }
 
 // exportReport 는 통계 데이터를 지정된 포맷으로 파일에 출력합니다.
-func exportReport(cfg *config.Config, statsList []types.Stats, playerID, formatFlag, outFlag string) error {
+func exportReport(cfg *config.Config, statsList []types.Stats, playerID, formatFlag, outFlag, lang string) error {
 	var format reporter.Format
 	switch strings.ToLower(formatFlag) {
 	case "json":
@@ -210,7 +211,7 @@ func exportReport(cfg *config.Config, statsList []types.Stats, playerID, formatF
 		return fmt.Errorf("unsupported format: %s", formatFlag)
 	}
 
-	exporter, err := reporter.NewExporter(cfg, format)
+	exporter, err := reporter.NewExporter(cfg, format, lang)
 	if err != nil {
 		return fmt.Errorf("failed to load exporter: %w", err)
 	}
