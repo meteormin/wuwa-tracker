@@ -35,9 +35,10 @@ export interface Stats {
 }
 
 // 운 점수 스타일 임계치 인터페이스
+export type LuckScoreState = "worst" | "bad" | "normal" | "good" | "best";
+
 export interface LuckScoreThreshold {
   minScore: number;
-  state: string;
-  colorClass: string;
-  bgClass: string;
+  message: string;
+  state: LuckScoreState;
 }

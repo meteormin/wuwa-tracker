@@ -114,10 +114,9 @@ func (s *StandardFiveStarResources) Contains(resourceId int) bool {
 }
 
 type LuckScoreThreshold struct {
-	MinScore   float64 `json:"minScore"`
-	State      string  `json:"state"`
-	ColorClass string  `json:"colorClass"`
-	BgClass    string  `json:"bgClass"`
+	MinScore float64 `json:"minScore"`
+	Message  string  `json:"message"`
+	State    string  `json:"state"`
 }
 
 // TrackRequest 는 가챠 기록 조회를 위한 URL 입력 요청 데이터 구조체입니다.

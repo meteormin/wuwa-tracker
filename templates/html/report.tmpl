@@ -73,16 +73,32 @@
                     <!-- 동적 계산 영역 (운 점수 등) -->
                     {{- $luckBgClass := "bg-slate-900/40 border-slate-800/50" -}}
                     {{- $luckColorClass := "text-slate-400" -}}
-                    {{- $luckState := "-" -}}
+                    {{- $luckMessage := "-" -}}
+                    {{- $luckState := "normal" -}}
                     {{- if $stat.HasFiveStar -}}
                         {{- range $.LuckScoreThresholds -}}
                             {{- if ge $stat.LuckScore .MinScore -}}
-                                {{- $luckBgClass = .BgClass -}}
-                                {{- $luckColorClass = .ColorClass -}}
+                                {{- $luckMessage = .Message -}}
                                 {{- $luckState = .State -}}
                             {{- end -}}
                         {{- end -}}
                     {{- end}}
+                    {{- if eq $luckState "worst" -}}
+                        {{- $luckBgClass = "bg-rose-500/10 border-rose-500/30" -}}
+                        {{- $luckColorClass = "text-rose-500 font-extrabold" -}}
+                    {{- else if eq $luckState "bad" -}}
+                        {{- $luckBgClass = "bg-rose-500/5 border-rose-500/10" -}}
+                        {{- $luckColorClass = "text-rose-300" -}}
+                    {{- else if eq $luckState "good" -}}
+                        {{- $luckBgClass = "bg-emerald-500/5 border-emerald-500/20" -}}
+                        {{- $luckColorClass = "text-emerald-400" -}}
+                    {{- else if eq $luckState "best" -}}
+                        {{- $luckBgClass = "bg-emerald-500/10 border-emerald-500/30" -}}
+                        {{- $luckColorClass = "text-emerald-400" -}}
+                    {{- else -}}
+                        {{- $luckBgClass = "bg-slate-900/40 border-slate-800/50" -}}
+                        {{- $luckColorClass = "text-slate-300" -}}
+                    {{- end -}}
 
                     <div class="p-4 rounded-xl border transition-all duration-300 {{$luckBgClass}}" id="luck-card-{{$index}}">
                         <div class="flex items-center gap-1 mb-1">
@@ -102,7 +118,7 @@
                         </div>
                         <p class="text-2xl font-extrabold text-slate-400" id="luck-val-{{$index}}">
                             {{if $stat.HasFiveStar}}
-                                <span class="{{$luckColorClass}}">{{$luckState}}</span> 
+                                <span class="{{$luckColorClass}}">{{$luckMessage}}</span> 
                                 <span class="text-[10px] text-slate-500 block sm:inline font-normal">({{printf "%.0f" $stat.LuckScore}}%)</span>
                             {{else}}
                                 <span class="text-slate-500 italic">판별 불가 (5성 없음)</span>

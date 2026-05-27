@@ -87,33 +87,28 @@
     "luckScoreThresholds": [
         {
             "minScore": 0.0,
-            "state": "극악의 억까 상태... 💀",
-            "colorClass": "text-rose-500 font-extrabold",
-            "bgClass": "bg-rose-500/10 border-rose-500/30"
+            "message": "-",
+            "state": "worst"
         },
         {
             "minScore": 85.0,
-            "state": "운이 조금 나쁨 💧",
-            "colorClass": "text-rose-300",
-            "bgClass": "bg-rose-500/5 border-rose-500/10"
+            "message": "평균이하",
+            "state": "bad"
         },
         {
             "minScore": 95.0,
-            "state": "평균 수렴 ⚖️",
-            "colorClass": "text-slate-300",
-            "bgClass": "bg-slate-900/40 border-slate-800/50"
+            "message": "평균",
+            "state": "normal"
         },
         {
             "minScore": 102.0,
-            "state": "운이 좋음! ✨",
-            "colorClass": "text-emerald-400",
-            "bgClass": "bg-emerald-500/5 border-emerald-500/20"
+            "message": "평균이상",
+            "state": "good"
         },
         {
             "minScore": 115.0,
-            "state": "비정상적인 행운! 🔥",
-            "colorClass": "text-emerald-400",
-            "bgClass": "bg-emerald-500/10 border-emerald-500/30"
+            "message": "?!",
+            "state": "best"
         }
     ]
 }

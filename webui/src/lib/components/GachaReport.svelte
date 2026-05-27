@@ -1,8 +1,13 @@
 <script lang="ts">
-  import type { Stats, LuckScoreThreshold } from "../types";
+  import type { Stats, LuckScoreState, LuckScoreThreshold } from "../types";
   import { t } from "../i18n";
   import FiveStarHistory from "./FiveStarHistory.svelte";
   import FullHistory from "./FullHistory.svelte";
+
+  type LuckScoreStateClasses = {
+    colorClass: string;
+    bgClass: string;
+  };
 
   // Props 정의
   export let stat: Stats;
@@ -10,16 +15,41 @@
 
   // 운 점수에 따른 스타일 동적 계산
   $: luckStyle = getLuckThreshold(stat.luckScore);
+  $: luckStyleClasses = getLuckStateClasses(luckStyle.state);
+
+  const DEFAULT_LUCK_STYLE: LuckScoreThreshold = {
+    minScore: 0.0,
+    message: "-",
+    state: "normal",
+  };
+
+  const LUCK_SCORE_STATE_CLASSES: Record<LuckScoreState, LuckScoreStateClasses> = {
+    worst: {
+      colorClass: "text-rose-500 font-extrabold",
+      bgClass: "bg-rose-500/10 border-rose-500/30",
+    },
+    bad: {
+      colorClass: "text-rose-300",
+      bgClass: "bg-rose-500/5 border-rose-500/10",
+    },
+    normal: {
+      colorClass: "text-slate-300",
+      bgClass: "bg-slate-900/40 border-slate-800/50",
+    },
+    good: {
+      colorClass: "text-emerald-400",
+      bgClass: "bg-emerald-500/5 border-emerald-500/20",
+    },
+    best: {
+      colorClass: "text-emerald-400",
+      bgClass: "bg-emerald-500/10 border-emerald-500/30",
+    },
+  };
 
   // 운 점수 임계치 정보 매칭 함수
   function getLuckThreshold(score: number) {
     if (!thresholds || thresholds.length === 0) {
-      return {
-        minScore: 0.0,
-        state: "-",
-        colorClass: "text-slate-400",
-        bgClass: "bg-slate-900/40 border-slate-800/50",
-      };
+      return DEFAULT_LUCK_STYLE;
     }
     let matched = thresholds[0];
     for (const t of thresholds) {
@@ -28,6 +58,10 @@
       }
     }
     return matched;
+  }
+
+  function getLuckStateClasses(state: LuckScoreState) {
+    return LUCK_SCORE_STATE_CLASSES[state] || LUCK_SCORE_STATE_CLASSES.normal;
   }
 </script>
 
@@ -90,7 +124,7 @@
         <!-- 운 점수 동적 바인딩 -->
         <div
           class="p-5 rounded-xl border transition-all duration-300 {stat.hasFiveStar
-            ? luckStyle.bgClass
+            ? luckStyleClasses.bgClass
             : 'bg-slate-900/40 border-slate-800/50'}"
         >
           <div class="flex items-center gap-1 mb-1">
@@ -136,7 +170,7 @@
           </div>
           <p class="text-2xl font-extrabold">
             {#if stat.hasFiveStar}
-              <span class={luckStyle.colorClass}>{luckStyle.state}</span>
+              <span class={luckStyleClasses.colorClass}>{luckStyle.message}</span>
               <span class="text-[10px] text-slate-500 font-normal"
                 >({stat.luckScore.toFixed(0)}%)</span
               >
