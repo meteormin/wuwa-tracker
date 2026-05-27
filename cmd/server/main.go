@@ -28,7 +28,7 @@ import (
 
 const banner = `
 
-wuwa-tracker
+wuwa-tracker %s
 
 `
 
@@ -43,6 +43,7 @@ const (
 // default values
 var (
 	appName            = "wuwa-tracker"
+	buildTag           = "dev"
 	defaultHost        = "127.0.0.1"
 	defaultPort        = "3000"
 	defaultDBPath      = "data/wuwa_badger"
@@ -106,6 +107,7 @@ func run() error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
+	log.Infof("Build tag: %s\n", buildTag)
 	log.Infof("Successfully started BadgerDB engine under directory: %s\n", dbPath)
 
 	// Fiber v3 애플리케이션 생성
@@ -115,7 +117,7 @@ func run() error {
 
 	// 스타트업 훅 시스템을 사용한 소문자 아스키 배너 적용
 	app.Hooks().OnPreStartupMessage(func(sm *fiber.PreStartupMessageData) error {
-		sm.BannerHeader = banner
+		sm.BannerHeader = fmt.Sprintf(banner, buildTag)
 		return nil
 	})
 

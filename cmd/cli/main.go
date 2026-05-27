@@ -20,6 +20,8 @@ import (
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
+var buildTag = "dev"
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
@@ -30,6 +32,8 @@ func main() {
 	var err error
 
 	switch cmd {
+	case "version":
+		fmt.Println(buildTag)
 	case "scan":
 		err = scan.Run(os.Args[2:])
 	case "report":
@@ -52,6 +56,7 @@ func printUsage() {
 	fmt.Println("Usage: wuwa-tracker <command> [arguments]")
 	fmt.Println()
 	fmt.Println("Commands:")
+	fmt.Println("  version Print build tag")
 	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
 	fmt.Println("  report  Fetch gacha records and generate a report (use -url or -f)")
 	fmt.Println("  run     Run the entire flow (scan for URL, fetch data, and generate report)")

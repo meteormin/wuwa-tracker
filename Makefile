@@ -9,6 +9,10 @@ WEBUI_DIR=webui
 GO_BUILD_CACHE_DIR=$(CACHE_DIR)/go-build
 GO_MOD_CACHE_DIR=$(CACHE_DIR)/go-mod
 YARN_CACHE_DIR=$(CACHE_DIR)/yarn
+BUILD_DATE ?= $(shell date +%Y%m%d)
+COMMIT_HASH ?=
+BUILD_TAG=$(BUILD_DATE)$(if $(COMMIT_HASH),-$(COMMIT_HASH),)
+LD_FLAGS=-X main.buildTag=$(BUILD_TAG)
 
 GOVERSION ?= $(shell go env GOVERSION)
 export GOCACHE ?= $(CURDIR)/$(GO_BUILD_CACHE_DIR)
@@ -29,13 +33,13 @@ build: build-cli
 build-cli:
 	@echo "Building CLI ($(APP_NAME))..."
 	@mkdir -p $(BIN_DIR)
-	@go build -o $(BIN_DIR)/$(APP_NAME) $(CLI_DIR)
+	@go build -ldflags "$(LD_FLAGS)" -o $(BIN_DIR)/$(APP_NAME) $(CLI_DIR)
 	@echo "CLI Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)"
 
 build-server: build-webui
 	@echo "Building Server ($(APP_NAME)-server)..."
 	@mkdir -p $(BIN_DIR)
-	@go build -o $(BIN_DIR)/$(APP_NAME)-server $(SERVER_DIR)
+	@go build -ldflags "$(LD_FLAGS)" -o $(BIN_DIR)/$(APP_NAME)-server $(SERVER_DIR)
 	@echo "Server Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)-server"
 
 build-webui:

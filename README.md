@@ -31,11 +31,14 @@ Go 빌드 캐시, Go 모듈 캐시, Yarn 캐시는 기본적으로 프로젝트 
 make build-all      # WebUI, CLI, 서버 전체 빌드
 make build-cli      # bin/wuwa-tracker 생성
 make build-server   # WebUI 빌드 후 bin/wuwa-tracker-server 생성
+make build-all COMMIT_HASH=$(git rev-parse --short HEAD)
 make test           # Go 테스트
 make lint           # golangci-lint 실행
 make audit          # go mod verify, go vet, govulncheck 실행
 make clean          # bin, Go/Yarn 캐시, webui/node_modules, webui/dist 제거
 ```
+
+빌드 산출물에는 기본적으로 `YYYYMMDD` 형식의 빌드 태그가 주입됩니다. `COMMIT_HASH`를 지정하면 `YYYYMMDD-<hash>` 형식으로 주입되며, CLI는 `./bin/wuwa-tracker version`, 서버는 실행 시 출력되는 배너에서 확인할 수 있습니다.
 
 WebUI만 개발할 때는 `webui` 디렉터리에서 실행합니다.
 
