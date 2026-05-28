@@ -5,6 +5,7 @@
     fetchConfig,
     fetchPlayers,
     fetchStats,
+    scanURL as apiScanURL,
     trackURL as apiTrackURL,
     uploadJSON,
   } from "./lib/api";
@@ -15,7 +16,9 @@
 
   // 상태값 선언
   let urlInput = "";
+  let scanPathInput = "";
   let isLoading = false;
+  let isScanning = false;
   let errorMessage = "";
   let successMessage = "";
   let activePlayerID = "";
@@ -70,6 +73,36 @@
     } catch (e) {
       errorMessage = $t("app.network_error");
     } finally {
+      isLoading = false;
+    }
+  }
+
+  // 로컬 게임 로그에서 가챠 URL 스캔
+  async function scanURL() {
+    const scanPath = scanPathInput.trim();
+    if (!scanPath) {
+      errorMessage = $t("app.scan_path_empty_alert");
+      successMessage = "";
+      return;
+    }
+
+    isLoading = true;
+    isScanning = true;
+    errorMessage = "";
+    successMessage = "";
+
+    try {
+      const data = await apiScanURL(scanPath);
+      if (data.success) {
+        urlInput = data.url;
+        successMessage = $t("app.scan_success");
+      } else {
+        errorMessage = data.errorKey ? $t(data.errorKey as any) : (data.error || $t("app.failed_scan"));
+      }
+    } catch (e) {
+      errorMessage = $t("app.network_error");
+    } finally {
+      isScanning = false;
       isLoading = false;
     }
   }
@@ -166,11 +199,14 @@
   <!-- 컨트롤 판넬 (URL 트래킹 및 유저 목록 전환) -->
   <ControlPanel
     bind:urlInput
+    bind:scanPathInput
     {isLoading}
+    {isScanning}
     {playersList}
     {activePlayerID}
     {errorMessage}
     {successMessage}
+    onScan={scanURL}
     onTrack={trackURL}
     onSelectPlayer={selectPlayer}
     onFileSelect={handleFileSelect}
