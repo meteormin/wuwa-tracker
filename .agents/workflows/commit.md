@@ -32,3 +32,14 @@ This workflow automatically stages all changes, generates a descriptive commit m
    ```bash
    git push
    ```
+7. **Prepare PR Description**: If a PR will be created, generate and print a PR description that can be pasted into the PR body.
+   - Include a concise `Summary` section with the main changes.
+   - Include a `Tests` section with commands that were run.
+   - Include extra sections such as `Notes`, `Migration`, or `Release` only when relevant.
+   ```markdown
+   ## Summary
+   - ...
+
+   ## Tests
+   - ...
+   ```
