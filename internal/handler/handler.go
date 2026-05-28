@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/meteormin/wuwa-tracker/config"
 	report "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/service"
 	"github.com/meteormin/wuwa-tracker/internal/types"
@@ -116,7 +117,7 @@ func (h *Handler) GetConfig(c fiber.Ctx) error {
 
 // GetI18n 은 프론트엔드와 HTML 리포트에서 공유하는 UI 번역 리소스를 반환합니다.
 func (h *Handler) GetI18n(c fiber.Ctx) error {
-	lang := c.Query("lang", "ko")
+	lang := c.Query("lang", config.DefaultLanguage)
 	resolvedLang, translations, err := locales.LoadUITranslationsWithFallback(lang)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -139,8 +140,8 @@ func (h *Handler) ExportReport(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerID)
 	}
 
-	formatParam := strings.ToLower(c.Query("format", "html"))
-	lang := c.Query("lang", "ko")
+	formatParam := strings.ToLower(c.Query("format", config.DefaultReportFormat))
+	lang := c.Query("lang", config.DefaultLanguage)
 	var format report.Format
 	switch formatParam {
 	case "json":
