@@ -9,7 +9,7 @@ WEBUI_DIR=webui
 GO_BUILD_CACHE_DIR=$(CACHE_DIR)/go-build
 GO_MOD_CACHE_DIR=$(CACHE_DIR)/go-mod
 YARN_CACHE_DIR=$(CACHE_DIR)/yarn
-BUILD_DATE ?= $(shell date +%Y%m%d)
+BUILD_DATE ?= $(shell date +%Y.%m.%d)
 COMMIT_HASH ?=
 BUILD_TAG=$(BUILD_DATE)$(if $(COMMIT_HASH),-$(COMMIT_HASH),)
 LD_FLAGS=-X main.buildTag=$(BUILD_TAG)
