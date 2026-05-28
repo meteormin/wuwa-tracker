@@ -122,6 +122,7 @@ func run() error {
 
 	// API 라우팅 설정
 	api := app.Group("/api")
+	api.Post("/scan", h.Scan)
 	api.Post("/track", h.Track)
 	api.Get("/stats/:playerId", h.GetStats)
 	api.Get("/players", h.ListPlayers)

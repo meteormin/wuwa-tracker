@@ -126,9 +126,20 @@ type TrackRequest struct {
 	URL string `json:"url"`
 }
 
+// ScanRequest 는 로컬 게임 로그 경로 스캔을 위한 요청 데이터 구조체입니다.
+type ScanRequest struct {
+	Path string `json:"path"`
+}
+
 // UploadRequest 는 JSON 로그 데이터를 직접 업로드하기 위한 구조체입니다.
 type UploadRequest struct {
 	FetchResult
+}
+
+// ScanResponse 는 로컬 로그 스캔으로 찾은 가챠 URL을 반환합니다.
+type ScanResponse struct {
+	Success bool   `json:"success"`
+	URL     string `json:"url"`
 }
 
 // StatsResponse 는 프론트엔드로 반환될 표준 통계 응답 데이터 구조체입니다.

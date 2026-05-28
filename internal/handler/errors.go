@@ -13,6 +13,27 @@ var (
 		ErrorKey: "err.missing_url",
 	}
 
+	// errMissingScanPath 는 로컬 로그 스캔 경로가 누락되었을 때의 에러 응답입니다.
+	errMissingScanPath = types.ErrorResponse{
+		Success:  false,
+		Error:    "missing scan path parameter",
+		ErrorKey: "err.missing_scan_path",
+	}
+
+	// errScanURLNotFound 는 로컬 로그 파일에서 가챠 URL을 찾지 못했을 때의 에러 응답입니다.
+	errScanURLNotFound = types.ErrorResponse{
+		Success:  false,
+		Error:    "gacha url not found in the log",
+		ErrorKey: "err.scan_url_not_found",
+	}
+
+	// errScanFailed 는 로컬 로그 스캔 중 예상하지 못한 오류가 발생했을 때의 에러 응답입니다.
+	errScanFailed = types.ErrorResponse{
+		Success:  false,
+		Error:    "failed to scan log files",
+		ErrorKey: "err.scan_failed",
+	}
+
 	// errInvalidURLFormat 은 URL 형식이 올바르지 않을 때의 에러 응답입니다.
 	errInvalidURLFormat = types.ErrorResponse{
 		Success:  false,

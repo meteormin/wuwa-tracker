@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/meteormin/wuwa-tracker/config"
 	report "github.com/meteormin/wuwa-tracker/internal/reporter"
+	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/service"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 	"github.com/meteormin/wuwa-tracker/locales"
@@ -41,6 +42,23 @@ func (h *Handler) Track(c fiber.Ctx) error {
 	return c.JSON(statsResponse)
 }
 
+// Scan 은 로컬 게임 로그 파일에서 가챠 기록 URL을 추출합니다.
+func (h *Handler) Scan(c fiber.Ctx) error {
+	var req types.ScanRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(newInvalidRequestBodyErr(err))
+	}
+
+	url, err := h.svc.ScanURL(req.Path)
+	if err != nil {
+		return h.handleScanErr(c, err)
+	}
+	return c.JSON(types.ScanResponse{
+		Success: true,
+		URL:     url,
+	})
+}
+
 // Upload 는 클라이언트로부터 직접 JSON 형태의 가챠 데이터 세트를 입력받아 DB에 병합 저장하고,
 // 즉시 분석 통계를 산출하여 반환합니다. 외부 API 요청 없이 오프라인 분석 및 테스트가 가능합니다.
 func (h *Handler) Upload(c fiber.Ctx) error {
@@ -54,6 +72,17 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 		return h.handleUploadErr(c, err)
 	}
 	return c.JSON(statsResponse)
+}
+
+func (h *Handler) handleScanErr(c fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, service.ErrMissingScanPath):
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingScanPath)
+	case errors.Is(err, scanner.ErrURLNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(errScanURLNotFound)
+	default:
+		return c.Status(fiber.StatusInternalServerError).JSON(errScanFailed)
+	}
 }
 
 func (h *Handler) handleTrackErr(c fiber.Ctx, err error) error {

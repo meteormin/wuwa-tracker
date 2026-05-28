@@ -3,13 +3,16 @@
 
   // Props 정의
   export let urlInput: string;
+  export let scanPathInput: string;
   export let isLoading: boolean;
+  export let isScanning: boolean;
   export let playersList: string[];
   export let activePlayerID: string;
   export let errorMessage: string;
   export let successMessage: string;
 
   // 콜백 함수 선언
+  export let onScan: () => void;
   export let onTrack: () => void;
   export let onSelectPlayer: (playerId: string) => void;
   export let onFileSelect: (data: any, fileName: string) => void;
@@ -63,10 +66,26 @@
       >
         {$t("control.title")}
       </h2>
-      <div class="flex flex-col sm:flex-row gap-2">
+      <div class="flex flex-col gap-2">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            placeholder={$t("control.scan_path_placeholder")}
+            bind:value={scanPathInput}
+            class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-slate-200"
+            disabled={isLoading}
+          />
+          <button
+            on:click={onScan}
+            class="sm:w-32 bg-slate-850 hover:bg-slate-750 active:bg-slate-900 text-slate-200 font-bold text-sm px-5 py-3 rounded-xl transition-all border border-slate-700 active:scale-95 disabled:opacity-50 whitespace-nowrap"
+            disabled={isLoading}
+          >
+            {isScanning ? $t("control.scan_btn_loading") : $t("control.scan_btn")}
+          </button>
+        </div>
         <input
           type="text"
-          placeholder="https://aki-gm-resources..."
+          placeholder={$t("control.url_placeholder")}
           bind:value={urlInput}
           class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-slate-200"
           disabled={isLoading}

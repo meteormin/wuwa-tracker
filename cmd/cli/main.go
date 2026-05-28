@@ -19,7 +19,6 @@ import (
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/service"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
-	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 var buildTag = "dev"
@@ -31,17 +30,18 @@ func main() {
 	}
 
 	cmd := os.Args[1]
+	args := os.Args[2:]
 	var err error
 
 	switch cmd {
 	case "version":
 		fmt.Println(buildTag)
 	case "scan":
-		err = scan.Run(os.Args[2:])
+		err = scan.Runner(service.NewScanner())(args)
 	case "report":
-		err = report.Run(os.Args[2:])
+		err = runWithRuntime(args, report.Runner)
 	case "run":
-		err = runAll(os.Args[2:])
+		err = runWithRuntime(args, runAllRunner)
 	default:
 		fmt.Printf("unknown command: %s\n\n", cmd)
 		printUsage()
@@ -51,6 +51,104 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
+}
+
+type cliRuntime struct {
+	svc *service.Service
+	db  *db.BadgerDB
+}
+
+func runWithRuntime(args []string, commandFactory func(*service.Service) func([]string) error) error {
+	runtime, err := newCLIRuntime(args)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = runtime.Close()
+	}()
+
+	return commandFactory(runtime.svc)(args)
+}
+
+func newCLIRuntime(args []string) (*cliRuntime, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
+
+	client := newTrackerClient(extractBoolFlag(args, "v"), cfg.HTTPTimeout)
+	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
+	}
+
+	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
+	svc, err := service.New(service.Deps{
+		DB:     badgerDB,
+		Config: cfg,
+		Client: client,
+		Calc:   calc,
+	})
+	if err != nil {
+		_ = badgerDB.Close()
+		return nil, fmt.Errorf("failed to initialize service: %w", err)
+	}
+
+	return &cliRuntime{
+		svc: svc,
+		db:  badgerDB,
+	}, nil
+}
+
+func (r *cliRuntime) Close() error {
+	return r.db.Close()
+}
+
+func newTrackerClient(verbose bool, timeout time.Duration) *tracker.Client {
+	if verbose {
+		return tracker.NewClient(&http.Client{
+			Transport: &tracker.LoggingTransport{
+				Captured: http.DefaultTransport,
+			},
+			Timeout: timeout,
+		})
+	}
+	return tracker.NewClient(&http.Client{
+		Timeout: timeout,
+	})
+}
+
+func extractStringFlag(args []string, name, fallback string) string {
+	for i, arg := range args {
+		if arg == "-"+name || arg == "--"+name {
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+			return fallback
+		}
+
+		for _, prefix := range []string{"-" + name + "=", "--" + name + "="} {
+			if strings.HasPrefix(arg, prefix) {
+				return strings.TrimPrefix(arg, prefix)
+			}
+		}
+	}
+	return fallback
+}
+
+func extractBoolFlag(args []string, name string) bool {
+	for _, arg := range args {
+		if arg == "-"+name || arg == "--"+name {
+			return true
+		}
+		for _, prefix := range []string{"-" + name + "=", "--" + name + "="} {
+			if strings.HasPrefix(arg, prefix) {
+				return strings.TrimPrefix(arg, prefix) == "true"
+			}
+		}
+	}
+	return false
 }
 
 // printUsage 는 CLI 도구의 사용법을 콘솔에 출력합니다.
@@ -66,16 +164,22 @@ func printUsage() {
 	fmt.Println("Use 'wuwa-tracker <command> -h' for more information about a command.")
 }
 
+func runAllRunner(svc *service.Service) func(args []string) error {
+	return func(args []string) error {
+		return runAll(svc, args)
+	}
+}
+
 // runAll 은 전체 가챠 데이터 추출 및 리포트 생성을 실행하는 run 서브커맨드 로직입니다.
-func runAll(args []string) error {
-	defaults := config.Default()
+func runAll(svc *service.Service, args []string) error {
+	defaults := svc.Config()
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
 	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
 	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
 	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
-	dbPathFlag := fs.String("dbpath", defaults.DBPath, "BadgerDB storage directory")
+	fs.String("dbpath", defaults.DBPath, "BadgerDB storage directory")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -90,7 +194,7 @@ func runAll(args []string) error {
 		}
 
 		fmt.Printf("No URL provided. Attempting to scan from path: %s\n", *pathFlag)
-		foundURL, err := scanner.FindURLInDirectory(*pathFlag)
+		foundURL, err := svc.ScanURL(*pathFlag)
 		if err != nil {
 			return fmt.Errorf("failed to auto-scan URL. Please provide it manually via the -url parameter. (Error: %v)", err)
 		}
@@ -124,47 +228,7 @@ func runAll(args []string) error {
 		lang = scanner.GetSystemLocale()
 	}
 
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-	cfg.DBPath = *dbPathFlag
-
-	var client *tracker.Client
-	if *verboseFlag {
-		client = tracker.NewClient(&http.Client{
-			Transport: &tracker.LoggingTransport{
-				Captured: http.DefaultTransport,
-			},
-			Timeout: cfg.HTTPTimeout,
-		})
-	} else {
-		client = tracker.NewClient(&http.Client{
-			Timeout: cfg.HTTPTimeout,
-		})
-	}
-
-	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
-	cfg.GachaTypes.MapFromLocaleData(localeData)
-
-	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
-	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
-	}
-	defer func() {
-		_ = badgerDB.Close()
-	}()
-
-	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
-	svc, err := service.New(service.Deps{
-		DB:     badgerDB,
-		Config: cfg,
-		Client: client,
-		Calc:   calc,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize service: %w", err)
-	}
+	svc.PrepareLocale(lang)
 
 	fetchResult, err := svc.FetchAndSave(targetURL)
 	if err != nil {
@@ -202,19 +266,9 @@ func runAll(args []string) error {
 		return fmt.Errorf("unsupported format: %s", *formatFlag)
 	}
 
-	exporter, err := rep.NewExporter(cfg, format, *langFlag)
-	if err != nil {
-		return fmt.Errorf("failed to load exporter: %w", err)
-	}
-
 	finalOut := *outFlag
 	if !strings.HasSuffix(finalOut, "."+*formatFlag) {
 		finalOut = finalOut + "." + *formatFlag
-	}
-
-	reportData := types.ReportData{
-		PlayerID: fetchResult.Payload.PlayerID,
-		Stats:    statsResponse.Stats,
 	}
 
 	f, err := os.Create(finalOut)
@@ -225,7 +279,11 @@ func runAll(args []string) error {
 		_ = f.Close()
 	}()
 
-	if err := exporter.Export(f, reportData); err != nil {
+	if len(statsResponse.Stats) == 0 {
+		return fmt.Errorf("no valid records found. Report was not generated")
+	}
+
+	if err := svc.ExportReport(f, fetchResult.Payload.PlayerID, format, *langFlag); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
