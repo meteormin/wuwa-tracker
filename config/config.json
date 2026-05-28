@@ -1,0 +1,109 @@
+{
+    "gachaLocaleEndpoint": "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/locales",
+    "standardFiveStarResources": {
+        "items": [
+            {
+                "name": "앙코",
+                "resourceId": 1203
+            },
+            {
+                "name": "카카루",
+                "resourceId": 1301
+            },
+            {
+                "name": "감심",
+                "resourceId": 1405
+            },
+            {
+                "name": "능양",
+                "resourceId": 1104
+            },
+            {
+                "name": "벨리나",
+                "resourceId": 1503
+            }
+        ]
+    },
+    "gachaTypes": {
+        "items": [
+            {
+                "id": 1,
+                "key": "characterEvent",
+                "hasOffBannerDrop": true,
+                "baseRate": 0.8,
+                "expectedPulls": 80
+            },
+            {
+                "id": 2,
+                "key": "weaponEvent",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55
+            },
+            {
+                "id": 3,
+                "key": "characterPermanent",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55
+            },
+            {
+                "id": 4,
+                "key": "weaponPermanent",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55
+            },
+            {
+                "id": 5,
+                "key": "beginner",
+                "hasOffBannerDrop": true,
+                "baseRate": 0.8,
+                "expectedPulls": 55
+            },
+            {
+                "id": 6,
+                "key": "beginnerSelect",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55
+            },
+            {
+                "id": 8,
+                "key": "characterNovice",
+                "hasOffBannerDrop": true,
+                "baseRate": 0.8,
+                "expectedPulls": 80
+            },
+            {
+                "id": 9,
+                "key": "weaponNovice",
+                "hasOffBannerDrop": false,
+                "baseRate": 0.8,
+                "expectedPulls": 55
+            }
+        ]
+    },
+    "luckScoreThresholds": [
+        {
+            "minScore": 0.0,
+            "state": "worst"
+        },
+        {
+            "minScore": 85.0,
+            "state": "bad"
+        },
+        {
+            "minScore": 95.0,
+            "state": "normal"
+        },
+        {
+            "minScore": 102.0,
+            "state": "good"
+        },
+        {
+            "minScore": 115.0,
+            "state": "best"
+        }
+    ]
+}

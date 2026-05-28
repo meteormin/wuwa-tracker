@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "webui: dev server",
+            "type": "shell",
+            "command": "yarn dev",
+            "isBackground": true,
+            "options": {
+                "cwd": "${workspaceFolder}/webui"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "VITE",
+                    "endsPattern": "ready in"
+                }
+            }
+        }
+    ]
+}

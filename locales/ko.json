@@ -1,0 +1,37 @@
+{
+    "conveneDetails": "튜닝 상세정보",
+    "noDetailsRecord": "튜닝 기록 없음",
+    "queryingDetails": "확인 중입니다. 잠시만 기다리세요",
+    "conveneDetailsHeader": "『명조:워더링 웨이브』튜닝 상세정보",
+    "empty": "아직 기록 없음",
+    "title": "튜닝 기록",
+    "selectTitle": "튜닝 카테고리",
+    "anniversaryCharacter1": "주년 캐릭터 이벤트 튜닝 · 시즌 Ⅰ",
+    "anniversaryCharacter2": "주년 캐릭터 이벤트 튜닝 · 시즌 Ⅱ",
+    "anniversaryWeapon1": "주년 무기 이벤트 튜닝 · 시즌 Ⅰ",
+    "anniversaryWeapon2": "주년 무기 이벤트 튜닝 · 시즌 Ⅱ",
+    "tip": "튜닝 기록 업데이트는 약 30분 지연됩니다. 만약 최신 튜닝 기록이 없으면 잠시 후에 다시 시도해 주세요. 튜닝 기록의 유효 시간은 6개월이며, 표시되는 시간은 중국 시간(UTC+8)입니다.",
+    "tipGlobal": "튜닝 기록 업데이트는 약 30분 지연됩니다. 만약 최신 튜닝 기록이 조회되지 않으면, 잠시 후에 다시 시도해 주세요. 튜닝 기록의 유효 시간은 6개월이며, 표시되는 튜닝 시간은 이용하는 서버와 연관됩니다.\nAmerica(UTC-5), Europe(UTC+1), Asia, HMT, SEA(UTC+8)",
+    "character": "공명자",
+    "weapon": "무기",
+    "item": "아이템",
+    "timeout": "네트워크 연결 오류, 잠시 후 다시 시도하세요",
+    "loading": "데이터 로딩 중이니 잠시만 기다리시기 바랍니다",
+    "header": "『명조:워더링 웨이브』튜닝 기록",
+    "selectList": {
+        "characterEvent": "공명자 이벤트 튜닝",
+        "weaponEvent": "무기 이벤트 튜닝",
+        "characterPermanent": "공명자 레귤러 튜닝",
+        "weaponPermanent": "무기 레귤러 튜닝",
+        "beginner": "초보자 튜닝",
+        "beginnerSelect": "초보자 자유 선택 튜닝",
+        "characterNovice": "캐릭터 새출발 튜닝",
+        "weaponNovice": "무기 새출발 튜닝"
+    },
+    "headerInfo": {
+        "type": "유형",
+        "name": "이름",
+        "count": "수량",
+        "time": "튜닝 날짜"
+    }
+}

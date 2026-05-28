@@ -1,3 +1,6 @@
 bin/
-report.*
-report/
+.cache/
+tmp*
+*.tmp
+logs/
+data/

@@ -3,11 +3,23 @@ package tracker
 import (
 	"reflect"
 	"testing"
+
+	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 func TestCalculateStats(t *testing.T) {
+	calc := NewStatsCalculator(types.StandardFiveStarResources{
+		Items: []types.StandardFiveStarResource{
+			{Name: "앙코", ResourceID: 1101},
+			{Name: "기염", ResourceID: 1102},
+			{Name: "이타샤", ResourceID: 1103},
+			{Name: "능양", ResourceID: 1104},
+			{Name: "음림", ResourceID: 1105},
+		},
+	})
+
 	// API는 최신순(내림차순)으로 반환하므로, 배열 앞쪽에 있는 항목이 더 최근 항목입니다.
-	records := []Record{
+	records := []types.Record{
 		{Name: "음림", ResourceID: 1502, QualityLevel: 5, Time: "2024-06-10 10:00:00"},
 		{Name: "3성무기C", ResourceID: 21010013, QualityLevel: 3, Time: "2024-06-09 10:00:00"},
 		{Name: "모르테피", ResourceID: 1401, QualityLevel: 4, Time: "2024-06-08 10:00:00"},
@@ -24,8 +36,7 @@ func TestCalculateStats(t *testing.T) {
 	// 모르테피 (pity5=2, pity4=4) -> 4성 천장 초기화 (pity5=2, pity4=0)
 	// 3성무기C (pity5=3, pity4=1)
 	// 음림 (pity5=4, pity4=2) -> 5성 천장 초기화 (pity5=0, pity4=2)
-
-	stats := CalculateStats(1, records)
+	stats := calc.Calc(records, types.GachaType{ID: 1, HasOffBannerDrop: true, ExpectedPulls: 55})
 
 	if stats.TotalPulls != 6 {
 		t.Errorf("Expected TotalPulls 6, got %d", stats.TotalPulls)
@@ -43,13 +54,30 @@ func TestCalculateStats(t *testing.T) {
 		t.Errorf("Expected 2 FiveStars, got %d", len(stats.FiveStars))
 	}
 
+	// AvgPulls는 픽뚫 가중치 왜곡 없이 실제 평균 풀 수(3.0)로 유지되어야 함
+	if stats.AvgPulls != 3.0 {
+		t.Errorf("Expected AvgPulls 3.0, got %f", stats.AvgPulls)
+	}
+
+	// 픽업(음림: 4스택) 및 픽뚫(앙코: 2스택) 합산 총 6스택으로 픽업 완료주기 구성
+	// 따라서 운 점수는 (55 / 6.0) * 100 = 916.666667
+	expectedLuckScore := (55.0 / 6.0) * 100
+	if stats.LuckScore != expectedLuckScore {
+		t.Errorf("Expected LuckScore %f, got %f", expectedLuckScore, stats.LuckScore)
+	}
+
 	// FiveStars는 최신순이 되도록 뒤집었으므로 음림이 첫번째여야 함
-	expectedFiveStars := []FiveStarRecord{
+	expectedFiveStars := []types.FiveStarRecord{
 		{Name: "음림", Time: "2024-06-10 10:00:00", Pity: 4, IsPickUp: true},
 		{Name: "앙코", Time: "2024-06-06 10:00:00", Pity: 2, IsPickUp: false},
 	}
 
 	if !reflect.DeepEqual(stats.FiveStars, expectedFiveStars) {
 		t.Errorf("Expected FiveStars %+v, got %+v", expectedFiveStars, stats.FiveStars)
+	}
+
+	// Records도 최신순(입력 순서)이 되도록 뒤집혔는지 검증
+	if !reflect.DeepEqual(stats.Records, records) {
+		t.Errorf("Expected stats.Records to match input records order, got %+v", stats.Records)
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
+	"time"
 )
 
 // LogPaths 는 게임 루트 폴더를 기준으로 로그 파일이 존재하는 상대 경로들입니다.
@@ -27,14 +29,32 @@ func FindURLInDirectory(gameRoot string) (string, error) {
 		return ScanLogFile(gameRoot)
 	}
 
-	var lastErr error
+	type logFileItem struct {
+		path    string
+		modTime time.Time
+	}
+
+	var files []logFileItem
 	for _, relPath := range LogPaths {
 		logFilePath := filepath.Join(gameRoot, relPath)
-		if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
+		info, err := os.Stat(logFilePath)
+		if err != nil {
 			continue
 		}
+		files = append(files, logFileItem{
+			path:    logFilePath,
+			modTime: info.ModTime(),
+		})
+	}
 
-		url, err := ScanLogFile(logFilePath)
+	// 파일 수정 시간 기준으로 내림차순 정렬 (가장 최근에 수정된 파일이 앞에 오도록 함)
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].modTime.After(files[j].modTime)
+	})
+
+	var lastErr error
+	for _, file := range files {
+		url, err := ScanLogFile(file.path)
 		if err == nil {
 			return url, nil
 		}
