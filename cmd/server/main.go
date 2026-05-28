@@ -8,9 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gofiber/fiber/v3/log"
 
@@ -33,26 +31,9 @@ wuwa-tracker %s
 
 `
 
-// EnvVars key
-const (
-	envVarHost        = "WUWA_TRACKER_HOST"
-	envVarPort        = "WUWA_TRACKER_PORT"
-	envVarDBPath      = "WUWA_TRACKER_DB_PATH"
-	envVarCORSOrigins = "WUWA_TRACKER_CORS_ORIGINS"
-)
-
-// default values
 var (
-	appName            = "wuwa-tracker"
-	buildTag           = "dev"
-	defaultHost        = "127.0.0.1"
-	defaultPort        = "3000"
-	defaultDBPath      = "data/wuwa_badger"
-	defaultCORSOrigins = []string{
-		"http://localhost:5173",
-		"http://127.0.0.1:5173",
-		"http://[::1]:5173",
-	}
+	appName  = "wuwa-tracker"
+	buildTag = "dev"
 )
 
 func main() {
@@ -63,53 +44,36 @@ func main() {
 }
 
 func run() error {
-	// 기본값 정의 및 환경변수 폴백 설정
-	if envHost := os.Getenv(envVarHost); envHost != "" {
-		defaultHost = envHost
-	}
-
-	if envPort := os.Getenv(envVarPort); envPort != "" {
-		defaultPort = envPort
-	}
-
-	if envDBPath := os.Getenv(envVarDBPath); envDBPath != "" {
-		defaultDBPath = envDBPath
-	}
-
-	// CLI 플래그 파싱 정의
-	hostFlag := flag.String("host", defaultHost, "Host address to listen on")
-	portFlag := flag.String("port", defaultPort, "Port to listen on")
-	dbPathFlag := flag.String("dbpath", defaultDBPath, "BadgerDB storage directory")
-	flag.Parse()
-
-	host := *hostFlag
-	port := *portFlag
-	dbPath := *dbPathFlag
-	corsOrigins := defaultCORSOrigins
-	if envCORSOrigins := os.Getenv(envVarCORSOrigins); envCORSOrigins != "" {
-		corsOrigins = splitCSV(envCORSOrigins)
-	}
-
 	// 설정 로드 (서버 기동 시 최초 1회만 로드하여 메모리에 적재)
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// CLI 플래그 파싱 정의
+	hostFlag := flag.String("host", cfg.ServerHost, "Host address to listen on")
+	portFlag := flag.String("port", cfg.ServerPort, "Port to listen on")
+	dbPathFlag := flag.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	flag.Parse()
+
+	cfg.ServerHost = *hostFlag
+	cfg.ServerPort = *portFlag
+	cfg.DBPath = *dbPathFlag
+
 	// 다국어 배너 이름 사전 매핑 (최초 1회 한국어로 캐싱 매핑 수행)
-	httpClient := &http.Client{Timeout: 5 * time.Second}
+	httpClient := &http.Client{Timeout: cfg.HTTPTimeout}
 	client := tracker.NewClient(httpClient)
-	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, "ko")
+	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, cfg.Language)
 	cfg.GachaTypes.MapFromLocaleData(localeData)
 
 	// BadgerDB 네이티브 KV 엔진 초기화
-	badgerDB, err := db.NewBadgerDB(dbPath)
+	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
 	log.Infof("Build tag: %s\n", buildTag)
-	log.Infof("Successfully started BadgerDB engine under directory: %s\n", dbPath)
+	log.Infof("Successfully started BadgerDB engine under directory: %s\n", cfg.DBPath)
 
 	// Fiber v3 애플리케이션 생성
 	app := fiber.New(fiber.Config{
@@ -138,7 +102,7 @@ func run() error {
 
 	// Svelte 로컬 개발 환경과의 통신을 위해 CORS 활성화
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: corsOrigins,
+		AllowOrigins: cfg.CORSOrigins,
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept"},
 		AllowMethods: []string{"GET", "POST", "OPTIONS"},
 	}))
@@ -176,7 +140,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	addr := net.JoinHostPort(host, port)
+	addr := net.JoinHostPort(cfg.ServerHost, cfg.ServerPort)
 	// 서버 수신 리스너를 동기식으로 실행하여 GracefulContext 주입
 	if err := app.Listen(addr, fiber.ListenConfig{
 		GracefulContext: ctx,
@@ -187,16 +151,4 @@ func run() error {
 	log.Info("Server stopped.")
 
 	return nil
-}
-
-func splitCSV(value string) []string {
-	parts := strings.Split(value, ",")
-	items := make([]string, 0, len(parts))
-	for _, part := range parts {
-		item := strings.TrimSpace(part)
-		if item != "" {
-			items = append(items, item)
-		}
-	}
-	return items
 }

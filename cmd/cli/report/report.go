@@ -24,13 +24,14 @@ import (
 // Run 은 report 서브커맨드를 실행합니다.
 // -url 제공 시 온라인 모드, -f 제공 시 오프라인 모드로 동작합니다.
 func Run(args []string) error {
+	defaults := config.Default()
 	fs := flag.NewFlagSet("report", flag.ExitOnError)
 	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
 	fileFlag := fs.String("f", "", "Path to a local JSON log file (offline mode)")
-	formatFlag := fs.String("format", "html", "Report format (json, csv, html)")
-	outFlag := fs.String("o", "report", "Output file path (without extension)")
-	langFlag := fs.String("lang", "ko", "Report UI language (ko, en)")
-	dbPathFlag := fs.String("dbpath", "data/wuwa_badger", "BadgerDB storage directory")
+	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
+	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
+	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
+	dbPathFlag := fs.String("dbpath", defaults.DBPath, "BadgerDB storage directory")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -50,11 +51,12 @@ func Run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	cfg.DBPath = *dbPathFlag
 
-	client := newTrackerClient(*verboseFlag)
+	client := newTrackerClient(*verboseFlag, cfg.HTTPTimeout)
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
-	badgerDB, err := db.NewBadgerDB(*dbPathFlag)
+	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -206,17 +208,17 @@ func runOnline(cfg *config.Config, client *tracker.Client, svc *service.Service,
 	return statsResponse.Stats, statsResponse.PlayerID, nil
 }
 
-func newTrackerClient(verbose bool) *tracker.Client {
+func newTrackerClient(verbose bool, timeout time.Duration) *tracker.Client {
 	if verbose {
 		return tracker.NewClient(&http.Client{
 			Transport: &tracker.LoggingTransport{
 				Captured: http.DefaultTransport,
 			},
-			Timeout: 5 * time.Second,
+			Timeout: timeout,
 		})
 	}
 	return tracker.NewClient(&http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: timeout,
 	})
 }
 

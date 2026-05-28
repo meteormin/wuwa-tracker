@@ -68,13 +68,14 @@ func printUsage() {
 
 // runAll 은 전체 가챠 데이터 추출 및 리포트 생성을 실행하는 run 서브커맨드 로직입니다.
 func runAll(args []string) error {
+	defaults := config.Default()
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
 	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
-	formatFlag := fs.String("format", "html", "Report format (json, csv, html)")
-	outFlag := fs.String("o", "report", "Output file path (without extension)")
-	langFlag := fs.String("lang", "ko", "Report UI language (ko, en)")
-	dbPathFlag := fs.String("dbpath", "data/wuwa_badger", "BadgerDB storage directory")
+	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
+	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
+	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
+	dbPathFlag := fs.String("dbpath", defaults.DBPath, "BadgerDB storage directory")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -127,6 +128,7 @@ func runAll(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	cfg.DBPath = *dbPathFlag
 
 	var client *tracker.Client
 	if *verboseFlag {
@@ -134,18 +136,18 @@ func runAll(args []string) error {
 			Transport: &tracker.LoggingTransport{
 				Captured: http.DefaultTransport,
 			},
-			Timeout: 5 * time.Second,
+			Timeout: cfg.HTTPTimeout,
 		})
 	} else {
 		client = tracker.NewClient(&http.Client{
-			Timeout: 5 * time.Second,
+			Timeout: cfg.HTTPTimeout,
 		})
 	}
 
 	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.GachaLocaleEndpoint, lang)
 	cfg.GachaTypes.MapFromLocaleData(localeData)
 
-	badgerDB, err := db.NewBadgerDB(*dbPathFlag)
+	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
