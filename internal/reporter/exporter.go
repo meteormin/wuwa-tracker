@@ -23,7 +23,7 @@ type Exporter interface {
 
 // NewExporter 는 주어진 포맷 이름에 따라 적절한 Exporter를 반환합니다.
 func NewExporter(cfg *config.Config, format Format, lang ...string) (Exporter, error) {
-	reportLang := "ko"
+	reportLang := config.DefaultLanguage
 	if len(lang) > 0 && lang[0] != "" {
 		reportLang = lang[0]
 	}
