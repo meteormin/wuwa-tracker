@@ -83,7 +83,7 @@ func newCLIRuntime(args []string) (*cliRuntime, error) {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
+	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
 	svc, err := service.New(service.Deps{
 		DB:     badgerDB,
 		Config: cfg,

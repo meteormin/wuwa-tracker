@@ -105,5 +105,8 @@
             "minScore": 115.0,
             "state": "best"
         }
-    ]
+    ],
+    "costPolicy": {
+        "astritePerPull": 160
+    }
 }

@@ -29,6 +29,9 @@ func TestNewDefaultConfig(t *testing.T) {
 	if cfg.HTTPTimeout != DefaultHTTPTimeout {
 		t.Fatalf("HTTPTimeout = %s, want %s", cfg.HTTPTimeout, DefaultHTTPTimeout)
 	}
+	if cfg.CostPolicy.AstritePerPull != DefaultAstritePerPull {
+		t.Fatalf("CostPolicy.AstritePerPull = %d, want %d", cfg.CostPolicy.AstritePerPull, DefaultAstritePerPull)
+	}
 
 	wantCORSOrigins := []string{DefaultCORSLocalhost, DefaultCORSLoopback, DefaultCORSIPv6}
 	if !slices.Equal(cfg.CORSOrigins, wantCORSOrigins) {

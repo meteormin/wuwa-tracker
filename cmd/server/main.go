@@ -108,7 +108,7 @@ func run() error {
 	}))
 
 	// 핸들러 인스턴스 생성 및 의존성(DB, Config) 주입
-	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources)
+	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
 	svc, err := service.New(service.Deps{
 		DB:     badgerDB,
 		Config: cfg,

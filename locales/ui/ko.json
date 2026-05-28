@@ -27,6 +27,8 @@
   "report.loading": "로딩 중",
   "report.type_code": "Type Code: {code}",
   "report.total_pulls": "총 뽑기 횟수",
+  "report.total_astrite": "소모 별의 소리",
+  "report.astrite_formula": "1뽑 = 160개",
   "report.current_pity": "현재 5성 천장 스택",
   "report.pity_suffix": " / 80",
   "report.luck_score": "운 점수 (Luck Score)",

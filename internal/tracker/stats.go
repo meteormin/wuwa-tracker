@@ -6,11 +6,13 @@ import (
 
 type StatsCalculator struct {
 	standardFiveStarResources types.StandardFiveStarResources
+	costPolicy                types.CostPolicy
 }
 
-func NewStatsCalculator(standardFiveStarResources types.StandardFiveStarResources) *StatsCalculator {
+func NewStatsCalculator(standardFiveStarResources types.StandardFiveStarResources, costPolicy types.CostPolicy) *StatsCalculator {
 	return &StatsCalculator{
 		standardFiveStarResources: standardFiveStarResources,
+		costPolicy:                costPolicy,
 	}
 }
 
@@ -21,6 +23,7 @@ func (sc *StatsCalculator) Calc(records []types.Record, gachaType types.GachaTyp
 		GachaType:     gachaType.ID,
 		GachaName:     gachaType.Name,
 		TotalPulls:    len(records),
+		TotalAstrite:  len(records) * sc.costPolicy.AstritePerPull,
 		BaseRate:      gachaType.BaseRate,
 		ExpectedPulls: gachaType.ExpectedPulls,
 		FiveStars:     []types.FiveStarRecord{},
