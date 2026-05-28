@@ -31,6 +31,11 @@ export interface TrackResponse extends BaseResponse {
   stats: Stats[];
 }
 
+// 로컬 로그 스캔 API 응답 인터페이스
+export interface ScanResponse extends BaseResponse {
+  url: string;
+}
+
 // JSON 업로드 API 응답 인터페이스
 export interface UploadResponse extends BaseResponse {
   playerId: string;
@@ -62,6 +67,20 @@ export async function fetchStats(playerId: string): Promise<StatsResponse> {
 }
 
 /**
+ * 로컬 게임 로그 경로에서 가챠 URL 스캔을 요청합니다.
+ */
+export async function scanURL(path: string): Promise<ScanResponse> {
+  const res = await fetch(`${apiHost}/api/scan`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ path }),
+  });
+  return res.json();
+}
+
+/**
  * Kurogame 가챠 결과 원격 스캔 및 트래킹 등록을 요청합니다.
  */
 export async function trackURL(url: string): Promise<TrackResponse> {
@@ -88,6 +107,5 @@ export async function uploadJSON(data: any): Promise<UploadResponse> {
   });
   return res.json();
 }
-
 
 
