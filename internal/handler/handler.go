@@ -49,7 +49,12 @@ func (h *Handler) Scan(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(newInvalidRequestBodyErr(err))
 	}
 
-	url, err := h.svc.ScanURL(req.Path)
+	path := strings.TrimSpace(req.Path)
+	if path == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(errMissingScanPath)
+	}
+
+	url, err := scanner.FindURLInDirectory(path)
 	if err != nil {
 		return h.handleScanErr(c, err)
 	}
@@ -76,8 +81,12 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 
 func (h *Handler) handleScanErr(c fiber.Ctx, err error) error {
 	switch {
-	case errors.Is(err, service.ErrMissingScanPath):
-		return c.Status(fiber.StatusBadRequest).JSON(errMissingScanPath)
+	case errors.Is(err, scanner.ErrScanPathNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(errScanPathNotFound)
+	case errors.Is(err, scanner.ErrScanPathAccessDenied):
+		return c.Status(fiber.StatusForbidden).JSON(errScanPathAccessDenied)
+	case errors.Is(err, scanner.ErrLogFileNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(errScanLogFileNotFound)
 	case errors.Is(err, scanner.ErrURLNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(errScanURLNotFound)
 	default:

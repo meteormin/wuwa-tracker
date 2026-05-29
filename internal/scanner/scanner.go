@@ -12,6 +12,10 @@ var (
 	// ErrURLNotFound 는 로그 파일 내에서 가챠 URL을 찾을 수 없을 때 반환됩니다.
 	ErrURLNotFound = errors.New("gacha url not found in the log")
 
+	ErrScanPathNotFound     = errors.New("scan path not found")
+	ErrScanPathAccessDenied = errors.New("scan path access denied")
+	ErrLogFileNotFound      = errors.New("log file not found")
+
 	// urlRegex 는 가챠 기록을 조회할 수 있는 URL을 추출하기 위한 정규표현식입니다.
 	urlRegex = regexp.MustCompile(`https://aki-gm-resources(?:-oversea)?\.aki-game\.(?:net|com)/aki/gacha/index\.html#/record[^\"\s]*`)
 )
