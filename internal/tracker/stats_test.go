@@ -16,6 +16,8 @@ func TestCalculateStats(t *testing.T) {
 			{Name: "능양", ResourceID: 1104},
 			{Name: "음림", ResourceID: 1105},
 		},
+	}, types.CostPolicy{
+		AstritePerPull: 160,
 	})
 
 	// API는 최신순(내림차순)으로 반환하므로, 배열 앞쪽에 있는 항목이 더 최근 항목입니다.
@@ -40,6 +42,10 @@ func TestCalculateStats(t *testing.T) {
 
 	if stats.TotalPulls != 6 {
 		t.Errorf("Expected TotalPulls 6, got %d", stats.TotalPulls)
+	}
+
+	if stats.TotalAstrite != 960 {
+		t.Errorf("Expected TotalAstrite 960, got %d", stats.TotalAstrite)
 	}
 
 	if stats.CurrentPity5 != 0 {

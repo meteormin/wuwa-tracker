@@ -19,16 +19,17 @@ const (
 	EnvVarDBPath      = "WUWA_TRACKER_DB_PATH"
 	EnvVarCORSOrigins = "WUWA_TRACKER_CORS_ORIGINS"
 
-	DefaultServerHost    = "127.0.0.1"
-	DefaultServerPort    = "3000"
-	DefaultDBPath        = "data/wuwa_badger"
-	DefaultCORSLocalhost = "http://localhost:5173"
-	DefaultCORSLoopback  = "http://127.0.0.1:5173"
-	DefaultCORSIPv6      = "http://[::1]:5173"
-	DefaultReportFormat  = "html"
-	DefaultReportOutput  = "report"
-	DefaultLanguage      = "ko"
-	DefaultHTTPTimeout   = 5 * time.Second
+	DefaultServerHost     = "127.0.0.1"
+	DefaultServerPort     = "3000"
+	DefaultDBPath         = "data/wuwa_badger"
+	DefaultCORSLocalhost  = "http://localhost:5173"
+	DefaultCORSLoopback   = "http://127.0.0.1:5173"
+	DefaultCORSIPv6       = "http://[::1]:5173"
+	DefaultReportFormat   = "html"
+	DefaultReportOutput   = "report"
+	DefaultLanguage       = "ko"
+	DefaultHTTPTimeout    = 5 * time.Second
+	DefaultAstritePerPull = 160
 )
 
 type Config struct {
@@ -36,6 +37,7 @@ type Config struct {
 	StandardFiveStarResources types.StandardFiveStarResources `json:"standardFiveStarResources"`
 	GachaTypes                types.GachaTypes                `json:"gachaTypes"`
 	LuckScoreThresholds       []types.LuckScoreThreshold      `json:"luckScoreThresholds"`
+	CostPolicy                types.CostPolicy                `json:"costPolicy"`
 	ServerHost                string                          `json:"-"`
 	ServerPort                string                          `json:"-"`
 	DBPath                    string                          `json:"-"`
@@ -91,6 +93,9 @@ func (cfg *Config) applyDefaults() {
 	}
 	if cfg.HTTPTimeout == 0 {
 		cfg.HTTPTimeout = DefaultHTTPTimeout
+	}
+	if cfg.CostPolicy.AstritePerPull == 0 {
+		cfg.CostPolicy.AstritePerPull = DefaultAstritePerPull
 	}
 }
 
