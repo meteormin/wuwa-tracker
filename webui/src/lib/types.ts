@@ -22,6 +22,7 @@ export interface Stats {
   gachaType: number;
   gachaName: string;
   totalPulls: number;
+  totalAstrite: number;
   currentPity5: number;
   currentPity4: number;
   baseRate: number;

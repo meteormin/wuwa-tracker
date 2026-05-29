@@ -27,6 +27,8 @@
   "report.loading": "Loading...",
   "report.type_code": "Type Code: {code}",
   "report.total_pulls": "Total Pulls",
+  "report.total_astrite": "Astrite Spent",
+  "report.astrite_formula": "1 pull = 160",
   "report.current_pity": "Current 5★ Pity Stack",
   "report.pity_suffix": " / 80",
   "report.luck_score": "Luck Score",

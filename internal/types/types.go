@@ -81,6 +81,7 @@ type Stats struct {
 	GachaType     int              `json:"gachaType"`
 	GachaName     string           `json:"gachaName"`
 	TotalPulls    int              `json:"totalPulls"`
+	TotalAstrite  int              `json:"totalAstrite"`
 	CurrentPity5  int              `json:"currentPity5"`
 	CurrentPity4  int              `json:"currentPity4"`
 	BaseRate      float64          `json:"baseRate"`
@@ -119,6 +120,10 @@ func (s *StandardFiveStarResources) Contains(resourceId int) bool {
 type LuckScoreThreshold struct {
 	MinScore float64 `json:"minScore"`
 	State    string  `json:"state"`
+}
+
+type CostPolicy struct {
+	AstritePerPull int `json:"astritePerPull"`
 }
 
 // TrackRequest 는 가챠 기록 조회를 위한 URL 입력 요청 데이터 구조체입니다.

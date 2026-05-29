@@ -66,6 +66,10 @@
   function getLuckStateMessage(state: LuckScoreState) {
     return $t(`report.luck_score_state.${state}` as any);
   }
+
+  function formatNumber(value: number) {
+    return value.toLocaleString();
+  }
 </script>
 
 <div class="glass-card p-8 md:p-10 relative overflow-hidden">
@@ -96,6 +100,15 @@
           <p class="text-xs text-slate-500 mb-1">{$t("report.total_pulls")}</p>
           <p class="text-2xl font-extrabold text-slate-100">
             {stat.totalPulls}
+          </p>
+        </div>
+        <div class="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
+          <p class="text-xs text-slate-500 mb-1">{$t("report.total_astrite")}</p>
+          <p class="text-2xl font-extrabold text-sky-300">
+            {formatNumber(stat.totalAstrite)}
+          </p>
+          <p class="text-[10px] text-slate-500 mt-1">
+            {$t("report.astrite_formula")}
           </p>
         </div>
         <div
