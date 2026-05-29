@@ -9,7 +9,6 @@ import (
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 	reporter "github.com/meteormin/wuwa-tracker/internal/reporter"
-	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -23,7 +22,6 @@ var (
 	ErrMissingConfig   = errors.New("missing config")
 	ErrMissingClient   = errors.New("missing tracker client")
 	ErrMissingCalc     = errors.New("missing stats calculator")
-	ErrMissingScanPath = errors.New("missing scan path")
 )
 
 type Deps struct {
@@ -62,10 +60,6 @@ func New(deps Deps) (*Service, error) {
 	}, nil
 }
 
-func NewScanner() *Service {
-	return &Service{}
-}
-
 func (s *Service) LuckScoreThresholds() []types.LuckScoreThreshold {
 	return s.cfg.LuckScoreThresholds
 }
@@ -91,14 +85,6 @@ func (s *Service) TrackURL(targetURL string) (types.StatsResponse, error) {
 		return types.StatsResponse{}, err
 	}
 	return s.GetStats(fetchResult.Payload.PlayerID)
-}
-
-func (s *Service) ScanURL(path string) (string, error) {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return "", ErrMissingScanPath
-	}
-	return scanner.FindURLInDirectory(path)
 }
 
 func (s *Service) FetchAndSave(targetURL string) (*types.FetchResult, error) {

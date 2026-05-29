@@ -77,8 +77,8 @@ func TestFindURLInDirectory_OSCases(t *testing.T) {
 	}
 }
 
-// TestFindURLInDirectory_NotFound 는 디렉터리 내에 가챠 URL이 기록된 로그가 없는 경우의 처리를 테스트합니다.
-func TestFindURLInDirectory_NotFound(t *testing.T) {
+// TestFindURLInDirectory_LogFileNotFound 는 디렉터리 내에 지원되는 로그 파일이 없는 경우의 처리를 테스트합니다.
+func TestFindURLInDirectory_LogFileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// 비어있는 로그 디렉터리 구조 생성
@@ -93,10 +93,43 @@ func TestFindURLInDirectory_NotFound(t *testing.T) {
 		t.Errorf("FindURLInDirectory() 에러가 발생해야 하나 nil 반환")
 	}
 
+	if !errors.Is(err, ErrLogFileNotFound) {
+		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = ErrLogFileNotFound", err)
+	}
+
+	if url != "" {
+		t.Errorf("FindURLInDirectory() 결과 = %q, 기대값 = 빈 문자열", url)
+	}
+}
+
+func TestFindURLInDirectory_PathNotFound(t *testing.T) {
+	missingPath := filepath.Join(t.TempDir(), "missing")
+
+	url, err := FindURLInDirectory(missingPath)
+
+	if !errors.Is(err, ErrScanPathNotFound) {
+		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = ErrScanPathNotFound", err)
+	}
+	if url != "" {
+		t.Errorf("FindURLInDirectory() 결과 = %q, 기대값 = 빈 문자열", url)
+	}
+}
+
+func TestFindURLInDirectory_URLNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "Client", "Saved", "Logs", "Client.log")
+	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
+		t.Fatalf("디렉터리 생성 실패: %v", err)
+	}
+	if err := os.WriteFile(logFile, []byte("no gacha url here"), 0o644); err != nil {
+		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
+	}
+
+	url, err := FindURLInDirectory(tmpDir)
+
 	if !errors.Is(err, ErrURLNotFound) {
 		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = ErrURLNotFound", err)
 	}
-
 	if url != "" {
 		t.Errorf("FindURLInDirectory() 결과 = %q, 기대값 = 빈 문자열", url)
 	}

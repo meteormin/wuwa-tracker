@@ -27,6 +27,24 @@ var (
 		ErrorKey: "err.scan_url_not_found",
 	}
 
+	errScanPathNotFound = types.ErrorResponse{
+		Success:  false,
+		Error:    "scan path not found",
+		ErrorKey: "err.scan_path_not_found",
+	}
+
+	errScanPathAccessDenied = types.ErrorResponse{
+		Success:  false,
+		Error:    "scan path access denied",
+		ErrorKey: "err.scan_path_access_denied",
+	}
+
+	errScanLogFileNotFound = types.ErrorResponse{
+		Success:  false,
+		Error:    "log file not found",
+		ErrorKey: "err.scan_log_file_not_found",
+	}
+
 	// errScanFailed 는 로컬 로그 스캔 중 예상하지 못한 오류가 발생했을 때의 에러 응답입니다.
 	errScanFailed = types.ErrorResponse{
 		Success:  false,
