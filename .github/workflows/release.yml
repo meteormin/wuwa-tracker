@@ -68,7 +68,7 @@ jobs:
 
       - name: Build
         run: |
-          make build-all \
+          make build \
             BUILD_DATE="${{ steps.version.outputs.build_date }}" \
             COMMIT_HASH="${{ steps.version.outputs.commit_hash }}"
 
