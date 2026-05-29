@@ -37,7 +37,7 @@ func main() {
 	case "version":
 		fmt.Println(buildTag)
 	case "scan":
-		err = scan.Runner(service.NewScanner())(args)
+		err = scan.Runner()(args)
 	case "report":
 		err = runWithRuntime(args, report.Runner)
 	case "run":
@@ -194,7 +194,7 @@ func runAll(svc *service.Service, args []string) error {
 		}
 
 		fmt.Printf("No URL provided. Attempting to scan from path: %s\n", *pathFlag)
-		foundURL, err := svc.ScanURL(*pathFlag)
+		foundURL, err := scanner.FindURLInDirectory(*pathFlag)
 		if err != nil {
 			return fmt.Errorf("failed to auto-scan URL. Please provide it manually via the -url parameter. (Error: %v)", err)
 		}
