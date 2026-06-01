@@ -19,14 +19,14 @@ func MergeRecords(dbRecords, newRecords []types.Record) []types.Record {
 	// 1. 시퀀스 매칭을 통한 오버랩 찾기
 	// newRecords의 특정 인덱스 k부터 시작하는 접미사(suffix)가 dbRecords의 접두사(prefix)와 일치하는지 확인합니다.
 	// 이 방식은 10연차 내에 존재하는 동일한 아이템 중복까지 순서를 보존하며 완벽하게 처리합니다.
-	for k := 0; k < len(newRecords); k++ {
+	for k := range newRecords {
 		suffixLen := len(newRecords) - k
 		if suffixLen > len(dbRecords) {
 			continue
 		}
 
 		match := true
-		for i := 0; i < suffixLen; i++ {
+		for i := range suffixLen {
 			r1 := newRecords[k+i]
 			r2 := dbRecords[i]
 			if r1.ResourceID != r2.ResourceID || r1.Time != r2.Time {
@@ -137,17 +137,14 @@ func unionMerge(dbRecords, newRecords []types.Record) []types.Record {
 				}
 
 				for id := range allResourceIDs {
-					count := dbFreq[id]
-					if newFreq[id] > count {
-						count = newFreq[id]
-					}
+					count := max(newFreq[id], dbFreq[id])
 
 					template := dbTemplates[id]
 					if tRecord, ok := newTemplates[id]; ok {
 						template = tRecord
 					}
 
-					for i := 0; i < count; i++ {
+					for range count {
 						mergedItems = append(mergedItems, template)
 					}
 				}
