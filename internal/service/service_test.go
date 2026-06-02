@@ -21,7 +21,7 @@ import (
 func TestNewValidatesDependencies(t *testing.T) {
 	database := openTestDB(t)
 	cfg := testConfig()
-	client := tracker.NewClient(http.DefaultClient)
+	client := tracker.NewClient(http.DefaultClient, cfg.TrackingURL)
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
 
 	tests := []struct {
@@ -203,7 +203,7 @@ func TestServiceTrackURLSanitizesAndFetchesRecords(t *testing.T) {
 			if req.Method != http.MethodPost {
 				t.Fatalf("expected POST request, got %s", req.Method)
 			}
-			if req.URL.String() != "https://gmserver-api.aki-game.net/gacha/record/query" {
+			if req.URL.String() != "https://example.com/gacha/record/query" {
 				t.Fatalf("unexpected request URL: %s", req.URL.String())
 			}
 
@@ -230,7 +230,7 @@ func TestServiceTrackURLSanitizesAndFetchesRecords(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(body)),
 			}, nil
 		}),
-	})
+	}, cfg.TrackingURL)
 	svc := newTestServiceWithClient(t, cfg, client)
 
 	statsResponse, err := svc.TrackURL(" https:\\//aki-gm-resources.aki-game.net/gacha?player_id=player-1&svr_id=server-1&record_id=record-1 ")
@@ -262,7 +262,7 @@ func TestServiceTrackURLValidation(t *testing.T) {
 	}{
 		{name: "missing url", targetURL: "   ", err: ErrMissingURL},
 		{name: "missing player id", targetURL: "https://aki-gm-resources.aki-game.net/gacha?svr_id=server-1&record_id=record-1", err: ErrMissingPlayerID},
-		{name: "invalid host", targetURL: "https://example.com/gacha?player_id=player-1&svr_id=server-1&record_id=record-1", err: ErrInvalidURL},
+		{name: "invalid url", targetURL: "://bad-url", err: ErrInvalidURL},
 	}
 
 	for _, tt := range tests {
@@ -328,7 +328,7 @@ func newTestService(t *testing.T) *Service {
 	t.Helper()
 
 	cfg := testConfig()
-	return newTestServiceWithClient(t, cfg, tracker.NewClient(http.DefaultClient))
+	return newTestServiceWithClient(t, cfg, tracker.NewClient(http.DefaultClient, cfg.TrackingURL))
 }
 
 func newTestServiceWithClient(t *testing.T, cfg *config.Config, client *tracker.Client) *Service {
@@ -364,7 +364,7 @@ func openTestDB(t *testing.T) *db.BadgerDB {
 
 func testConfig() *config.Config {
 	return &config.Config{
-		GachaLocaleEndpoint:       "https://example.com/locales",
+		TrackingURL:               "https://example.com",
 		StandardFiveStarResources: []int{9001},
 		GachaTypes: types.GachaTypes{
 			Items: []types.GachaType{

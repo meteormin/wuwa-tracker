@@ -26,12 +26,15 @@ var (
 
 type Client struct {
 	core *http.Client
+
+	baseURL string
 }
 
 // NewClient 는 Client 를 생성합니다.
-func NewClient(client *http.Client) *Client {
+func NewClient(client *http.Client, baseURL string) *Client {
 	return &Client{
-		core: client,
+		core:    client,
+		baseURL: baseURL,
 	}
 }
 
@@ -70,23 +73,14 @@ func (c *Client) ParsePayloadFromURL(urlStr string) (types.Payload, error) {
 }
 
 // FetchRecords 는 지정된 배너(gachaType)의 가챠 기록을 가져옵니다.
-func (c *Client) FetchRecords(urlStr string, gachaType int) ([]types.Record, error) {
-	p, err := c.ParsePayloadFromURL(urlStr)
-	if err != nil {
-		return nil, err
-	}
-	p.CardPoolType = gachaType
-
-	body, err := json.Marshal(p)
+func (c *Client) FetchRecords(payload types.Payload) ([]types.Record, error) {
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 
-	apiEndpoint, err := c.getAPIEndpoint(urlStr)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewBuffer(body))
+	endpoint, err := url.JoinPath(c.baseURL, "/gacha/record/query")
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -121,40 +115,18 @@ func (c *Client) FetchRecords(urlStr string, gachaType int) ([]types.Record, err
 	return gResp.Data, nil
 }
 
-// getAPIEndpoint 는 가챠 로그 URL 의 호스트에 맞게 가챠 쿼리 API 주소를 결정합니다.
-func (c *Client) getAPIEndpoint(urlStr string) (string, error) {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return "", err
-	}
-
-	host := u.Host
-	if resourcesRegex.MatchString(host) {
-		matches := resourcesRegex.FindStringSubmatch(host)
-		if len(matches) >= 3 {
-			// matches[1] 은 "-oversea" 이거나 "" 일 것입니다.
-			// matches[2] 는 "net" 이거나 "com" 일 것입니다.
-			var apiHost string
-			if matches[1] == "-oversea" {
-				apiHost = "gmserver-api.aki-game2." + matches[2]
-			} else {
-				apiHost = "gmserver-api.aki-game." + matches[2]
-			}
-			return fmt.Sprintf("https://%s/gacha/record/query", apiHost), nil
-		}
-	}
-
-	return "", ErrInvalidGachaURL
-}
-
 // FetchGachaLocale 는 원격에서 로컬라이제이션 데이터를 가져와 gachaNamesMap 을 업데이트합니다.
-func (c *Client) FetchGachaLocale(urlStr string, lang string) (types.LocaleData, error) {
+func (c *Client) FetchGachaLocale(lang string) (types.LocaleData, error) {
 	if lang == "" {
 		lang = "ko"
 	}
 
-	urlStrLocale := fmt.Sprintf("%s/%s.json", urlStr, lang)
-	resp, err := c.core.Get(urlStrLocale)
+	endpoint, err := url.JoinPath(c.baseURL, "/aki/gacha/locales", lang)
+	if err != nil {
+		return types.LocaleData{}, err
+	}
+
+	resp, err := c.core.Get(endpoint)
 	if err != nil {
 		return types.LocaleData{}, err
 	}
@@ -173,15 +145,11 @@ func (c *Client) FetchGachaLocale(urlStr string, lang string) (types.LocaleData,
 }
 
 // FetchAllRecords 는 모든 배너의 가챠 기록을 가져오고, URL로부터 파싱된 Payload와 함께 단일 구조체(FetchResult)로 반환합니다.
-func (c *Client) FetchAllRecords(urlStr string, gachaTypes []types.GachaType) (*types.FetchResult, error) {
-	p, err := c.ParsePayloadFromURL(urlStr)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) FetchAllRecords(payload types.Payload, gachaTypes []types.GachaType) (*types.FetchResult, error) {
 	result := make(map[string][]types.Record)
 	for _, gachaType := range gachaTypes {
-		records, err := c.FetchRecords(urlStr, gachaType.ID)
+		payload.CardPoolType = gachaType.ID
+		records, err := c.FetchRecords(payload)
 		if err != nil {
 			log.Printf("Failed to fetch records for gacha type %d: %v\n", gachaType.ID, err)
 			continue
@@ -190,7 +158,7 @@ func (c *Client) FetchAllRecords(urlStr string, gachaTypes []types.GachaType) (*
 	}
 
 	return &types.FetchResult{
-		Payload: p,
+		Payload: payload,
 		Records: result,
 	}, nil
 }

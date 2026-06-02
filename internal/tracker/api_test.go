@@ -9,8 +9,8 @@ func TestFetchRecords_MissingParams(t *testing.T) {
 	// 필수 파라미터가 누락된 URL을 파싱할 때 에러가 발생하는지 검증합니다.
 	invalidURL := "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record?lang=ko"
 
-	c := NewClient(http.DefaultClient)
-	_, err := c.FetchRecords(invalidURL, 1)
+	c := NewClient(http.DefaultClient, "")
+	_, err := c.ParsePayloadFromURL(invalidURL)
 	if err == nil {
 		t.Error("Expected error for missing parameters, but got nil")
 	}

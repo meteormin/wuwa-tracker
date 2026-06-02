@@ -33,8 +33,8 @@ func TestNewDefaultConfig(t *testing.T) {
 	if cfg.CostPolicy.AstritePerPull != DefaultAstritePerPull {
 		t.Fatalf("CostPolicy.AstritePerPull = %d, want %d", cfg.CostPolicy.AstritePerPull, DefaultAstritePerPull)
 	}
-	if cfg.GachaLocaleEndpoint != DefaultGachaLocaleEndpoint {
-		t.Fatalf("GachaLocaleEndpoint = %q, want %q", cfg.GachaLocaleEndpoint, DefaultGachaLocaleEndpoint)
+	if cfg.TrackingURL != DefaultTrackingURL {
+		t.Fatalf("TrackingURL = %q, want %q", cfg.TrackingURL, DefaultTrackingURL)
 	}
 	if !slices.Equal(cfg.StandardFiveStarResources, DefaultStandardFiveStarResources) {
 		t.Fatalf("StandardFiveStarResources = %v, want %v", cfg.StandardFiveStarResources, DefaultStandardFiveStarResources)

@@ -9,21 +9,25 @@ import (
 	"time"
 )
 
-// FindURLInDirectoryWithPaths 는 전달받은 상대 로그 경로 목록을 사용하여 URL을 추출합니다.
-func FindURLInDirectoryWithPaths(gameRoot string, logPaths []string) (string, error) {
-	// 입력받은 경로가 디렉터리가 아니라면(즉, 파일이라면) 직접 스캔
-	info, err := os.Stat(gameRoot)
+// ExpandLogPaths 는 입력 경로가 파일이면 그대로, 디렉터리면 상대 로그 경로들을 결합해 전체 경로 목록을 만듭니다.
+func ExpandLogPaths(path string, relativeLogPaths []string) ([]string, error) {
+	info, err := os.Stat(path)
 	if err != nil {
-		return "", normalizePathErr(err)
+		return nil, normalizePathErr(err)
 	}
 	if !info.IsDir() {
-		url, err := ScanLogFile(gameRoot)
-		if err != nil {
-			return "", normalizePathErr(err)
-		}
-		return url, nil
+		return []string{path}, nil
 	}
 
+	logPaths := make([]string, 0, len(relativeLogPaths))
+	for _, relPath := range relativeLogPaths {
+		logPaths = append(logPaths, filepath.Join(path, relPath))
+	}
+	return logPaths, nil
+}
+
+// FindURLInDirectory 는 전달받은 전체 로그 파일 경로 목록에서 URL을 추출합니다.
+func FindURLInDirectory(logPaths []string, targetURL string) (string, error) {
 	type logFileItem struct {
 		path    string
 		modTime time.Time
@@ -31,9 +35,8 @@ func FindURLInDirectoryWithPaths(gameRoot string, logPaths []string) (string, er
 
 	var files []logFileItem
 	var lastPathErr error
-	for _, relPath := range logPaths {
-		logFilePath := filepath.Join(gameRoot, relPath)
-		info, err := os.Stat(logFilePath)
+	for _, logPath := range logPaths {
+		info, err := os.Stat(logPath)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				lastPathErr = normalizePathErr(err)
@@ -44,7 +47,7 @@ func FindURLInDirectoryWithPaths(gameRoot string, logPaths []string) (string, er
 			continue
 		}
 		files = append(files, logFileItem{
-			path:    logFilePath,
+			path:    logPath,
 			modTime: info.ModTime(),
 		})
 	}
@@ -56,14 +59,14 @@ func FindURLInDirectoryWithPaths(gameRoot string, logPaths []string) (string, er
 		return "", ErrLogFileNotFound
 	}
 
-	// 파일 수정 시간 기준으로 내림차순 정렬 (가장 최근에 수정된 파일이 앞에 오도록 함)
+	// 파일 수정 시간 기준으로 내림차순 정렬합니다.
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].modTime.After(files[j].modTime)
 	})
 
 	var lastErr error
 	for _, file := range files {
-		url, err := ScanLogFile(file.path)
+		url, err := ScanLogFile(file.path, targetURL)
 		if err == nil {
 			return url, nil
 		}
