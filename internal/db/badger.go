@@ -1,26 +1,56 @@
 package db
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 const backupLoadMaxPendingWrites = 256
+const defaultValueLogGCDiscardRatio = 0.5
 
 type BadgerDB struct {
-	core *badger.DB
+	core     *badger.DB
+	mu       sync.Mutex
+	gcWorker *valueLogGCWorker
+	closed   bool
 }
 
 type MergeFromBackupResult struct {
 	Players int
 	Banners int
 	Records int
+}
+
+type Stats struct {
+	Path              string
+	ApparentSizeBytes int64
+	DiskUsageBytes    int64
+	FileCount         int
+	VLogCount         int
+	SSTCount          int
+	MemTableCount     int
+}
+
+type ValueLogGCOptions struct {
+	Interval     time.Duration
+	DiscardRatio float64
+}
+
+type valueLogGCWorker struct {
+	stop context.CancelFunc
+	done chan struct{}
+	once sync.Once
 }
 
 // NewBadgerDB 는 지정된 디렉터리에 BadgerDB 데이터베이스를 기동하고 커넥션을 반환합니다.
@@ -38,12 +68,179 @@ func NewBadgerDB(path string) (*BadgerDB, error) {
 
 // Close 는 BadgerDB 데이터베이스 커넥션을 닫습니다.
 func (b *BadgerDB) Close() error {
-	return b.core.Close()
+	b.StopValueLogGC()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.closed {
+		return nil
+	}
+	if err := b.core.Close(); err != nil {
+		return err
+	}
+	b.closed = true
+	return nil
 }
 
 // Backup 은 현재 BadgerDB 데이터를 단일 백업 스트림으로 내보냅니다.
 func (b *BadgerDB) Backup(w io.Writer) (uint64, error) {
 	return b.core.Backup(w, 0)
+}
+
+// Stats 는 BadgerDB 디렉터리의 논리 크기와 실제 디스크 사용량을 집계합니다.
+func (b *BadgerDB) Stats() (Stats, error) {
+	return StatsFromPath(b.core.Opts().Dir)
+}
+
+// StatsFromPath 는 지정된 경로의 파일 크기 통계를 재귀적으로 집계합니다.
+func StatsFromPath(path string) (Stats, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return Stats{}, err
+	}
+	if !info.IsDir() {
+		return Stats{}, fmt.Errorf("path is not a directory: %s", path)
+	}
+
+	stats := Stats{
+		Path: path,
+	}
+	err = filepath.WalkDir(path, func(currentPath string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+
+		fileInfo, err := entry.Info()
+		if err != nil {
+			return err
+		}
+
+		stats.FileCount++
+		stats.ApparentSizeBytes += fileInfo.Size()
+		stats.DiskUsageBytes += diskUsageBytes(fileInfo)
+
+		switch filepath.Ext(currentPath) {
+		case ".vlog":
+			stats.VLogCount++
+		case ".sst":
+			stats.SSTCount++
+		case ".mem":
+			stats.MemTableCount++
+		}
+		return nil
+	})
+	if err != nil {
+		return Stats{}, err
+	}
+
+	return stats, nil
+}
+
+// RunValueLogGC 는 정리 가능한 Badger value log를 가능한 만큼 정리합니다.
+func (b *BadgerDB) RunValueLogGC(discardRatio float64) error {
+	normalizedDiscardRatio, err := normalizeValueLogGCDiscardRatio(discardRatio)
+	if err != nil {
+		return err
+	}
+
+	for {
+		if err := b.runValueLogGCOnce(normalizedDiscardRatio); err != nil {
+			if errors.Is(err, badger.ErrNoRewrite) {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+// StartValueLogGC 는 서버 환경에서 주기적으로 value log GC를 1회씩 시도합니다.
+func (b *BadgerDB) StartValueLogGC(ctx context.Context, opts ValueLogGCOptions, onError func(error)) error {
+	if opts.Interval <= 0 {
+		return nil
+	}
+
+	discardRatio, err := normalizeValueLogGCDiscardRatio(opts.DiscardRatio)
+	if err != nil {
+		return err
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.closed {
+		return fmt.Errorf("database is closed")
+	}
+	if b.gcWorker != nil {
+		return nil
+	}
+
+	workerCtx, stop := context.WithCancel(ctx)
+	worker := &valueLogGCWorker{
+		stop: stop,
+		done: make(chan struct{}),
+	}
+	b.gcWorker = worker
+
+	go func() {
+		defer close(worker.done)
+
+		ticker := time.NewTicker(opts.Interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-workerCtx.Done():
+				return
+			case <-ticker.C:
+				if err := b.runValueLogGCOnce(discardRatio); err != nil && !errors.Is(err, badger.ErrNoRewrite) {
+					if onError != nil {
+						onError(err)
+					}
+				}
+			}
+		}
+	}()
+
+	return nil
+}
+
+// StopValueLogGC 는 실행 중인 value log GC 루프를 멈춥니다.
+func (b *BadgerDB) StopValueLogGC() {
+	b.mu.Lock()
+	worker := b.gcWorker
+	b.gcWorker = nil
+	b.mu.Unlock()
+
+	worker.Stop()
+}
+
+// Stop 은 value log GC 루프를 멈추고 진행 중인 GC 1회가 끝날 때까지 대기합니다.
+func (w *valueLogGCWorker) Stop() {
+	if w == nil {
+		return
+	}
+	w.once.Do(func() {
+		w.stop()
+		<-w.done
+	})
+}
+
+func (b *BadgerDB) runValueLogGCOnce(discardRatio float64) error {
+	return b.core.RunValueLogGC(discardRatio)
+}
+
+func normalizeValueLogGCDiscardRatio(discardRatio float64) (float64, error) {
+	if discardRatio <= 0 {
+		return defaultValueLogGCDiscardRatio, nil
+	}
+	if discardRatio >= 1 {
+		return 0, fmt.Errorf("discard ratio must be less than 1: %.2f", discardRatio)
+	}
+	return discardRatio, nil
 }
 
 // MergeFromBackup 은 Badger 백업 스트림을 임시 DB에 복원한 뒤 현재 DB에 가챠 기록을 병합합니다.

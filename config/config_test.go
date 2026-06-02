@@ -30,6 +30,15 @@ func TestNewDefaultConfig(t *testing.T) {
 	if cfg.HTTPTimeout != DefaultHTTPTimeout {
 		t.Fatalf("HTTPTimeout = %s, want %s", cfg.HTTPTimeout, DefaultHTTPTimeout)
 	}
+	if cfg.DBGCEnabled != DefaultDBGCEnabled {
+		t.Fatalf("DBGCEnabled = %t, want %t", cfg.DBGCEnabled, DefaultDBGCEnabled)
+	}
+	if cfg.DBGCInterval != DefaultDBGCInterval {
+		t.Fatalf("DBGCInterval = %s, want %s", cfg.DBGCInterval, DefaultDBGCInterval)
+	}
+	if cfg.DBGCDiscardRatio != DefaultDBGCDiscard {
+		t.Fatalf("DBGCDiscardRatio = %f, want %f", cfg.DBGCDiscardRatio, DefaultDBGCDiscard)
+	}
 	if cfg.CostPolicy.AstritePerPull != DefaultAstritePerPull {
 		t.Fatalf("CostPolicy.AstritePerPull = %d, want %d", cfg.CostPolicy.AstritePerPull, DefaultAstritePerPull)
 	}

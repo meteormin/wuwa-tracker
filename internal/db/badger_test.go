@@ -2,9 +2,12 @@ package db
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -194,6 +197,106 @@ func TestBadgerDB_BackupAndMergeFromBackup(t *testing.T) {
 	if !reflect.DeepEqual(gotWeapon, weaponRecords) {
 		t.Fatalf("weapon records mismatch\nexpected: %+v\nactual:   %+v", weaponRecords, gotWeapon)
 	}
+}
+
+func TestBadgerDB_Stats(t *testing.T) {
+	database := openTestBadgerDB(t)
+
+	if err := database.SaveGachaRecords("player-1", "character", []types.Record{
+		testRecord(1001, "character", "Alpha", "2026-05-20 12:00:00"),
+	}); err != nil {
+		t.Fatalf("SaveGachaRecords returned error: %v", err)
+	}
+
+	stats, err := database.Stats()
+	if err != nil {
+		t.Fatalf("Stats returned error: %v", err)
+	}
+	if stats.Path == "" {
+		t.Fatal("Stats returned empty path")
+	}
+	if stats.FileCount == 0 {
+		t.Fatal("Stats returned no files")
+	}
+	if stats.ApparentSizeBytes <= 0 {
+		t.Fatalf("ApparentSizeBytes = %d, want positive value", stats.ApparentSizeBytes)
+	}
+	if stats.DiskUsageBytes < 0 {
+		t.Fatalf("DiskUsageBytes = %d, want non-negative value", stats.DiskUsageBytes)
+	}
+}
+
+func TestStatsFromPathCountsBadgerFileTypes(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"000001.vlog": "value log",
+		"000002.sst":  "table",
+		"000003.mem":  "memtable",
+		"MANIFEST":    "manifest",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("WriteFile(%q) returned error: %v", name, err)
+		}
+	}
+
+	stats, err := StatsFromPath(dir)
+	if err != nil {
+		t.Fatalf("StatsFromPath returned error: %v", err)
+	}
+	if stats.FileCount != len(files) {
+		t.Fatalf("FileCount = %d, want %d", stats.FileCount, len(files))
+	}
+	if stats.VLogCount != 1 {
+		t.Fatalf("VLogCount = %d, want 1", stats.VLogCount)
+	}
+	if stats.SSTCount != 1 {
+		t.Fatalf("SSTCount = %d, want 1", stats.SSTCount)
+	}
+	if stats.MemTableCount != 1 {
+		t.Fatalf("MemTableCount = %d, want 1", stats.MemTableCount)
+	}
+}
+
+func TestStatsFromPathRejectsFilePath(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "badger-file")
+	if err := os.WriteFile(filePath, []byte("not a directory"), 0o644); err != nil {
+		t.Fatalf("WriteFile returned error: %v", err)
+	}
+
+	if _, err := StatsFromPath(filePath); err == nil {
+		t.Fatal("StatsFromPath returned nil error for file path")
+	}
+}
+
+func TestBadgerDB_RunValueLogGCNoRewrite(t *testing.T) {
+	database := openTestBadgerDB(t)
+
+	if err := database.RunValueLogGC(0.5); err != nil {
+		t.Fatalf("RunValueLogGC returned error: %v", err)
+	}
+}
+
+func TestBadgerDB_RunValueLogGCRejectsInvalidDiscardRatio(t *testing.T) {
+	database := openTestBadgerDB(t)
+
+	if err := database.RunValueLogGC(1); err == nil {
+		t.Fatal("RunValueLogGC returned nil error for invalid discard ratio")
+	}
+}
+
+func TestBadgerDB_StartValueLogGCStop(t *testing.T) {
+	database := openTestBadgerDB(t)
+
+	if err := database.StartValueLogGC(t.Context(), ValueLogGCOptions{
+		Interval:     time.Hour,
+		DiscardRatio: 0.5,
+	}, nil); err != nil {
+		t.Fatalf("StartValueLogGC returned error: %v", err)
+	}
+
+	database.StopValueLogGC()
+	database.StopValueLogGC()
 }
 
 func openTestBadgerDB(t *testing.T) *BadgerDB {

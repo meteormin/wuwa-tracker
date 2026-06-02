@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,10 +17,8 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/meteormin/wuwa-tracker/config"
-	"github.com/meteormin/wuwa-tracker/internal/db"
 	"github.com/meteormin/wuwa-tracker/internal/handler"
-	"github.com/meteormin/wuwa-tracker/internal/service"
-	"github.com/meteormin/wuwa-tracker/internal/tracker"
+	"github.com/meteormin/wuwa-tracker/internal/server"
 	"github.com/meteormin/wuwa-tracker/webui"
 )
 
@@ -51,45 +48,34 @@ func run() error {
 	hostFlag := flag.String("host", cfg.ServerHost, "Host address to listen on")
 	portFlag := flag.String("port", cfg.ServerPort, "Port to listen on")
 	dbPathFlag := flag.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	dbGCEnabledFlag := flag.Bool("db-gc", cfg.DBGCEnabled, "Enable periodic Badger value log GC")
+	dbGCIntervalFlag := flag.Duration("db-gc-interval", cfg.DBGCInterval, "Badger value log GC interval")
+	dbGCDiscardRatioFlag := flag.Float64("db-gc-discard-ratio", cfg.DBGCDiscardRatio, "Badger value log GC discard ratio")
 	flag.Parse()
 
 	cfg.ServerHost = *hostFlag
 	cfg.ServerPort = *portFlag
 	cfg.DBPath = *dbPathFlag
-
-	// 다국어 배너 이름 사전 매핑 (최초 1회 한국어로 캐싱 매핑 수행)
-	httpClient := &http.Client{Timeout: cfg.HTTPTimeout}
-	client := tracker.NewClient(httpClient, cfg.TrackingURL)
-	localeData := tracker.LoadGachaLocaleWithFallback(client, cfg.Language)
-	cfg.GachaTypes.MapFromLocaleData(localeData)
-
-	// BadgerDB 네이티브 KV 엔진 초기화
-	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
-	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
-	}
+	cfg.DBGCEnabled = *dbGCEnabledFlag
+	cfg.DBGCInterval = *dbGCIntervalFlag
+	cfg.DBGCDiscardRatio = *dbGCDiscardRatioFlag
 
 	log.Infof("Build tag: %s\n", buildTag)
-	log.Infof("Successfully started BadgerDB engine under directory: %s\n", cfg.DBPath)
+	log.Infof("Configured BadgerDB directory: %s\n", cfg.DBPath)
 
 	// Fiber v3 애플리케이션 생성
+	runtime := server.NewRuntimeService(cfg)
 	app := fiber.New(fiber.Config{
-		AppName: appName,
+		AppName:  appName,
+		Services: []fiber.Service{runtime},
 	})
+	defer func() {
+		_ = runtime.Terminate(context.Background())
+	}()
 
 	// 스타트업 훅 시스템을 사용한 소문자 아스키 배너 적용
 	app.Hooks().OnPreStartupMessage(func(sm *fiber.PreStartupMessageData) error {
 		sm.BannerHeader = fmt.Sprintf(banner, buildTag)
-		return nil
-	})
-
-	// 서버 종료 후, DB Close 수행
-	app.Hooks().OnPreShutdown(func() error {
-		if err := badgerDB.Close(); err != nil {
-			log.Errorf("Failed to close database: %v\n", err)
-			return err
-		}
-		log.Info("Database connection closed")
 		return nil
 	})
 
@@ -104,18 +90,8 @@ func run() error {
 		AllowMethods: []string{"GET", "POST", "OPTIONS"},
 	}))
 
-	// 핸들러 인스턴스 생성 및 의존성(DB, Config) 주입
-	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
-	svc, err := service.New(service.Deps{
-		DB:     badgerDB,
-		Config: cfg,
-		Client: client,
-		Calc:   calc,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize service: %w", err)
-	}
-	h := handler.NewHandler(svc)
+	// 핸들러 인스턴스 생성
+	h := handler.NewHandler()
 
 	// API 라우팅 설정
 	api := app.Group("/api")

@@ -26,6 +26,9 @@ const (
 	DefaultReportOutput   = "report"
 	DefaultLanguage       = "ko"
 	DefaultHTTPTimeout    = 5 * time.Second
+	DefaultDBGCEnabled    = true
+	DefaultDBGCInterval   = time.Hour
+	DefaultDBGCDiscard    = 0.5
 	DefaultAstritePerPull = 160
 )
 
@@ -147,6 +150,9 @@ type Config struct {
 	ReportOutput              string                     `json:"reportOutput"`
 	Language                  string                     `json:"language"`
 	HTTPTimeout               time.Duration              `json:"httpTimeout"`
+	DBGCEnabled               bool                       `json:"dbGCEnabled"`
+	DBGCInterval              time.Duration              `json:"dbGCInterval"`
+	DBGCDiscardRatio          float64                    `json:"dbGCDiscardRatio"`
 }
 
 func Default() *Config {
@@ -160,15 +166,18 @@ func Default() *Config {
 		CostPolicy: types.CostPolicy{
 			AstritePerPull: DefaultAstritePerPull,
 		},
-		ScanLogPaths: slicesClone(DefaultScanLogPaths),
-		ServerHost:   DefaultServerHost,
-		ServerPort:   DefaultServerPort,
-		DBPath:       DefaultDBPath,
-		CORSOrigins:  defaultCORSOrigins(),
-		ReportFormat: DefaultReportFormat,
-		ReportOutput: DefaultReportOutput,
-		Language:     DefaultLanguage,
-		HTTPTimeout:  DefaultHTTPTimeout,
+		ScanLogPaths:     slicesClone(DefaultScanLogPaths),
+		ServerHost:       DefaultServerHost,
+		ServerPort:       DefaultServerPort,
+		DBPath:           DefaultDBPath,
+		CORSOrigins:      defaultCORSOrigins(),
+		ReportFormat:     DefaultReportFormat,
+		ReportOutput:     DefaultReportOutput,
+		Language:         DefaultLanguage,
+		HTTPTimeout:      DefaultHTTPTimeout,
+		DBGCEnabled:      DefaultDBGCEnabled,
+		DBGCInterval:     DefaultDBGCInterval,
+		DBGCDiscardRatio: DefaultDBGCDiscard,
 	}
 	cfg.applyEnv()
 	return cfg
