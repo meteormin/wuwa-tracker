@@ -41,7 +41,7 @@ func main() {
 	case "version":
 		fmt.Println(buildTag)
 	case "scan":
-		err = scan.Runner(cfg.ScanLogPaths)(args)
+		err = scan.Runner(cfg)(args)
 	case "backup":
 		cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
 		err = backup.Runner(cfg)(args)
@@ -82,7 +82,7 @@ func runWithRuntime(cfg *config.Config, args []string, commandFactory func(*serv
 
 func newCLIRuntime(cfg *config.Config, args []string) (*cliRuntime, error) {
 	cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
-	client := newTrackerClient(extractBoolFlag(args, "v"), cfg.HTTPTimeout)
+	client := newTrackerClient(cfg.TrackingURL, cfg.HTTPTimeout, extractBoolFlag(args, "v"))
 	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
@@ -110,18 +110,18 @@ func (r *cliRuntime) Close() error {
 	return r.db.Close()
 }
 
-func newTrackerClient(verbose bool, timeout time.Duration) *tracker.Client {
+func newTrackerClient(baseURL string, timeout time.Duration, verbose bool) *tracker.Client {
 	if verbose {
 		return tracker.NewClient(&http.Client{
 			Transport: &tracker.LoggingTransport{
 				Captured: http.DefaultTransport,
 			},
 			Timeout: timeout,
-		})
+		}, baseURL)
 	}
 	return tracker.NewClient(&http.Client{
 		Timeout: timeout,
-	})
+	}, baseURL)
 }
 
 func extractStringFlag(args []string, name, fallback string) string {
@@ -201,7 +201,7 @@ func runAll(svc *service.Service, args []string) error {
 		}
 
 		fmt.Printf("No URL provided. Attempting to scan from path: %s\n", *pathFlag)
-		foundURL, err := scanner.FindURLInDirectoryWithPaths(*pathFlag, defaults.ScanLogPaths)
+		foundURL, err := svc.Scan(*pathFlag)
 		if err != nil {
 			return fmt.Errorf("failed to auto-scan URL. Please provide it manually via the -url parameter. (Error: %v)", err)
 		}

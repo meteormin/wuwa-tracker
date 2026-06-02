@@ -15,18 +15,18 @@ const (
 	EnvVarDBPath      = "WUWA_TRACKER_DB_PATH"
 	EnvVarCORSOrigins = "WUWA_TRACKER_CORS_ORIGINS"
 
-	DefaultGachaLocaleEndpoint = "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/locales"
-	DefaultServerHost          = "127.0.0.1"
-	DefaultServerPort          = "3000"
-	DefaultDBPath              = "data/wuwa_badger"
-	DefaultCORSLocalhost       = "http://localhost:5173"
-	DefaultCORSLoopback        = "http://127.0.0.1:5173"
-	DefaultCORSIPv6            = "http://[::1]:5173"
-	DefaultReportFormat        = "html"
-	DefaultReportOutput        = "report"
-	DefaultLanguage            = "ko"
-	DefaultHTTPTimeout         = 5 * time.Second
-	DefaultAstritePerPull      = 160
+	DefaultTrackingURL    = "https://aki-gm-resources-oversea.aki-game.net"
+	DefaultServerHost     = "127.0.0.1"
+	DefaultServerPort     = "3000"
+	DefaultDBPath         = "data/wuwa_badger"
+	DefaultCORSLocalhost  = "http://localhost:5173"
+	DefaultCORSLoopback   = "http://127.0.0.1:5173"
+	DefaultCORSIPv6       = "http://[::1]:5173"
+	DefaultReportFormat   = "html"
+	DefaultReportOutput   = "report"
+	DefaultLanguage       = "ko"
+	DefaultHTTPTimeout    = 5 * time.Second
+	DefaultAstritePerPull = 160
 )
 
 var (
@@ -133,7 +133,7 @@ var (
 )
 
 type Config struct {
-	GachaLocaleEndpoint       string                     `json:"gachaLocaleEndpoint"`
+	TrackingURL               string                     `json:"trackingURL"`
 	StandardFiveStarResources []int                      `json:"standardFiveStarResources"`
 	GachaTypes                types.GachaTypes           `json:"gachaTypes"`
 	LuckScoreThresholds       []types.LuckScoreThreshold `json:"luckScoreThresholds"`
@@ -151,7 +151,7 @@ type Config struct {
 
 func Default() *Config {
 	cfg := &Config{
-		GachaLocaleEndpoint:       DefaultGachaLocaleEndpoint,
+		TrackingURL:               DefaultTrackingURL,
 		StandardFiveStarResources: slicesClone(DefaultStandardFiveStarResources),
 		GachaTypes: types.GachaTypes{
 			Items: slicesClone(DefaultGachaTypes),
