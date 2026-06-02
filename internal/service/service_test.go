@@ -364,12 +364,8 @@ func openTestDB(t *testing.T) *db.BadgerDB {
 
 func testConfig() *config.Config {
 	return &config.Config{
-		GachaLocaleEndpoint: "https://example.com/locales",
-		StandardFiveStarResources: types.StandardFiveStarResources{
-			Items: []types.StandardFiveStarResource{
-				{Name: "Standard", ResourceID: 9001},
-			},
-		},
+		GachaLocaleEndpoint:       "https://example.com/locales",
+		StandardFiveStarResources: []int{9001},
 		GachaTypes: types.GachaTypes{
 			Items: []types.GachaType{
 				{ID: 1, Key: "character", Name: "Character", HasOffBannerDrop: true, BaseRate: 0.8, ExpectedPulls: 55},

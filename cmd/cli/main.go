@@ -31,17 +31,19 @@ func main() {
 
 	cmd := os.Args[1]
 	args := os.Args[2:]
+	cfg := config.Default()
+
 	var err error
 
 	switch cmd {
 	case "version":
 		fmt.Println(buildTag)
 	case "scan":
-		err = scan.Runner()(args)
+		err = scan.Runner(cfg.ScanLogPaths)(args)
 	case "report":
-		err = runWithRuntime(args, report.Runner)
+		err = runWithRuntime(cfg, args, report.Runner)
 	case "run":
-		err = runWithRuntime(args, runAllRunner)
+		err = runWithRuntime(cfg, args, runAllRunner)
 	default:
 		fmt.Printf("unknown command: %s\n\n", cmd)
 		printUsage()
@@ -58,8 +60,8 @@ type cliRuntime struct {
 	db  *db.BadgerDB
 }
 
-func runWithRuntime(args []string, commandFactory func(*service.Service) func([]string) error) error {
-	runtime, err := newCLIRuntime(args)
+func runWithRuntime(cfg *config.Config, args []string, commandFactory func(*service.Service) func([]string) error) error {
+	runtime, err := newCLIRuntime(cfg, args)
 	if err != nil {
 		return err
 	}
@@ -70,13 +72,8 @@ func runWithRuntime(args []string, commandFactory func(*service.Service) func([]
 	return commandFactory(runtime.svc)(args)
 }
 
-func newCLIRuntime(args []string) (*cliRuntime, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
+func newCLIRuntime(cfg *config.Config, args []string) (*cliRuntime, error) {
 	cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
-
 	client := newTrackerClient(extractBoolFlag(args, "v"), cfg.HTTPTimeout)
 	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
 	if err != nil {
@@ -194,7 +191,7 @@ func runAll(svc *service.Service, args []string) error {
 		}
 
 		fmt.Printf("No URL provided. Attempting to scan from path: %s\n", *pathFlag)
-		foundURL, err := scanner.FindURLInDirectory(*pathFlag)
+		foundURL, err := scanner.FindURLInDirectoryWithPaths(*pathFlag, defaults.ScanLogPaths)
 		if err != nil {
 			return fmt.Errorf("failed to auto-scan URL. Please provide it manually via the -url parameter. (Error: %v)", err)
 		}

@@ -10,10 +10,7 @@ import (
 )
 
 func TestHTMLExporterUsesTranslations(t *testing.T) {
-	cfg, err := config.Load()
-	if err != nil {
-		t.Fatalf("failed to load config: %v", err)
-	}
+	cfg := config.Default()
 
 	exporter, err := NewExporter(cfg, FormatHTML, "en")
 	if err != nil {

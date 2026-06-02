@@ -54,7 +54,7 @@ func (h *Handler) Scan(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errMissingScanPath)
 	}
 
-	url, err := scanner.FindURLInDirectory(path)
+	url, err := scanner.FindURLInDirectoryWithPaths(path, h.svc.Config().ScanLogPaths)
 	if err != nil {
 		return h.handleScanErr(c, err)
 	}
