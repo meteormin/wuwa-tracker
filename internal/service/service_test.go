@@ -21,7 +21,7 @@ import (
 func TestNewValidatesDependencies(t *testing.T) {
 	database := openTestDB(t)
 	cfg := testConfig()
-	client := tracker.NewClient(http.DefaultClient, cfg.TrackingURL)
+	client := newTestTrackerClient(http.DefaultClient, cfg)
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
 
 	tests := []struct {
@@ -198,7 +198,7 @@ func TestServiceListPlayers(t *testing.T) {
 
 func TestServiceTrackURLSanitizesAndFetchesRecords(t *testing.T) {
 	cfg := testConfig()
-	client := tracker.NewClient(&http.Client{
+	client := newTestTrackerClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.Method != http.MethodPost {
 				t.Fatalf("expected POST request, got %s", req.Method)
@@ -230,7 +230,7 @@ func TestServiceTrackURLSanitizesAndFetchesRecords(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(body)),
 			}, nil
 		}),
-	}, cfg.TrackingURL)
+	}, cfg)
 	svc := newTestServiceWithClient(t, cfg, client)
 
 	statsResponse, err := svc.TrackURL(" https:\\//aki-gm-resources.aki-game.net/gacha?player_id=player-1&svr_id=server-1&record_id=record-1 ")
@@ -328,7 +328,15 @@ func newTestService(t *testing.T) *Service {
 	t.Helper()
 
 	cfg := testConfig()
-	return newTestServiceWithClient(t, cfg, tracker.NewClient(http.DefaultClient, cfg.TrackingURL))
+	return newTestServiceWithClient(t, cfg, newTestTrackerClient(http.DefaultClient, cfg))
+}
+
+func newTestTrackerClient(client *http.Client, cfg *config.Config) *tracker.Client {
+	return tracker.NewClient(tracker.Config{
+		Client:      client,
+		ResourceURL: cfg.ResourcesURL,
+		TrackingURL: cfg.TrackingURL,
+	})
 }
 
 func newTestServiceWithClient(t *testing.T, cfg *config.Config, client *tracker.Client) *Service {
@@ -364,6 +372,7 @@ func openTestDB(t *testing.T) *db.BadgerDB {
 
 func testConfig() *config.Config {
 	return &config.Config{
+		ResourcesURL:              "https://aki-gm-resources-oversea.aki-game.net",
 		TrackingURL:               "https://example.com",
 		StandardFiveStarResources: []int{9001},
 		GachaTypes: types.GachaTypes{

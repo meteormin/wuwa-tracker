@@ -45,6 +45,9 @@ func TestNewDefaultConfig(t *testing.T) {
 	if cfg.TrackingURL != DefaultTrackingURL {
 		t.Fatalf("TrackingURL = %q, want %q", cfg.TrackingURL, DefaultTrackingURL)
 	}
+	if cfg.ResourcesURL != DefaultResourcesURL {
+		t.Fatalf("ResourcesURL = %q, want %q", cfg.ResourcesURL, DefaultResourcesURL)
+	}
 	if !slices.Equal(cfg.StandardFiveStarResources, DefaultStandardFiveStarResources) {
 		t.Fatalf("StandardFiveStarResources = %v, want %v", cfg.StandardFiveStarResources, DefaultStandardFiveStarResources)
 	}

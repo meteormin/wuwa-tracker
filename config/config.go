@@ -15,7 +15,8 @@ const (
 	EnvVarDBPath      = "WUWA_TRACKER_DB_PATH"
 	EnvVarCORSOrigins = "WUWA_TRACKER_CORS_ORIGINS"
 
-	DefaultTrackingURL    = "https://aki-gm-resources-oversea.aki-game.net"
+	DefaultResourcesURL   = "https://aki-gm-resources-oversea.aki-game.net"
+	DefaultTrackingURL    = "https://gmserver-api.aki-game2.net"
 	DefaultServerHost     = "127.0.0.1"
 	DefaultServerPort     = "3000"
 	DefaultDBPath         = "data/wuwa_badger"
@@ -136,6 +137,7 @@ var (
 )
 
 type Config struct {
+	ResourcesURL              string                     `json:"resourcesURL"`
 	TrackingURL               string                     `json:"trackingURL"`
 	StandardFiveStarResources []int                      `json:"standardFiveStarResources"`
 	GachaTypes                types.GachaTypes           `json:"gachaTypes"`
@@ -157,6 +159,7 @@ type Config struct {
 
 func Default() *Config {
 	cfg := &Config{
+		ResourcesURL:              DefaultResourcesURL,
 		TrackingURL:               DefaultTrackingURL,
 		StandardFiveStarResources: slicesClone(DefaultStandardFiveStarResources),
 		GachaTypes: types.GachaTypes{

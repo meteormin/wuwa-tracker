@@ -85,7 +85,7 @@ func (s *Service) Scan(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return scanner.FindURLInDirectory(logPaths, s.cfg.TrackingURL)
+	return scanner.FindURLInDirectory(logPaths, s.cfg.ResourcesURL)
 }
 
 func (s *Service) TrackURL(targetURL string) (types.StatsResponse, error) {
