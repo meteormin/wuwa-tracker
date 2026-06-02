@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -19,22 +18,27 @@ import (
 var (
 	ErrMissingRequiredParams = errors.New("missing required parameters in url")
 	ErrInvalidGachaURL       = errors.New("invalid gacha url or unsupported domain")
-
-	// resourcesRegex 는 리소스 도메인을 API 도메인으로 매핑하기 위한 정규식입니다.
-	resourcesRegex = regexp.MustCompile(`aki-gm-resources(-oversea)?(?:-[a-zA-Z0-9]+)?\.aki-game\.(net|com)`)
 )
 
 type Client struct {
 	core *http.Client
 
-	baseURL string
+	resourceURL string
+	trackingURL string
+}
+
+type Config struct {
+	Client      *http.Client
+	ResourceURL string
+	TrackingURL string
 }
 
 // NewClient 는 Client 를 생성합니다.
-func NewClient(client *http.Client, baseURL string) *Client {
+func NewClient(config Config) *Client {
 	return &Client{
-		core:    client,
-		baseURL: baseURL,
+		core:        config.Client,
+		resourceURL: config.ResourceURL,
+		trackingURL: config.TrackingURL,
 	}
 }
 
@@ -79,7 +83,11 @@ func (c *Client) FetchRecords(payload types.Payload) ([]types.Record, error) {
 		return nil, err
 	}
 
-	endpoint, err := url.JoinPath(c.baseURL, "/gacha/record/query")
+	endpoint, err := url.JoinPath(c.trackingURL, "/gacha/record/query")
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
@@ -121,7 +129,7 @@ func (c *Client) FetchGachaLocale(lang string) (types.LocaleData, error) {
 		lang = "ko"
 	}
 
-	endpoint, err := url.JoinPath(c.baseURL, "/aki/gacha/locales", lang)
+	endpoint, err := url.JoinPath(c.resourceURL, "/aki/gacha/locales", lang)
 	if err != nil {
 		return types.LocaleData{}, err
 	}

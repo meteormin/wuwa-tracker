@@ -38,7 +38,7 @@ func run(cfg *config.Config, args []string) error {
 		return fmt.Errorf("failed to scan path: %w", err)
 	}
 
-	foundURL, err := scanner.FindURLInDirectory(fullLogPaths, cfg.TrackingURL)
+	foundURL, err := scanner.FindURLInDirectory(fullLogPaths, cfg.ResourcesURL)
 	if err != nil {
 		return fmt.Errorf("failed to scan URL: %w", err)
 	}

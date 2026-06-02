@@ -86,7 +86,7 @@ func runWithRuntime(cfg *config.Config, args []string, commandFactory func(*serv
 
 func newCLIRuntime(cfg *config.Config, args []string) (*cliRuntime, error) {
 	cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
-	client := newTrackerClient(cfg.TrackingURL, cfg.HTTPTimeout, extractBoolFlag(args, "v"))
+	client := newTrackerClient(cfg.ResourcesURL, cfg.TrackingURL, cfg.HTTPTimeout, extractBoolFlag(args, "v"))
 	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
@@ -114,18 +114,26 @@ func (r *cliRuntime) Close() error {
 	return r.db.Close()
 }
 
-func newTrackerClient(baseURL string, timeout time.Duration, verbose bool) *tracker.Client {
+func newTrackerClient(resourcesURL, trackingURL string, timeout time.Duration, verbose bool) *tracker.Client {
 	if verbose {
-		return tracker.NewClient(&http.Client{
-			Transport: &tracker.LoggingTransport{
-				Captured: http.DefaultTransport,
+		return tracker.NewClient(tracker.Config{
+			Client: &http.Client{
+				Transport: &tracker.LoggingTransport{
+					Captured: http.DefaultTransport,
+				},
+				Timeout: timeout,
 			},
-			Timeout: timeout,
-		}, baseURL)
+			ResourceURL: resourcesURL,
+			TrackingURL: trackingURL,
+		})
 	}
-	return tracker.NewClient(&http.Client{
-		Timeout: timeout,
-	}, baseURL)
+	return tracker.NewClient(tracker.Config{
+		Client: &http.Client{
+			Timeout: timeout,
+		},
+		ResourceURL: resourcesURL,
+		TrackingURL: trackingURL,
+	})
 }
 
 func extractStringFlag(args []string, name, fallback string) string {

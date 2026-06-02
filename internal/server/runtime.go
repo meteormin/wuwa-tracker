@@ -48,7 +48,11 @@ func (r *RuntimeService) Start(ctx context.Context) error {
 	}
 
 	httpClient := &http.Client{Timeout: r.cfg.HTTPTimeout}
-	client := tracker.NewClient(httpClient, r.cfg.TrackingURL)
+	client := tracker.NewClient(tracker.Config{
+		Client:      httpClient,
+		ResourceURL: r.cfg.ResourcesURL,
+		TrackingURL: r.cfg.TrackingURL,
+	})
 	localeData := tracker.LoadGachaLocaleWithFallback(client, r.cfg.Language)
 	r.cfg.GachaTypes.MapFromLocaleData(localeData)
 
