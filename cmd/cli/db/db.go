@@ -1,0 +1,111 @@
+package dbcmd
+
+import (
+	"flag"
+	"fmt"
+	"strings"
+
+	"github.com/meteormin/wuwa-tracker/config"
+	"github.com/meteormin/wuwa-tracker/internal/db"
+)
+
+func Runner(cfg *config.Config) func(args []string) error {
+	return func(args []string) error {
+		return run(cfg, args)
+	}
+}
+
+// run 은 db 관리 서브커맨드를 실행합니다.
+func run(cfg *config.Config, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("db subcommand is required. Use stats or gc")
+	}
+
+	switch args[0] {
+	case "stats":
+		return runStats(cfg, args[1:])
+	case "gc":
+		return runGC(cfg, args[1:])
+	default:
+		return fmt.Errorf("unknown db subcommand: %s", args[0])
+	}
+}
+
+func runStats(cfg *config.Config, args []string) error {
+	fs := flag.NewFlagSet("db stats", flag.ExitOnError)
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	stats, err := db.StatsFromPath(*dbPathFlag)
+	if err != nil {
+		return fmt.Errorf("failed to inspect database size: %w", err)
+	}
+
+	printStats("DB Stats", stats)
+	return nil
+}
+
+func runGC(cfg *config.Config, args []string) error {
+	fs := flag.NewFlagSet("db gc", flag.ExitOnError)
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	discardRatioFlag := fs.Float64("discard-ratio", cfg.DBGCDiscardRatio, "Badger value log discard ratio")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	badgerDB, err := db.NewBadgerDB(*dbPathFlag)
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+	defer func() {
+		_ = badgerDB.Close()
+	}()
+
+	before, err := badgerDB.Stats()
+	if err != nil {
+		return fmt.Errorf("failed to inspect database size before gc: %w", err)
+	}
+
+	if err := badgerDB.RunValueLogGC(*discardRatioFlag); err != nil {
+		return fmt.Errorf("failed to run value log gc: %w", err)
+	}
+
+	after, err := badgerDB.Stats()
+	if err != nil {
+		return fmt.Errorf("failed to inspect database size after gc: %w", err)
+	}
+
+	printStats("Before GC", before)
+	fmt.Println()
+	printStats("After GC", after)
+	return nil
+}
+
+func printStats(title string, stats db.Stats) {
+	fmt.Println(title)
+	fmt.Printf("Path: %s\n", stats.Path)
+	fmt.Printf("Files: %d\n", stats.FileCount)
+	fmt.Printf("Apparent Size: %s (%d bytes)\n", formatBytes(stats.ApparentSizeBytes), stats.ApparentSizeBytes)
+	fmt.Printf("Disk Usage: %s (%d bytes)\n", formatBytes(stats.DiskUsageBytes), stats.DiskUsageBytes)
+	fmt.Printf("VLog Files: %d\n", stats.VLogCount)
+	fmt.Printf("SST Files: %d\n", stats.SSTCount)
+	fmt.Printf("MemTable Files: %d\n", stats.MemTableCount)
+}
+
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+
+	value := float64(bytes)
+	for _, suffix := range []string{"KB", "MB", "GB", "TB"} {
+		value /= unit
+		if value < unit {
+			return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", value), "0"), ".") + " " + suffix
+		}
+	}
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", value), "0"), ".") + " PB"
+}
