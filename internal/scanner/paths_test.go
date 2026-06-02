@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/meteormin/wuwa-tracker/config"
 )
 
 // TestFindURLInDirectory_OSCases 는 Windows, macOS, Linux 각 OS별 가상 게임 루트 폴더를
@@ -66,7 +68,7 @@ func TestFindURLInDirectory_OSCases(t *testing.T) {
 			}
 
 			// 게임 루트 경로를 입력값으로 전달하여 스캔 실행
-			url, err := FindURLInDirectory(gameRoot)
+			url, err := FindURLInDirectoryWithPaths(gameRoot, config.DefaultScanLogPaths)
 			if err != nil {
 				t.Errorf("[%s] FindURLInDirectory(%q) 예상치 못한 에러: %v", tc.name, gameRoot, err)
 			}
@@ -87,7 +89,7 @@ func TestFindURLInDirectory_LogFileNotFound(t *testing.T) {
 		t.Fatalf("디렉터리 생성 실패: %v", err)
 	}
 
-	url, err := FindURLInDirectory(tmpDir)
+	url, err := FindURLInDirectoryWithPaths(tmpDir, config.DefaultScanLogPaths)
 
 	if err == nil {
 		t.Errorf("FindURLInDirectory() 에러가 발생해야 하나 nil 반환")
@@ -102,16 +104,36 @@ func TestFindURLInDirectory_LogFileNotFound(t *testing.T) {
 	}
 }
 
+func TestFindURLInDirectoryWithPathsUsesCustomPaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	mockURL := "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record_custom"
+	logFile := filepath.Join(tmpDir, "custom", "game.log")
+	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
+		t.Fatalf("디렉터리 생성 실패: %v", err)
+	}
+	if err := os.WriteFile(logFile, []byte(mockURL), 0o644); err != nil {
+		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
+	}
+
+	url, err := FindURLInDirectoryWithPaths(tmpDir, []string{filepath.Join("custom", "game.log")})
+	if err != nil {
+		t.Fatalf("FindURLInDirectoryWithPaths() 에러 = %v, 기대값 = nil", err)
+	}
+	if url != mockURL {
+		t.Fatalf("FindURLInDirectoryWithPaths() 결과 = %q, 기대값 = %q", url, mockURL)
+	}
+}
+
 func TestFindURLInDirectory_PathNotFound(t *testing.T) {
 	missingPath := filepath.Join(t.TempDir(), "missing")
 
-	url, err := FindURLInDirectory(missingPath)
+	url, err := FindURLInDirectoryWithPaths(missingPath, config.DefaultScanLogPaths)
 
 	if !errors.Is(err, ErrScanPathNotFound) {
-		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = ErrScanPathNotFound", err)
+		t.Errorf("FindURLInDirectoryWithPaths() 에러 = %v, 기대값 = ErrScanPathNotFound", err)
 	}
 	if url != "" {
-		t.Errorf("FindURLInDirectory() 결과 = %q, 기대값 = 빈 문자열", url)
+		t.Errorf("FindURLInDirectoryWithPaths() 결과 = %q, 기대값 = 빈 문자열", url)
 	}
 }
 
@@ -125,7 +147,7 @@ func TestFindURLInDirectory_URLNotFound(t *testing.T) {
 		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
 	}
 
-	url, err := FindURLInDirectory(tmpDir)
+	url, err := FindURLInDirectoryWithPaths(tmpDir, config.DefaultScanLogPaths)
 
 	if !errors.Is(err, ErrURLNotFound) {
 		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = ErrURLNotFound", err)
@@ -145,7 +167,7 @@ func TestFindURLInDirectory_DirectFile(t *testing.T) {
 		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
 	}
 
-	url, err := FindURLInDirectory(logFile)
+	url, err := FindURLInDirectoryWithPaths(logFile, config.DefaultScanLogPaths)
 	if err != nil {
 		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = nil", err)
 	}

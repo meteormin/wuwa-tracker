@@ -45,10 +45,7 @@ func main() {
 
 func run() error {
 	// 설정 로드 (서버 기동 시 최초 1회만 로드하여 메모리에 적재)
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+	cfg := config.Default()
 
 	// CLI 플래그 파싱 정의
 	hostFlag := flag.String("host", cfg.ServerHost, "Host address to listen on")

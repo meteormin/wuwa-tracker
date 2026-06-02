@@ -132,7 +132,7 @@ WebUI에서 가능한 작업:
 cmd/
   cli/       CLI 진입점과 scan/report/run 서브커맨드
   server/    Fiber 서버 진입점
-config/      임베디드 config.json 로더
+config/      기본 설정과 환경 변수 override
 internal/
   db/        BadgerDB 저장소와 기록 병합
   handler/   HTTP API 핸들러와 에러 응답
