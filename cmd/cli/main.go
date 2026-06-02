@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/meteormin/wuwa-tracker/cmd/cli/backup"
+	"github.com/meteormin/wuwa-tracker/cmd/cli/merge"
 	"github.com/meteormin/wuwa-tracker/cmd/cli/report"
 	"github.com/meteormin/wuwa-tracker/cmd/cli/scan"
 	"github.com/meteormin/wuwa-tracker/config"
@@ -40,6 +42,12 @@ func main() {
 		fmt.Println(buildTag)
 	case "scan":
 		err = scan.Runner(cfg.ScanLogPaths)(args)
+	case "backup":
+		cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
+		err = backup.Runner(cfg)(args)
+	case "merge":
+		cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
+		err = merge.Runner(cfg)(args)
 	case "report":
 		err = runWithRuntime(cfg, args, report.Runner)
 	case "run":
@@ -155,6 +163,8 @@ func printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  version Print build tag")
 	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
+	fmt.Println("  backup  Create a BadgerDB backup file")
+	fmt.Println("  merge   Merge records from a BadgerDB backup file")
 	fmt.Println("  report  Fetch gacha records and generate a report (use -url or -f)")
 	fmt.Println("  run     Run the entire flow (scan for URL, fetch data, and generate report)")
 	fmt.Println()

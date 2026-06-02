@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"reflect"
 	"sort"
 	"testing"
@@ -125,6 +126,73 @@ func TestBadgerDB_ListPlayers(t *testing.T) {
 	expected := []string{"player-1", "player-2"}
 	if !reflect.DeepEqual(players, expected) {
 		t.Fatalf("players mismatch\nexpected: %+v\nactual:   %+v", expected, players)
+	}
+}
+
+func TestBadgerDB_BackupAndMergeFromBackup(t *testing.T) {
+	source := openTestBadgerDB(t)
+	target := openTestBadgerDB(t)
+
+	sourceRecords := []types.Record{
+		testRecord(1001, "character", "Alpha", "2026-05-20 12:00:00"),
+		testRecord(1002, "character", "Beta", "2026-05-19 12:00:00"),
+	}
+	targetRecords := []types.Record{
+		testRecord(1002, "character", "Beta", "2026-05-19 12:00:00"),
+		testRecord(1003, "character", "Gamma", "2026-05-18 12:00:00"),
+	}
+	weaponRecords := []types.Record{
+		testRecord(2001, "weapon", "Blade", "2026-05-17 12:00:00"),
+	}
+
+	if err := source.SaveGachaRecords("player-1", "character", sourceRecords); err != nil {
+		t.Fatalf("source SaveGachaRecords returned error: %v", err)
+	}
+	if err := source.SaveGachaRecords("player-2", "weapon", weaponRecords); err != nil {
+		t.Fatalf("source SaveGachaRecords weapon returned error: %v", err)
+	}
+	if err := target.SaveGachaRecords("player-1", "character", targetRecords); err != nil {
+		t.Fatalf("target SaveGachaRecords returned error: %v", err)
+	}
+
+	var backup bytes.Buffer
+	if _, err := source.Backup(&backup); err != nil {
+		t.Fatalf("Backup returned error: %v", err)
+	}
+
+	result, err := target.MergeFromBackup(bytes.NewReader(backup.Bytes()))
+	if err != nil {
+		t.Fatalf("MergeFromBackup returned error: %v", err)
+	}
+	if result.Players != 2 {
+		t.Fatalf("expected 2 players, got %d", result.Players)
+	}
+	if result.Banners != 2 {
+		t.Fatalf("expected 2 banners, got %d", result.Banners)
+	}
+	if result.Records != 3 {
+		t.Fatalf("expected 3 imported records, got %d", result.Records)
+	}
+
+	gotCharacter, err := target.GetGachaRecords("player-1", "character")
+	if err != nil {
+		t.Fatalf("GetGachaRecords character returned error: %v", err)
+	}
+	expectedCharacter := []types.Record{
+		testRecord(1001, "character", "Alpha", "2026-05-20 12:00:00"),
+		testRecord(1002, "character", "Beta", "2026-05-19 12:00:00"),
+		testRecord(1003, "character", "Gamma", "2026-05-18 12:00:00"),
+	}
+	if !reflect.DeepEqual(gotCharacter, expectedCharacter) {
+		t.Fatalf("character records mismatch\nexpected: %+v\nactual:   %+v", expectedCharacter, gotCharacter)
+	}
+
+	gotWeapon, err := target.GetGachaRecords("player-2", "weapon")
+	if err != nil {
+		t.Fatalf("GetGachaRecords weapon returned error: %v", err)
+	}
+	if !reflect.DeepEqual(gotWeapon, weaponRecords) {
+		t.Fatalf("weapon records mismatch\nexpected: %+v\nactual:   %+v", weaponRecords, gotWeapon)
 	}
 }
 
