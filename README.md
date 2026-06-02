@@ -95,6 +95,15 @@ CLI는 서브커맨드 기반입니다.
 
 `run`은 URL이 없으면 경로에서 URL을 스캔한 뒤, 기록 조회, DB 병합 저장, 리포트 생성을 이어서 수행합니다.
 
+### DB 백업과 병합
+
+```bash
+./bin/wuwa-tracker backup -o wuwa-tracker.backup
+./bin/wuwa-tracker merge -f wuwa-tracker.backup
+```
+
+`backup`은 현재 BadgerDB를 단일 백업 파일로 내보냅니다. `merge`는 백업 파일을 임시 DB에 복원한 뒤 현재 DB의 기존 기록과 배너별로 병합합니다. 기본 DB 경로는 `data/wuwa_badger`이며, 두 명령 모두 `-dbpath`로 저장 경로를 바꿀 수 있습니다.
+
 ## WebUI 서버 사용법
 
 ```bash
