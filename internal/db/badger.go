@@ -36,6 +36,8 @@ type Stats struct {
 	Path              string
 	ApparentSizeBytes int64
 	DiskUsageBytes    int64
+	LSMSizeBytes      int64
+	VLogSizeBytes     int64
 	FileCount         int
 	VLogCount         int
 	SSTCount          int
@@ -90,7 +92,18 @@ func (b *BadgerDB) Backup(w io.Writer) (uint64, error) {
 
 // Stats 는 BadgerDB 디렉터리의 논리 크기와 실제 디스크 사용량을 집계합니다.
 func (b *BadgerDB) Stats() (Stats, error) {
-	return StatsFromPath(b.core.Opts().Dir)
+	stats, err := StatsFromPath(b.core.Opts().Dir)
+	if err != nil {
+		return Stats{}, err
+	}
+
+	lsmSize, vlogSize := b.core.Size()
+	stats.LSMSizeBytes = lsmSize
+	stats.VLogSizeBytes = vlogSize
+	if badgerSize := lsmSize + vlogSize; badgerSize > 0 {
+		stats.ApparentSizeBytes = badgerSize
+	}
+	return stats, nil
 }
 
 // StatsFromPath 는 지정된 경로의 파일 크기 통계를 재귀적으로 집계합니다.

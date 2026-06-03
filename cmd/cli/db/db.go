@@ -18,7 +18,7 @@ func Runner(cfg *config.Config) func(args []string) error {
 // run 은 db 관리 서브커맨드를 실행합니다.
 func run(cfg *config.Config, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("db subcommand is required. Use stats or gc")
+		return fmt.Errorf("missing db command\n\n%s", usage())
 	}
 
 	switch args[0] {
@@ -27,8 +27,20 @@ func run(cfg *config.Config, args []string) error {
 	case "gc":
 		return runGC(cfg, args[1:])
 	default:
-		return fmt.Errorf("unknown db subcommand: %s", args[0])
+		return fmt.Errorf("unknown db command: %s\n\n%s", args[0], usage())
 	}
+}
+
+func usage() string {
+	return strings.Join([]string{
+		"Usage: wuwa-tracker db <command> [arguments]",
+		"",
+		"Commands:",
+		"  stats  Inspect BadgerDB storage size",
+		"  gc     Run BadgerDB value log garbage collection",
+		"",
+		"Use 'wuwa-tracker db <command> -h' for more information about a command.",
+	}, "\n")
 }
 
 func runStats(cfg *config.Config, args []string) error {
@@ -38,7 +50,7 @@ func runStats(cfg *config.Config, args []string) error {
 		return err
 	}
 
-	stats, err := db.StatsFromPath(*dbPathFlag)
+	stats, err := statsFromDBPath(*dbPathFlag)
 	if err != nil {
 		return fmt.Errorf("failed to inspect database size: %w", err)
 	}
@@ -83,12 +95,26 @@ func runGC(cfg *config.Config, args []string) error {
 	return nil
 }
 
+func statsFromDBPath(path string) (db.Stats, error) {
+	badgerDB, err := db.NewBadgerDB(path)
+	if err == nil {
+		defer func() {
+			_ = badgerDB.Close()
+		}()
+		return badgerDB.Stats()
+	}
+
+	return db.StatsFromPath(path)
+}
+
 func printStats(title string, stats db.Stats) {
 	fmt.Println(title)
 	fmt.Printf("Path: %s\n", stats.Path)
 	fmt.Printf("Files: %d\n", stats.FileCount)
 	fmt.Printf("Apparent Size: %s (%d bytes)\n", formatBytes(stats.ApparentSizeBytes), stats.ApparentSizeBytes)
 	fmt.Printf("Disk Usage: %s (%d bytes)\n", formatBytes(stats.DiskUsageBytes), stats.DiskUsageBytes)
+	fmt.Printf("LSM Size: %s (%d bytes)\n", formatBytes(stats.LSMSizeBytes), stats.LSMSizeBytes)
+	fmt.Printf("VLog Size: %s (%d bytes)\n", formatBytes(stats.VLogSizeBytes), stats.VLogSizeBytes)
 	fmt.Printf("VLog Files: %d\n", stats.VLogCount)
 	fmt.Printf("SST Files: %d\n", stats.SSTCount)
 	fmt.Printf("MemTable Files: %d\n", stats.MemTableCount)
