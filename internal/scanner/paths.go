@@ -6,11 +6,17 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
 // ExpandLogPaths 는 입력 경로가 파일이면 그대로, 디렉터리면 상대 로그 경로들을 결합해 전체 경로 목록을 만듭니다.
 func ExpandLogPaths(path string, relativeLogPaths []string) ([]string, error) {
+	path = normalizeScanPath(path)
+	if path == "" {
+		return nil, ErrScanPathNotFound
+	}
+
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, normalizePathErr(err)
@@ -24,6 +30,15 @@ func ExpandLogPaths(path string, relativeLogPaths []string) ([]string, error) {
 		logPaths = append(logPaths, filepath.Join(path, relPath))
 	}
 	return logPaths, nil
+}
+
+func normalizeScanPath(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.Trim(path, `"'`)
+	if path == "" {
+		return ""
+	}
+	return filepath.Clean(path)
 }
 
 // FindURLInDirectory 는 전달받은 전체 로그 파일 경로 목록에서 URL을 추출합니다.
