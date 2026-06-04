@@ -90,19 +90,9 @@ func run() error {
 		AllowMethods: []string{"GET", "POST", "OPTIONS"},
 	}))
 
-	// 핸들러 인스턴스 생성
-	h := handler.NewHandler()
-
 	// API 라우팅 설정
 	api := app.Group("/api")
-	api.Post("/scan", h.Scan)
-	api.Post("/track", h.Track)
-	api.Get("/stats/:playerId", h.GetStats)
-	api.Get("/players", h.ListPlayers)
-	api.Post("/upload", h.Upload)
-	api.Get("/config", h.GetConfig)
-	api.Get("/i18n", h.GetI18n)
-	api.Get("/export/:playerId", h.ExportReport)
+	handler.RegisterRoutes(api)
 
 	// 빌드된 WebUI 정적 자원들을 Go embed 파일 시스템으로 내장 호스팅
 	app.Use("/", static.New("", static.Config{
