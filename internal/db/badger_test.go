@@ -221,6 +221,9 @@ func TestBadgerDB_Stats(t *testing.T) {
 	if stats.ApparentSizeBytes <= 0 {
 		t.Fatalf("ApparentSizeBytes = %d, want positive value", stats.ApparentSizeBytes)
 	}
+	if badgerSize := stats.LSMSizeBytes + stats.VLogSizeBytes; badgerSize > 0 && stats.ApparentSizeBytes != badgerSize {
+		t.Fatalf("ApparentSizeBytes = %d, want lsm+vlog %d", stats.ApparentSizeBytes, stats.LSMSizeBytes+stats.VLogSizeBytes)
+	}
 	if stats.DiskUsageBytes < 0 {
 		t.Fatalf("DiskUsageBytes = %d, want non-negative value", stats.DiskUsageBytes)
 	}
