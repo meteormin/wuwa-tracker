@@ -2,10 +2,11 @@ package tracker
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/goccy/go-json"
 
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )

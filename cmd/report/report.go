@@ -1,7 +1,6 @@
 package report
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	reporter "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"

@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/goccy/go-json"
 
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
