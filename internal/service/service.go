@@ -9,6 +9,7 @@ import (
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 	reporter "github.com/meteormin/wuwa-tracker/internal/reporter"
+	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
@@ -69,7 +70,7 @@ func (s *Service) Config() *config.Config {
 }
 
 func (s *Service) PrepareLocale(lang string) {
-	localeData := tracker.LoadGachaLocaleWithFallback(s.client, s.cfg.GachaLocaleEndpoint, lang)
+	localeData := tracker.LoadGachaLocaleWithFallback(s.client, lang)
 	s.cfg.GachaTypes.MapFromLocaleData(localeData)
 }
 
@@ -77,6 +78,14 @@ func (s *Service) UseGachaTypeKeysAsNames() {
 	for i := range s.cfg.GachaTypes.Items {
 		s.cfg.GachaTypes.Items[i].Name = s.cfg.GachaTypes.Items[i].Key
 	}
+}
+
+func (s *Service) Scan(path string) (string, error) {
+	logPaths, err := scanner.ExpandLogPaths(path, s.cfg.ScanLogPaths)
+	if err != nil {
+		return "", err
+	}
+	return scanner.FindURLInDirectory(logPaths, s.cfg.ResourcesURL)
 }
 
 func (s *Service) TrackURL(targetURL string) (types.StatsResponse, error) {
@@ -101,7 +110,7 @@ func (s *Service) FetchAndSave(targetURL string) (*types.FetchResult, error) {
 		return nil, ErrInvalidURL
 	}
 
-	fetchResult, err := s.client.FetchAllRecords(targetURL, s.cfg.GachaTypes.Items)
+	fetchResult, err := s.client.FetchAllRecords(payload, s.cfg.GachaTypes.Items)
 	if err != nil {
 		return nil, err
 	}

@@ -8,15 +8,7 @@ import (
 )
 
 func TestCalculateStats(t *testing.T) {
-	calc := NewStatsCalculator(types.StandardFiveStarResources{
-		Items: []types.StandardFiveStarResource{
-			{Name: "앙코", ResourceID: 1101},
-			{Name: "기염", ResourceID: 1102},
-			{Name: "이타샤", ResourceID: 1103},
-			{Name: "능양", ResourceID: 1104},
-			{Name: "음림", ResourceID: 1105},
-		},
-	}, types.CostPolicy{
+	calc := NewStatsCalculator([]int{1101, 1102, 1103, 1104, 1105}, types.CostPolicy{
 		AstritePerPull: 160,
 	})
 

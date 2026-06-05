@@ -1,6 +1,7 @@
 package config
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -29,13 +30,67 @@ func TestNewDefaultConfig(t *testing.T) {
 	if cfg.HTTPTimeout != DefaultHTTPTimeout {
 		t.Fatalf("HTTPTimeout = %s, want %s", cfg.HTTPTimeout, DefaultHTTPTimeout)
 	}
+	if cfg.DBGCEnabled != DefaultDBGCEnabled {
+		t.Fatalf("DBGCEnabled = %t, want %t", cfg.DBGCEnabled, DefaultDBGCEnabled)
+	}
+	if cfg.DBGCInterval != DefaultDBGCInterval {
+		t.Fatalf("DBGCInterval = %s, want %s", cfg.DBGCInterval, DefaultDBGCInterval)
+	}
+	if cfg.DBGCDiscardRatio != DefaultDBGCDiscard {
+		t.Fatalf("DBGCDiscardRatio = %f, want %f", cfg.DBGCDiscardRatio, DefaultDBGCDiscard)
+	}
 	if cfg.CostPolicy.AstritePerPull != DefaultAstritePerPull {
 		t.Fatalf("CostPolicy.AstritePerPull = %d, want %d", cfg.CostPolicy.AstritePerPull, DefaultAstritePerPull)
+	}
+	if cfg.TrackingURL != DefaultTrackingURL {
+		t.Fatalf("TrackingURL = %q, want %q", cfg.TrackingURL, DefaultTrackingURL)
+	}
+	if cfg.ResourcesURL != DefaultResourcesURL {
+		t.Fatalf("ResourcesURL = %q, want %q", cfg.ResourcesURL, DefaultResourcesURL)
+	}
+	if !slices.Equal(cfg.StandardFiveStarResources, DefaultStandardFiveStarResources) {
+		t.Fatalf("StandardFiveStarResources = %v, want %v", cfg.StandardFiveStarResources, DefaultStandardFiveStarResources)
+	}
+	if !reflect.DeepEqual(cfg.GachaTypes.Items, DefaultGachaTypes) {
+		t.Fatalf("GachaTypes.Items = %+v, want %+v", cfg.GachaTypes.Items, DefaultGachaTypes)
+	}
+	if !reflect.DeepEqual(cfg.LuckScoreThresholds, DefaultLuckScoreThresholds) {
+		t.Fatalf("LuckScoreThresholds = %+v, want %+v", cfg.LuckScoreThresholds, DefaultLuckScoreThresholds)
+	}
+	if !slices.Equal(cfg.ScanLogPaths, DefaultScanLogPaths) {
+		t.Fatalf("ScanLogPaths = %v, want %v", cfg.ScanLogPaths, DefaultScanLogPaths)
 	}
 
 	wantCORSOrigins := []string{DefaultCORSLocalhost, DefaultCORSLoopback, DefaultCORSIPv6}
 	if !slices.Equal(cfg.CORSOrigins, wantCORSOrigins) {
 		t.Fatalf("CORSOrigins = %v, want %v", cfg.CORSOrigins, wantCORSOrigins)
+	}
+}
+
+func TestDefaultConfigDoesNotShareSliceBackingArrays(t *testing.T) {
+	cfg := Default()
+
+	cfg.StandardFiveStarResources[0] = 9999
+	cfg.GachaTypes.Items[0].Key = "changed"
+	cfg.LuckScoreThresholds[0].State = "changed"
+	cfg.ScanLogPaths[0] = "changed"
+	cfg.CORSOrigins[0] = "changed"
+
+	next := Default()
+	if next.StandardFiveStarResources[0] == 9999 {
+		t.Fatal("StandardFiveStarResources shares backing array")
+	}
+	if next.GachaTypes.Items[0].Key == "changed" {
+		t.Fatal("GachaTypes shares backing array")
+	}
+	if next.LuckScoreThresholds[0].State == "changed" {
+		t.Fatal("LuckScoreThresholds shares backing array")
+	}
+	if next.ScanLogPaths[0] == "changed" {
+		t.Fatal("ScanLogPaths shares backing array")
+	}
+	if next.CORSOrigins[0] == "changed" {
+		t.Fatal("CORSOrigins shares backing array")
 	}
 }
 

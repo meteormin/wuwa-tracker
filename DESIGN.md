@@ -27,14 +27,14 @@ flowchart TD
     Tracker --> RemoteAPI["Kurogame Gacha API"]
     Tracker --> Locales["locales fallback"]
     Reporter --> Templates["templates/html/report.tmpl"]
-    Config["config/config.json"] --> CLI
+    Config["config/config.go defaults"] --> CLI
     Config --> API
     Config --> Reporter
 ```
 
 핵심 설계는 다음과 같습니다.
 
-- `config/config.json`은 가챠 배너 정의, 기대 소요, 상시 5성 리소스, 운 점수 임계값을 제공하며 `go:embed`로 바이너리에 포함됩니다.
+- `config/config.go`는 가챠 배너 정의, 기대 소요, 상시 5성 리소스, 운 점수 임계값 등 기본 설정을 코드 기반 기본값으로 제공합니다.
 - `locales` 패키지는 가챠 배너명 fallback 로케일과 WebUI/HTML 리포트용 UI 번역을 함께 embed합니다.
 - CLI는 `scan`, `report`, `run` 서브커맨드로 분리되어 있으며, `report`와 `run`은 BadgerDB에 기록을 병합 저장한 뒤 DB 기준 통계를 생성합니다.
 - 서버는 Go Fiber v3로 HTTP API와 임베디드 Svelte 정적 파일을 함께 제공합니다.
@@ -59,7 +59,7 @@ flowchart TD
 `cmd/server/main.go`는 다음 작업을 수행합니다.
 
 - `WUWA_TRACKER_HOST`, `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`, `WUWA_TRACKER_CORS_ORIGINS` 환경 변수와 `-host`, `-port`, `-dbpath` 플래그를 처리합니다.
-- `config.Load()`로 설정을 로드합니다.
+- `config.Default()`로 코드 기반 기본 설정을 로드합니다.
 - 원격 또는 로컬 fallback 로케일을 이용해 가챠 배너 이름을 매핑합니다.
 - BadgerDB와 tracker client, stats calculator를 생성한 뒤 service에 주입하고 Fiber 미들웨어(`recover`, `logger`, `cors`)와 API 라우트를 등록합니다.
 - `webui.FS`를 정적 파일 시스템으로 서빙합니다.

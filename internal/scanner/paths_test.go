@@ -4,7 +4,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/meteormin/wuwa-tracker/config"
 )
 
 // TestFindURLInDirectory_OSCases 는 Windows, macOS, Linux 각 OS별 가상 게임 루트 폴더를
@@ -65,8 +68,12 @@ func TestFindURLInDirectory_OSCases(t *testing.T) {
 				t.Fatalf("[%s] 모크 로그 파일 생성 실패: %v", tc.name, err)
 			}
 
-			// 게임 루트 경로를 입력값으로 전달하여 스캔 실행
-			url, err := FindURLInDirectory(gameRoot)
+			logPaths, err := ExpandLogPaths(gameRoot, config.DefaultScanLogPaths)
+			if err != nil {
+				t.Fatalf("[%s] ExpandLogPaths(%q) 예상치 못한 에러: %v", tc.name, gameRoot, err)
+			}
+
+			url, err := FindURLInDirectory(logPaths, trackingURLFromMock(mockURL))
 			if err != nil {
 				t.Errorf("[%s] FindURLInDirectory(%q) 예상치 못한 에러: %v", tc.name, gameRoot, err)
 			}
@@ -87,7 +94,12 @@ func TestFindURLInDirectory_LogFileNotFound(t *testing.T) {
 		t.Fatalf("디렉터리 생성 실패: %v", err)
 	}
 
-	url, err := FindURLInDirectory(tmpDir)
+	logPaths, err := ExpandLogPaths(tmpDir, config.DefaultScanLogPaths)
+	if err != nil {
+		t.Fatalf("ExpandLogPaths() 에러 = %v, 기대값 = nil", err)
+	}
+
+	url, err := FindURLInDirectory(logPaths, trackingURLFromMock("https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record"))
 
 	if err == nil {
 		t.Errorf("FindURLInDirectory() 에러가 발생해야 하나 nil 반환")
@@ -102,16 +114,155 @@ func TestFindURLInDirectory_LogFileNotFound(t *testing.T) {
 	}
 }
 
-func TestFindURLInDirectory_PathNotFound(t *testing.T) {
+func TestFindURLInDirectoryUsesFullPaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	mockURL := "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record_custom"
+	logFile := filepath.Join(tmpDir, "custom", "game.log")
+	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
+		t.Fatalf("디렉터리 생성 실패: %v", err)
+	}
+	if err := os.WriteFile(logFile, []byte(mockURL), 0o644); err != nil {
+		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
+	}
+
+	url, err := FindURLInDirectory([]string{logFile}, trackingURLFromMock(mockURL))
+	if err != nil {
+		t.Fatalf("FindURLInDirectory() 에러 = %v, 기대값 = nil", err)
+	}
+	if url != mockURL {
+		t.Fatalf("FindURLInDirectory() 결과 = %q, 기대값 = %q", url, mockURL)
+	}
+}
+
+func TestFindURLInDirectorySkipsDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+	mockURL := "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record_file"
+	logFile := filepath.Join(tmpDir, "Client.log")
+	if err := os.WriteFile(logFile, []byte(mockURL), 0o644); err != nil {
+		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
+	}
+
+	url, err := FindURLInDirectory([]string{tmpDir, logFile}, trackingURLFromMock(mockURL))
+	if err != nil {
+		t.Fatalf("FindURLInDirectory() 에러 = %v, 기대값 = nil", err)
+	}
+	if url != mockURL {
+		t.Fatalf("FindURLInDirectory() 결과 = %q, 기대값 = %q", url, mockURL)
+	}
+}
+
+func TestExpandLogPaths_PathNotFound(t *testing.T) {
 	missingPath := filepath.Join(t.TempDir(), "missing")
 
-	url, err := FindURLInDirectory(missingPath)
+	logPaths, err := ExpandLogPaths(missingPath, config.DefaultScanLogPaths)
 
 	if !errors.Is(err, ErrScanPathNotFound) {
-		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = ErrScanPathNotFound", err)
+		t.Errorf("ExpandLogPaths() 에러 = %v, 기대값 = ErrScanPathNotFound", err)
 	}
-	if url != "" {
-		t.Errorf("FindURLInDirectory() 결과 = %q, 기대값 = 빈 문자열", url)
+	if logPaths != nil {
+		t.Errorf("ExpandLogPaths() 결과 = %v, 기대값 = nil", logPaths)
+	}
+}
+
+func TestExpandLogPaths_BlankPath(t *testing.T) {
+	logPaths, err := ExpandLogPaths("  ", config.DefaultScanLogPaths)
+
+	if !errors.Is(err, ErrScanPathNotFound) {
+		t.Errorf("ExpandLogPaths() error = %v, want ErrScanPathNotFound", err)
+	}
+	if logPaths != nil {
+		t.Errorf("ExpandLogPaths() result = %v, want nil", logPaths)
+	}
+}
+
+func TestExpandLogPaths_NormalizesQuotedDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	gameRoot := filepath.Join(tmpDir, "Wuthering Waves Game")
+	logFile := filepath.Join(gameRoot, "Client", "Saved", "Logs", "Client.log")
+	mockURL := "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record_quoted_dir"
+
+	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
+		t.Fatalf("create log directory: %v", err)
+	}
+	if err := os.WriteFile(logFile, []byte(mockURL), 0o644); err != nil {
+		t.Fatalf("write log file: %v", err)
+	}
+
+	logPaths, err := ExpandLogPaths(`  "`+gameRoot+`"  `, config.DefaultScanLogPaths)
+	if err != nil {
+		t.Fatalf("ExpandLogPaths() error = %v, want nil", err)
+	}
+
+	url, err := FindURLInDirectory(logPaths, trackingURLFromMock(mockURL))
+	if err != nil {
+		t.Fatalf("FindURLInDirectory() error = %v, want nil", err)
+	}
+	if url != mockURL {
+		t.Fatalf("FindURLInDirectory() result = %q, want %q", url, mockURL)
+	}
+}
+
+func TestExpandLogPaths_NormalizesQuotedFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "specific log.log")
+	mockURL := "https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record_quoted_file"
+
+	if err := os.WriteFile(logFile, []byte(mockURL), 0o644); err != nil {
+		t.Fatalf("write log file: %v", err)
+	}
+
+	logPaths, err := ExpandLogPaths(`  '`+logFile+`'  `, config.DefaultScanLogPaths)
+	if err != nil {
+		t.Fatalf("ExpandLogPaths() error = %v, want nil", err)
+	}
+	if len(logPaths) != 1 || logPaths[0] != logFile {
+		t.Fatalf("ExpandLogPaths() result = %v, want [%q]", logPaths, logFile)
+	}
+
+	url, err := FindURLInDirectory(logPaths, trackingURLFromMock(mockURL))
+	if err != nil {
+		t.Fatalf("FindURLInDirectory() error = %v, want nil", err)
+	}
+	if url != mockURL {
+		t.Fatalf("FindURLInDirectory() result = %q, want %q", url, mockURL)
+	}
+}
+
+func TestNormalizeScanPathInput(t *testing.T) {
+	testCases := []struct {
+		name string
+		path string
+		want string
+	}{
+		{
+			name: "trims spaces",
+			path: "  " + filepath.Join("tmp", "game") + "  ",
+			want: filepath.Join("tmp", "game"),
+		},
+		{
+			name: "trims double quotes",
+			path: `"` + filepath.Join("tmp", "game path") + `"`,
+			want: filepath.Join("tmp", "game path"),
+		},
+		{
+			name: "trims single quotes",
+			path: `'` + filepath.Join("tmp", "game path") + `'`,
+			want: filepath.Join("tmp", "game path"),
+		},
+		{
+			name: "empty",
+			path: "  ",
+			want: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := normalizeScanPath(tc.path)
+			if got != tc.want {
+				t.Fatalf("normalizeScanPath(%q) = %q, want %q", tc.path, got, tc.want)
+			}
+		})
 	}
 }
 
@@ -125,7 +276,12 @@ func TestFindURLInDirectory_URLNotFound(t *testing.T) {
 		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
 	}
 
-	url, err := FindURLInDirectory(tmpDir)
+	logPaths, err := ExpandLogPaths(tmpDir, config.DefaultScanLogPaths)
+	if err != nil {
+		t.Fatalf("ExpandLogPaths() 에러 = %v, 기대값 = nil", err)
+	}
+
+	url, err := FindURLInDirectory(logPaths, trackingURLFromMock("https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record"))
 
 	if !errors.Is(err, ErrURLNotFound) {
 		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = ErrURLNotFound", err)
@@ -145,7 +301,12 @@ func TestFindURLInDirectory_DirectFile(t *testing.T) {
 		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
 	}
 
-	url, err := FindURLInDirectory(logFile)
+	logPaths, err := ExpandLogPaths(logFile, config.DefaultScanLogPaths)
+	if err != nil {
+		t.Fatalf("ExpandLogPaths() 에러 = %v, 기대값 = nil", err)
+	}
+
+	url, err := FindURLInDirectory(logPaths, trackingURLFromMock(mockURL))
 	if err != nil {
 		t.Errorf("FindURLInDirectory() 에러 = %v, 기대값 = nil", err)
 	}
@@ -169,7 +330,7 @@ func TestScanLogFile_ValidURL(t *testing.T) {
 		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
 	}
 
-	url, err := ScanLogFile(logFile)
+	url, err := ScanLogFile(logFile, trackingURLFromMock(mockURL))
 	if err != nil {
 		t.Fatalf("ScanLogFile() 에러 = %v", err)
 	}
@@ -191,8 +352,12 @@ func TestScanLogFile_NoURL(t *testing.T) {
 		t.Fatalf("임시 로그 파일 작성 실패: %v", err)
 	}
 
-	_, err := ScanLogFile(logFile)
+	_, err := ScanLogFile(logFile, trackingURLFromMock("https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record"))
 	if !errors.Is(err, ErrURLNotFound) {
 		t.Errorf("ScanLogFile() 에러 = %v, 기대값 = ErrURLNotFound", err)
 	}
+}
+
+func trackingURLFromMock(mockURL string) string {
+	return strings.Split(mockURL, "/aki/gacha/index.html")[0]
 }
