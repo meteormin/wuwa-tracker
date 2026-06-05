@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"testing"
@@ -64,6 +66,21 @@ func TestNewDefaultConfig(t *testing.T) {
 	wantCORSOrigins := []string{DefaultCORSLocalhost, DefaultCORSLoopback, DefaultCORSIPv6}
 	if !slices.Equal(cfg.CORSOrigins, wantCORSOrigins) {
 		t.Fatalf("CORSOrigins = %v, want %v", cfg.CORSOrigins, wantCORSOrigins)
+	}
+}
+
+func TestDefaultDBPathUsesHomeDir(t *testing.T) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil || homeDir == "" {
+		t.Skipf("user home directory unavailable: %v", err)
+	}
+
+	want := filepath.Join(homeDir, DefaultAppDirName, DefaultDBDirName)
+	if DefaultDBPath != want {
+		t.Fatalf("DefaultDBPath = %q, want %q", DefaultDBPath, want)
+	}
+	if cfg := Default(); cfg.DBPath != want {
+		t.Fatalf("Default().DBPath = %q, want %q", cfg.DBPath, want)
 	}
 }
 
