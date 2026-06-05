@@ -1,8 +1,9 @@
 package report
 
 import (
-	"encoding/json"
 	"io"
+
+	"github.com/goccy/go-json"
 
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )

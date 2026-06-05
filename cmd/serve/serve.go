@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/goccy/go-json"
+
 	"github.com/gofiber/fiber/v3/log"
 
 	"github.com/gofiber/fiber/v3"
@@ -63,8 +65,10 @@ func run(cfg *config.Config, buildTag string, args []string) error {
 	// Fiber v3 애플리케이션 생성
 	runtime := server.NewRuntimeService(cfg)
 	app := fiber.New(fiber.Config{
-		AppName:  appName,
-		Services: []fiber.Service{runtime},
+		AppName:     appName,
+		Services:    []fiber.Service{runtime},
+		JSONEncoder: json.Marshal,
+		JSONDecoder: json.Unmarshal,
 	})
 	defer func() {
 		_ = runtime.Terminate(context.Background())

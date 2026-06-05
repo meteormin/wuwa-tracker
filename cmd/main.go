@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/meteormin/wuwa-tracker/cmd/backup"
 	dbcmd "github.com/meteormin/wuwa-tracker/cmd/db"

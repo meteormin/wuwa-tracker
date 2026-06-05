@@ -4,6 +4,7 @@ go 1.26.4
 
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
+	github.com/goccy/go-json v0.10.6
 	github.com/gofiber/fiber/v3 v3.2.0
 )
 

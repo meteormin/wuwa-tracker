@@ -2,7 +2,8 @@ package locales
 
 import (
 	"embed"
-	"encoding/json"
+
+	"github.com/goccy/go-json"
 
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
