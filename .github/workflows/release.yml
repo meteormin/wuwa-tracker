@@ -81,12 +81,10 @@ jobs:
 
           if [ "${{ matrix.goos }}" = "windows" ]; then
             mv bin/wuwa-tracker "dist/${TARGET}/wuwa-tracker.exe"
-            mv bin/wuwa-tracker-server "dist/${TARGET}/wuwa-tracker-server.exe"
             cd dist
             zip -r "${TARGET}.zip" "${TARGET}"
           else
             mv bin/wuwa-tracker "dist/${TARGET}/wuwa-tracker"
-            mv bin/wuwa-tracker-server "dist/${TARGET}/wuwa-tracker-server"
             cd dist
             tar -czf "${TARGET}.tar.gz" "${TARGET}"
           fi
