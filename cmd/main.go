@@ -11,11 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meteormin/wuwa-tracker/cmd/cli/backup"
-	dbcmd "github.com/meteormin/wuwa-tracker/cmd/cli/db"
-	"github.com/meteormin/wuwa-tracker/cmd/cli/merge"
-	"github.com/meteormin/wuwa-tracker/cmd/cli/report"
-	"github.com/meteormin/wuwa-tracker/cmd/cli/scan"
+	"github.com/meteormin/wuwa-tracker/cmd/backup"
+	dbcmd "github.com/meteormin/wuwa-tracker/cmd/db"
+	"github.com/meteormin/wuwa-tracker/cmd/merge"
+	"github.com/meteormin/wuwa-tracker/cmd/report"
+	"github.com/meteormin/wuwa-tracker/cmd/scan"
+	"github.com/meteormin/wuwa-tracker/cmd/serve"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 	rep "github.com/meteormin/wuwa-tracker/internal/reporter"
@@ -27,39 +28,41 @@ import (
 var buildTag = "dev"
 
 func main() {
-	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
-	}
-
-	cmd := os.Args[1]
-	args := os.Args[2:]
 	cfg := config.Default()
+	args := os.Args[1:]
 
 	var err error
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		err = serve.Runner(cfg, buildTag)(args)
+	} else {
+		cmd := args[0]
+		cmdArgs := args[1:]
 
-	switch cmd {
-	case "version":
-		fmt.Println(buildTag)
-	case "scan":
-		err = scan.Runner(cfg)(args)
-	case "backup":
-		cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
-		err = backup.Runner(cfg)(args)
-	case "merge":
-		cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
-		err = merge.Runner(cfg)(args)
-	case "db":
-		cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
-		err = dbcmd.Runner(cfg)(args)
-	case "report":
-		err = runWithRuntime(cfg, args, report.Runner)
-	case "run":
-		err = runWithRuntime(cfg, args, runAllRunner)
-	default:
-		fmt.Printf("unknown command: %s\n\n", cmd)
-		printUsage()
-		os.Exit(1)
+		switch cmd {
+		case "version":
+			fmt.Println(buildTag)
+		case "serve":
+			err = serve.Runner(cfg, buildTag)(cmdArgs)
+		case "scan":
+			err = scan.Runner(cfg)(cmdArgs)
+		case "backup":
+			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
+			err = backup.Runner(cfg)(cmdArgs)
+		case "merge":
+			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
+			err = merge.Runner(cfg)(cmdArgs)
+		case "db":
+			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
+			err = dbcmd.Runner(cfg)(cmdArgs)
+		case "report":
+			err = runWithRuntime(cfg, cmdArgs, report.Runner)
+		case "run":
+			err = runWithRuntime(cfg, cmdArgs, runAllRunner)
+		default:
+			fmt.Printf("unknown command: %s\n\n", cmd)
+			printUsage()
+			os.Exit(1)
+		}
 	}
 
 	if err != nil {
@@ -170,9 +173,10 @@ func extractBoolFlag(args []string, name string) bool {
 
 // printUsage 는 CLI 도구의 사용법을 콘솔에 출력합니다.
 func printUsage() {
-	fmt.Println("Usage: wuwa-tracker <command> [arguments]")
+	fmt.Println("Usage: wuwa-tracker [command] [arguments]")
 	fmt.Println()
 	fmt.Println("Commands:")
+	fmt.Println("  serve   Run the HTTP server (default)")
 	fmt.Println("  version Print build tag")
 	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
 	fmt.Println("  backup  Create a BadgerDB backup file")

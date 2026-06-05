@@ -129,7 +129,7 @@ func (c *Client) FetchGachaLocale(lang string) (types.LocaleData, error) {
 		lang = "ko"
 	}
 
-	endpoint, err := url.JoinPath(c.resourceURL, "/aki/gacha/locales", lang)
+	endpoint, err := url.JoinPath(c.resourceURL, "/aki/gacha/locales", lang+".json")
 	if err != nil {
 		return types.LocaleData{}, err
 	}
