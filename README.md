@@ -2,10 +2,9 @@
 
 Wuthering Waves(명조) 튜닝 기록 URL을 수집하고, 배너별 가챠 기록을 분석해 천장 스택, 5성 획득 이력, 평균 소요, 운 점수(Luck Score)를 보여주는 로컬 트래커입니다.
 
-프로젝트는 두 실행 파일을 제공합니다.
+프로젝트는 단일 실행 파일을 제공합니다.
 
-- `wuwa-tracker`: 로그 스캔, 온라인/오프라인 리포트 생성용 CLI
-- `wuwa-tracker-server`: Svelte WebUI와 Go Fiber API를 포함한 로컬 웹 서버
+- `wuwa-tracker`: 기본 실행 시 Svelte WebUI와 Go Fiber API를 포함한 로컬 웹 서버를 실행하며, 서브커맨드로 로그 스캔, 백업 병합, DB 관리, 리포트 생성을 제공합니다.
 
 ## 주요 기능
 
@@ -28,17 +27,15 @@ Go 빌드 캐시, Go 모듈 캐시, Yarn 캐시는 기본적으로 프로젝트 
 ## 빌드와 검증
 
 ```bash
-make build-all      # WebUI, CLI, 서버 전체 빌드
-make build-cli      # bin/wuwa-tracker 생성
-make build-server   # WebUI 빌드 후 bin/wuwa-tracker-server 생성
-make build-all COMMIT_HASH=$(git rev-parse --short HEAD)
+make build          # WebUI 빌드 후 bin/wuwa-tracker 생성
+make build COMMIT_HASH=$(git rev-parse --short HEAD)
 make test           # Go 테스트
 make lint           # golangci-lint 실행
 make audit          # go mod verify, go vet, govulncheck 실행
 make clean          # bin, Go/Yarn 캐시, webui/node_modules, webui/dist 제거
 ```
 
-빌드 산출물에는 기본적으로 `YYYYMMDD` 형식의 빌드 태그가 주입됩니다. `COMMIT_HASH`를 지정하면 `YYYYMMDD-<hash>` 형식으로 주입되며, CLI는 `./bin/wuwa-tracker version`, 서버는 실행 시 출력되는 배너에서 확인할 수 있습니다.
+빌드 산출물에는 기본적으로 `YYYYMMDD` 형식의 빌드 태그가 주입됩니다. `COMMIT_HASH`를 지정하면 `YYYYMMDD-<hash>` 형식으로 주입되며, `./bin/wuwa-tracker version` 또는 서버 실행 시 출력되는 배너에서 확인할 수 있습니다.
 
 WebUI만 개발할 때는 `webui` 디렉터리에서 실행합니다.
 
@@ -51,9 +48,17 @@ yarn check
 
 Vite 개발 서버는 API 호출을 `http://localhost:3000`의 Go 서버로 보냅니다.
 
-## CLI 사용법
+## 사용법
 
-CLI는 서브커맨드 기반입니다.
+기본 명령은 서버 실행입니다.
+
+```bash
+./bin/wuwa-tracker
+./bin/wuwa-tracker -host 0.0.0.0 -port 3000
+./bin/wuwa-tracker serve -host 0.0.0.0 -port 3000
+```
+
+그 외 기능은 서브커맨드 기반입니다.
 
 ```bash
 ./bin/wuwa-tracker <command> [arguments]
@@ -107,9 +112,10 @@ CLI는 서브커맨드 기반입니다.
 ## WebUI 서버 사용법
 
 ```bash
-./bin/wuwa-tracker-server
-./bin/wuwa-tracker-server -host 127.0.0.1 -port 9090 -dbpath "./data/wuwa_badger"
-WUWA_TRACKER_HOST=127.0.0.1 WUWA_TRACKER_PORT=9090 WUWA_TRACKER_DB_PATH="./data/wuwa_badger" ./bin/wuwa-tracker-server
+./bin/wuwa-tracker
+./bin/wuwa-tracker -host 127.0.0.1 -port 9090 -dbpath "./data/wuwa_badger"
+./bin/wuwa-tracker serve -host 127.0.0.1 -port 9090 -dbpath "./data/wuwa_badger"
+WUWA_TRACKER_HOST=127.0.0.1 WUWA_TRACKER_PORT=9090 WUWA_TRACKER_DB_PATH="./data/wuwa_badger" ./bin/wuwa-tracker
 ```
 
 환경 변수 `WUWA_TRACKER_HOST`, `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`도 기본값으로 사용할 수 있습니다. CLI 플래그 `-host`, `-port`, `-dbpath`를 함께 지정하면 플래그 값이 우선합니다. 서버는 기본적으로 `127.0.0.1:3000`에서만 수신하며, 개발용 CORS 허용 origin은 `WUWA_TRACKER_CORS_ORIGINS`에 쉼표로 구분해 지정할 수 있습니다.

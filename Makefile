@@ -1,10 +1,9 @@
-.PHONY: all build-cli build-server build-webui build clean distclean test lint fmt run run-cli run-server audit
+.PHONY: all build build-webui clean distclean test lint fmt run run-cli run-server audit
 
 APP_NAME=wuwa-tracker
 BIN_DIR=bin
 CACHE_DIR=.cache
-CLI_DIR=./cmd/cli
-SERVER_DIR=./cmd/server
+CMD_DIR=./cmd
 WEBUI_DIR=webui
 GO_BUILD_CACHE_DIR=$(CACHE_DIR)/go-build
 GO_MOD_CACHE_DIR=$(CACHE_DIR)/go-mod
@@ -37,24 +36,16 @@ audit: build-webui
 	@GOTOOLCHAIN=$(GOVERSION) go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 	@echo "Complete audit!"
 
-build-cli:
-	@echo "Building CLI ($(APP_NAME))..."
+build: build-webui
+	@echo "Building $(APP_NAME)..."
 	@mkdir -p $(BIN_DIR)
-	@go build $(GO_BUILD_FLAGS) -ldflags "$(LD_FLAGS)" -o $(BIN_DIR)/$(APP_NAME) $(CLI_DIR)
-	@echo "CLI Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)"
-
-build-server:
-	@echo "Building Server ($(APP_NAME)-server)..."
-	@mkdir -p $(BIN_DIR)
-	@go build $(GO_BUILD_FLAGS) -ldflags "$(LD_FLAGS)" -o $(BIN_DIR)/$(APP_NAME)-server $(SERVER_DIR)
-	@echo "Server Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)-server"
+	@go build $(GO_BUILD_FLAGS) -ldflags "$(LD_FLAGS)" -o $(BIN_DIR)/$(APP_NAME) $(CMD_DIR)
+	@echo "Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)"
 
 build-webui:
 	@echo "Building WebUI..."
 	@cd $(WEBUI_DIR) && yarn install && yarn run build
 	@echo "WebUI Build successful!"
-
-build: build-webui build-cli build-server
 
 clean:
 	@echo "Cleaning up..."
@@ -82,12 +73,12 @@ fmt:
 	@echo "Formatting code..."
 	@gofmt -w $(GO_FILES)
 
-run: run-cli
-
-run-cli: build-cli
-	@echo "Running CLI..."
+run: build
+	@echo "Running $(APP_NAME)..."
 	@./$(BIN_DIR)/$(APP_NAME)
 
-run-server: build-server
+run-cli: run
+
+run-server: build
 	@echo "Running Server..."
-	@./$(BIN_DIR)/$(APP_NAME)-server
+	@./$(BIN_DIR)/$(APP_NAME)

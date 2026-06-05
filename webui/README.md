@@ -14,8 +14,8 @@ yarn build
 Vite 개발 서버에서 실행할 때 API 요청과 i18n 로딩은 `http://localhost:3000`으로 전달됩니다. 따라서 개발 중에는 Go 서버도 함께 실행해야 실제 데이터를 조회할 수 있습니다.
 
 ```bash
-make build-server
-./bin/wuwa-tracker-server
+make build
+./bin/wuwa-tracker
 ```
 
 ## 주요 구성

@@ -5,7 +5,7 @@
 - Updated Date: 2026-05-27
 - 기준 커밋: `c767fe0`
 - Source of Truth: 실제 구현 코드
-- 주요 근거 파일: `cmd/cli/main.go`, `cmd/server/main.go`, `internal/handler/handler.go`, `internal/service/service.go`, `internal/tracker/stats.go`, `internal/db/badger.go`, `webui/src/App.svelte`
+- 주요 근거 파일: `cmd/main.go`, `cmd/serve/serve.go`, `internal/handler/handler.go`, `internal/service/service.go`, `internal/tracker/stats.go`, `internal/db/badger.go`, `webui/src/App.svelte`
 
 ## Architecture Overview
 
@@ -13,13 +13,13 @@ Wuwa Tracker는 Go 기반 CLI/서버와 Svelte WebUI로 구성된 로컬 우선(
 
 ```mermaid
 flowchart TD
-    User["User"] --> CLI["cmd/cli"]
+    User["User"] --> CLI["cmd"]
     User --> UI["webui Svelte"]
     CLI --> Scanner["internal/scanner"]
     CLI --> Tracker["internal/tracker"]
     CLI --> Service["internal/service"]
     CLI --> Reporter["internal/reporter"]
-    UI --> API["cmd/server + internal/handler"]
+    UI --> API["cmd/serve + internal/handler"]
     API --> Service
     Service --> Tracker
     Service --> DB["internal/db BadgerDB"]
@@ -36,7 +36,7 @@ flowchart TD
 
 - `config/config.go`는 가챠 배너 정의, 기대 소요, 상시 5성 리소스, 운 점수 임계값 등 기본 설정을 코드 기반 기본값으로 제공합니다.
 - `locales` 패키지는 가챠 배너명 fallback 로케일과 WebUI/HTML 리포트용 UI 번역을 함께 embed합니다.
-- CLI는 `scan`, `report`, `run` 서브커맨드로 분리되어 있으며, `report`와 `run`은 BadgerDB에 기록을 병합 저장한 뒤 DB 기준 통계를 생성합니다.
+- 단일 바이너리는 기본 실행 시 서버를 구동하고, `scan`, `report`, `run` 등 서브커맨드도 함께 제공합니다.
 - 서버는 Go Fiber v3로 HTTP API와 임베디드 Svelte 정적 파일을 함께 제공합니다.
 - `internal/service`는 DB, 설정, tracker client, stats calculator를 외부에서 주입받아 CLI와 handler가 공유하는 유스케이스를 제공합니다.
 - 서버 저장소는 BadgerDB이며, 플레이어 ID와 배너 key를 조합한 `gacha:<playerId>:<cardPoolType>` key에 기록 배열을 저장합니다.
@@ -44,19 +44,20 @@ flowchart TD
 
 ## Component Details
 
-### CLI
+### Command
 
-`cmd/cli/main.go`는 서브커맨드 라우터입니다.
+`cmd/main.go`는 단일 바이너리 엔트리포인트입니다. 인자가 없거나 첫 인자가 플래그이면 기본 서버를 실행하고, 그 외에는 서브커맨드로 분기합니다.
 
-- `scan`: `cmd/cli/scan/scan.go`에서 게임 로그 경로를 받아 URL을 추출합니다.
-- `report`: `cmd/cli/report/report.go`에서 URL 기반 온라인 모드 또는 JSON 파일 기반 오프라인 모드로 DB에 기록을 병합 저장하고 리포트를 생성합니다.
-- `run`: `cmd/cli/main.go`의 `runAll`에서 URL 스캔, API 조회, DB 병합 저장, 리포트 생성을 한 번에 수행합니다.
+- `serve`: `cmd/serve/serve.go`에서 HTTP 서버와 임베디드 WebUI를 실행합니다.
+- `scan`: `cmd/scan/scan.go`에서 게임 로그 경로를 받아 URL을 추출합니다.
+- `report`: `cmd/report/report.go`에서 URL 기반 온라인 모드 또는 JSON 파일 기반 오프라인 모드로 DB에 기록을 병합 저장하고 리포트를 생성합니다.
+- `run`: `cmd/main.go`의 `runAll`에서 URL 스캔, API 조회, DB 병합 저장, 리포트 생성을 한 번에 수행합니다.
 
-현재 CLI는 루트 플래그 방식이 아니라 `wuwa-tracker <command> [arguments]` 방식입니다.
+기본 서버 실행은 `wuwa-tracker`, 명시적 서버 실행은 `wuwa-tracker serve [arguments]`, 그 외 기능은 `wuwa-tracker <command> [arguments]` 방식입니다.
 
 ### Server API
 
-`cmd/server/main.go`는 다음 작업을 수행합니다.
+`cmd/serve/serve.go`는 다음 작업을 수행합니다.
 
 - `WUWA_TRACKER_HOST`, `WUWA_TRACKER_PORT`, `WUWA_TRACKER_DB_PATH`, `WUWA_TRACKER_CORS_ORIGINS` 환경 변수와 `-host`, `-port`, `-dbpath` 플래그를 처리합니다.
 - `config.Default()`로 코드 기반 기본 설정을 로드합니다.

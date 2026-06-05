@@ -1,4 +1,4 @@
-package main
+package serve
 
 import (
 	"context"
@@ -22,36 +22,33 @@ import (
 	"github.com/meteormin/wuwa-tracker/webui"
 )
 
-const banner = `
+const (
+	appName = "wuwa-tracker"
+	banner  = `
 
 wuwa-tracker %s
 
 `
-
-var (
-	appName  = "wuwa-tracker"
-	buildTag = "dev"
 )
 
-func main() {
-	if err := run(); err != nil {
-		log.Errorf("Server error: %v", err)
-		os.Exit(1)
+func Runner(cfg *config.Config, buildTag string) func(args []string) error {
+	return func(args []string) error {
+		return run(cfg, buildTag, args)
 	}
 }
 
-func run() error {
-	// 설정 로드 (서버 기동 시 최초 1회만 로드하여 메모리에 적재)
-	cfg := config.Default()
-
-	// CLI 플래그 파싱 정의
-	hostFlag := flag.String("host", cfg.ServerHost, "Host address to listen on")
-	portFlag := flag.String("port", cfg.ServerPort, "Port to listen on")
-	dbPathFlag := flag.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
-	dbGCEnabledFlag := flag.Bool("db-gc", cfg.DBGCEnabled, "Enable periodic Badger value log GC")
-	dbGCIntervalFlag := flag.Duration("db-gc-interval", cfg.DBGCInterval, "Badger value log GC interval")
-	dbGCDiscardRatioFlag := flag.Float64("db-gc-discard-ratio", cfg.DBGCDiscardRatio, "Badger value log GC discard ratio")
-	flag.Parse()
+// run 은 HTTP 서버를 실행합니다.
+func run(cfg *config.Config, buildTag string, args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	hostFlag := fs.String("host", cfg.ServerHost, "Host address to listen on")
+	portFlag := fs.String("port", cfg.ServerPort, "Port to listen on")
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	dbGCEnabledFlag := fs.Bool("db-gc", cfg.DBGCEnabled, "Enable periodic Badger value log GC")
+	dbGCIntervalFlag := fs.Duration("db-gc-interval", cfg.DBGCInterval, "Badger value log GC interval")
+	dbGCDiscardRatioFlag := fs.Float64("db-gc-discard-ratio", cfg.DBGCDiscardRatio, "Badger value log GC discard ratio")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 
 	cfg.ServerHost = *hostFlag
 	cfg.ServerPort = *portFlag
