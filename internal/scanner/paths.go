@@ -6,37 +6,43 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
-// LogPaths 는 게임 루트 폴더를 기준으로 로그 파일이 존재하는 상대 경로들입니다.
-var LogPaths = []string{
-	// Windows standard
-	filepath.Join("Client", "Saved", "Logs", "Client.log"),
-	filepath.Join("Client", "Binaries", "Win64", "ThirdParty", "KrPcSdk_Global", "KRSDKRes", "KRSDKWebView", "debug.log"),
-	// Mac App Container (com.kurogame.wutheringwaves.global)
-	filepath.Join("Data", "Library", "Logs", "Client", "Client.log"),
-	// Direct sub-directory fallback (e.g. if user path is already Logs dir)
-	filepath.Join("Client", "Client.log"),
-	"Client.log",
-}
+// ExpandLogPaths 는 입력 경로가 파일이면 그대로, 디렉터리면 상대 로그 경로들을 결합해 전체 경로 목록을 만듭니다.
+func ExpandLogPaths(path string, relativeLogPaths []string) ([]string, error) {
+	path = normalizeScanPath(path)
+	if path == "" {
+		return nil, ErrScanPathNotFound
+	}
 
-// FindURLInDirectory 는 주어진 경로 내에서 로그 파일들을 탐색하고 URL을 추출합니다.
-// 경로가 이미 파일인 경우 해당 파일을 직접 스캔합니다.
-func FindURLInDirectory(gameRoot string) (string, error) {
-	// 입력받은 경로가 디렉터리가 아니라면(즉, 파일이라면) 직접 스캔
-	info, err := os.Stat(gameRoot)
+	info, err := os.Stat(path)
 	if err != nil {
-		return "", normalizePathErr(err)
+		return nil, normalizePathErr(err)
 	}
 	if !info.IsDir() {
-		url, err := ScanLogFile(gameRoot)
-		if err != nil {
-			return "", normalizePathErr(err)
-		}
-		return url, nil
+		return []string{path}, nil
 	}
 
+	logPaths := make([]string, 0, len(relativeLogPaths))
+	for _, relPath := range relativeLogPaths {
+		logPaths = append(logPaths, filepath.Join(path, relPath))
+	}
+	return logPaths, nil
+}
+
+func normalizeScanPath(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.Trim(path, `"'`)
+	if path == "" {
+		return ""
+	}
+	return filepath.Clean(path)
+}
+
+// FindURLInDirectory 는 전달받은 전체 로그 파일 경로 목록에서 URL을 추출합니다.
+func FindURLInDirectory(logPaths []string, targetURL string) (string, error) {
 	type logFileItem struct {
 		path    string
 		modTime time.Time
@@ -44,9 +50,8 @@ func FindURLInDirectory(gameRoot string) (string, error) {
 
 	var files []logFileItem
 	var lastPathErr error
-	for _, relPath := range LogPaths {
-		logFilePath := filepath.Join(gameRoot, relPath)
-		info, err := os.Stat(logFilePath)
+	for _, logPath := range logPaths {
+		info, err := os.Stat(logPath)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				lastPathErr = normalizePathErr(err)
@@ -57,7 +62,7 @@ func FindURLInDirectory(gameRoot string) (string, error) {
 			continue
 		}
 		files = append(files, logFileItem{
-			path:    logFilePath,
+			path:    logPath,
 			modTime: info.ModTime(),
 		})
 	}
@@ -69,14 +74,14 @@ func FindURLInDirectory(gameRoot string) (string, error) {
 		return "", ErrLogFileNotFound
 	}
 
-	// 파일 수정 시간 기준으로 내림차순 정렬 (가장 최근에 수정된 파일이 앞에 오도록 함)
+	// 파일 수정 시간 기준으로 내림차순 정렬합니다.
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].modTime.After(files[j].modTime)
 	})
 
 	var lastErr error
 	for _, file := range files {
-		url, err := ScanLogFile(file.path)
+		url, err := ScanLogFile(file.path, targetURL)
 		if err == nil {
 			return url, nil
 		}

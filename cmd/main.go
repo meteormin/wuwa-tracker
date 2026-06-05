@@ -11,8 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meteormin/wuwa-tracker/cmd/cli/report"
-	"github.com/meteormin/wuwa-tracker/cmd/cli/scan"
+	"github.com/meteormin/wuwa-tracker/cmd/backup"
+	dbcmd "github.com/meteormin/wuwa-tracker/cmd/db"
+	"github.com/meteormin/wuwa-tracker/cmd/merge"
+	"github.com/meteormin/wuwa-tracker/cmd/report"
+	"github.com/meteormin/wuwa-tracker/cmd/scan"
+	"github.com/meteormin/wuwa-tracker/cmd/serve"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 	rep "github.com/meteormin/wuwa-tracker/internal/reporter"
@@ -24,28 +28,41 @@ import (
 var buildTag = "dev"
 
 func main() {
-	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
-	}
+	cfg := config.Default()
+	args := os.Args[1:]
 
-	cmd := os.Args[1]
-	args := os.Args[2:]
 	var err error
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		err = serve.Runner(cfg, buildTag)(args)
+	} else {
+		cmd := args[0]
+		cmdArgs := args[1:]
 
-	switch cmd {
-	case "version":
-		fmt.Println(buildTag)
-	case "scan":
-		err = scan.Runner()(args)
-	case "report":
-		err = runWithRuntime(args, report.Runner)
-	case "run":
-		err = runWithRuntime(args, runAllRunner)
-	default:
-		fmt.Printf("unknown command: %s\n\n", cmd)
-		printUsage()
-		os.Exit(1)
+		switch cmd {
+		case "version":
+			fmt.Println(buildTag)
+		case "serve":
+			err = serve.Runner(cfg, buildTag)(cmdArgs)
+		case "scan":
+			err = scan.Runner(cfg)(cmdArgs)
+		case "backup":
+			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
+			err = backup.Runner(cfg)(cmdArgs)
+		case "merge":
+			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
+			err = merge.Runner(cfg)(cmdArgs)
+		case "db":
+			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
+			err = dbcmd.Runner(cfg)(cmdArgs)
+		case "report":
+			err = runWithRuntime(cfg, cmdArgs, report.Runner)
+		case "run":
+			err = runWithRuntime(cfg, cmdArgs, runAllRunner)
+		default:
+			fmt.Printf("unknown command: %s\n\n", cmd)
+			printUsage()
+			os.Exit(1)
+		}
 	}
 
 	if err != nil {
@@ -58,8 +75,8 @@ type cliRuntime struct {
 	db  *db.BadgerDB
 }
 
-func runWithRuntime(args []string, commandFactory func(*service.Service) func([]string) error) error {
-	runtime, err := newCLIRuntime(args)
+func runWithRuntime(cfg *config.Config, args []string, commandFactory func(*service.Service) func([]string) error) error {
+	runtime, err := newCLIRuntime(cfg, args)
 	if err != nil {
 		return err
 	}
@@ -70,14 +87,9 @@ func runWithRuntime(args []string, commandFactory func(*service.Service) func([]
 	return commandFactory(runtime.svc)(args)
 }
 
-func newCLIRuntime(args []string) (*cliRuntime, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
+func newCLIRuntime(cfg *config.Config, args []string) (*cliRuntime, error) {
 	cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
-
-	client := newTrackerClient(extractBoolFlag(args, "v"), cfg.HTTPTimeout)
+	client := newTrackerClient(cfg.ResourcesURL, cfg.TrackingURL, cfg.HTTPTimeout, extractBoolFlag(args, "v"))
 	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
@@ -105,17 +117,25 @@ func (r *cliRuntime) Close() error {
 	return r.db.Close()
 }
 
-func newTrackerClient(verbose bool, timeout time.Duration) *tracker.Client {
+func newTrackerClient(resourcesURL, trackingURL string, timeout time.Duration, verbose bool) *tracker.Client {
 	if verbose {
-		return tracker.NewClient(&http.Client{
-			Transport: &tracker.LoggingTransport{
-				Captured: http.DefaultTransport,
+		return tracker.NewClient(tracker.Config{
+			Client: &http.Client{
+				Transport: &tracker.LoggingTransport{
+					Captured: http.DefaultTransport,
+				},
+				Timeout: timeout,
 			},
-			Timeout: timeout,
+			ResourceURL: resourcesURL,
+			TrackingURL: trackingURL,
 		})
 	}
-	return tracker.NewClient(&http.Client{
-		Timeout: timeout,
+	return tracker.NewClient(tracker.Config{
+		Client: &http.Client{
+			Timeout: timeout,
+		},
+		ResourceURL: resourcesURL,
+		TrackingURL: trackingURL,
 	})
 }
 
@@ -153,11 +173,15 @@ func extractBoolFlag(args []string, name string) bool {
 
 // printUsage 는 CLI 도구의 사용법을 콘솔에 출력합니다.
 func printUsage() {
-	fmt.Println("Usage: wuwa-tracker <command> [arguments]")
+	fmt.Println("Usage: wuwa-tracker [command] [arguments]")
 	fmt.Println()
 	fmt.Println("Commands:")
+	fmt.Println("  serve   Run the HTTP server (default)")
 	fmt.Println("  version Print build tag")
 	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
+	fmt.Println("  backup  Create a BadgerDB backup file")
+	fmt.Println("  merge   Merge records from a BadgerDB backup file")
+	fmt.Println("  db      Inspect and maintain the BadgerDB storage")
 	fmt.Println("  report  Fetch gacha records and generate a report (use -url or -f)")
 	fmt.Println("  run     Run the entire flow (scan for URL, fetch data, and generate report)")
 	fmt.Println()
@@ -194,7 +218,7 @@ func runAll(svc *service.Service, args []string) error {
 		}
 
 		fmt.Printf("No URL provided. Attempting to scan from path: %s\n", *pathFlag)
-		foundURL, err := scanner.FindURLInDirectory(*pathFlag)
+		foundURL, err := svc.Scan(*pathFlag)
 		if err != nil {
 			return fmt.Errorf("failed to auto-scan URL. Please provide it manually via the -url parameter. (Error: %v)", err)
 		}

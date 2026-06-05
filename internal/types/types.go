@@ -99,24 +99,6 @@ type ReportData struct {
 	Stats    []Stats `json:"stats"`
 }
 
-type StandardFiveStarResource struct {
-	Name       string `json:"name"`
-	ResourceID int    `json:"resourceId"`
-}
-
-type StandardFiveStarResources struct {
-	Items []StandardFiveStarResource `json:"items"`
-}
-
-func (s *StandardFiveStarResources) Contains(resourceId int) bool {
-	for _, r := range s.Items {
-		if r.ResourceID == resourceId {
-			return true
-		}
-	}
-	return false
-}
-
 type LuckScoreThreshold struct {
 	MinScore float64 `json:"minScore"`
 	State    string  `json:"state"`

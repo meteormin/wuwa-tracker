@@ -8,22 +8,22 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
 )
 
-func Runner() func(args []string) error {
+func Runner(cfg *config.Config) func(args []string) error {
 	return func(args []string) error {
-		return run(args)
+		return run(cfg, args)
 	}
 }
 
 // Run 은 scan 서브커맨드를 실행합니다.
 // 게임 로그 경로를 전달받아 가챠 기록 URL을 추출하고 표준 출력으로 반환합니다.
-func run(args []string) error {
+func run(cfg *config.Config, args []string) error {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	clipboardFlag := fs.Bool("clipboard", false, "Copy the URL to the clipboard")
-
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -33,7 +33,12 @@ func run(args []string) error {
 		return fmt.Errorf("path parameter is required. Use -path")
 	}
 
-	foundURL, err := scanner.FindURLInDirectory(path)
+	fullLogPaths, err := scanner.ExpandLogPaths(path, cfg.ScanLogPaths)
+	if err != nil {
+		return fmt.Errorf("failed to scan path: %w", err)
+	}
+
+	foundURL, err := scanner.FindURLInDirectory(fullLogPaths, cfg.ResourcesURL)
 	if err != nil {
 		return fmt.Errorf("failed to scan URL: %w", err)
 	}

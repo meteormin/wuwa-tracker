@@ -1,15 +1,17 @@
 package tracker
 
 import (
+	"slices"
+
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
 type StatsCalculator struct {
-	standardFiveStarResources types.StandardFiveStarResources
+	standardFiveStarResources []int
 	costPolicy                types.CostPolicy
 }
 
-func NewStatsCalculator(standardFiveStarResources types.StandardFiveStarResources, costPolicy types.CostPolicy) *StatsCalculator {
+func NewStatsCalculator(standardFiveStarResources []int, costPolicy types.CostPolicy) *StatsCalculator {
 	return &StatsCalculator{
 		standardFiveStarResources: standardFiveStarResources,
 		costPolicy:                costPolicy,
@@ -49,7 +51,7 @@ func (sc *StatsCalculator) Calc(records []types.Record, gachaType types.GachaTyp
 			isPickUp := true
 			// 한정 캐릭터 배너(1)인 경우에만 픽뚫을 판별합니다.
 			if gachaType.HasOffBannerDrop {
-				isPickUp = !sc.standardFiveStarResources.Contains(rec.ResourceID)
+				isPickUp = !slices.Contains(sc.standardFiveStarResources, rec.ResourceID)
 			}
 			stats.FiveStars = append(stats.FiveStars, types.FiveStarRecord{
 				Name:     rec.Name,
