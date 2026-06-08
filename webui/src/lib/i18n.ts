@@ -1,8 +1,8 @@
 import { writable, derived } from "svelte/store";
+import { apiHost } from "./api/config";
 
 export type Locale = "ko" | "en";
 
-const apiHost = import.meta.env.DEV ? "http://localhost:3000" : "";
 const fallbackLocale: Locale = "ko";
 
 const savedLocale = (

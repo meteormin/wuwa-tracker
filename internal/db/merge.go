@@ -6,6 +6,16 @@ import (
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
+type MergePolicy interface {
+	Merge(existing, incoming []types.Record) []types.Record
+}
+
+type SequenceMergePolicy struct{}
+
+func (SequenceMergePolicy) Merge(existing, incoming []types.Record) []types.Record {
+	return MergeRecords(existing, incoming)
+}
+
 // MergeRecords는 새로 가져오거나 업로드한 가챠 기록(newRecords)과 기존 DB의 기록(dbRecords)을 병합합니다.
 // 두 슬라이스는 모두 최신순(인덱스 0이 가장 최신)으로 정렬되어 있어야 합니다.
 func MergeRecords(dbRecords, newRecords []types.Record) []types.Record {

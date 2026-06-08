@@ -34,7 +34,7 @@ func run(svc *service.Service, args []string) error {
 	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
 	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
 	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
-	fs.String("dbpath", defaults.DBPath, "BadgerDB storage directory")
+	fs.String("dbpath", defaults.DBPath, "Badger repository storage directory")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -175,7 +175,7 @@ func runOnline(svc *service.Service, targetURL string, verbose bool) ([]types.St
 
 	statsResponse, err := svc.GetStats(fetchResult.Payload.PlayerID)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to load stats from database: %w", err)
+		return nil, "", fmt.Errorf("failed to load stats from repository: %w", err)
 	}
 
 	return statsResponse.Stats, statsResponse.PlayerID, nil
@@ -183,21 +183,14 @@ func runOnline(svc *service.Service, targetURL string, verbose bool) ([]types.St
 
 // exportReport 는 통계 데이터를 지정된 포맷으로 파일에 출력합니다.
 func exportReport(svc *service.Service, playerID, formatFlag, outFlag, lang string) error {
-	var format reporter.Format
-	switch strings.ToLower(formatFlag) {
-	case "json":
-		format = reporter.FormatJSON
-	case "csv":
-		format = reporter.FormatCSV
-	case "html":
-		format = reporter.FormatHTML
-	default:
-		return fmt.Errorf("unsupported format: %s", formatFlag)
+	format, err := reporter.ParseFormat(formatFlag)
+	if err != nil {
+		return err
 	}
 
 	finalOut := outFlag
-	if !strings.HasSuffix(finalOut, "."+formatFlag) {
-		finalOut = finalOut + "." + formatFlag
+	if !strings.HasSuffix(finalOut, "."+string(format)) {
+		finalOut = finalOut + "." + string(format)
 	}
 
 	// 출력 디렉토리가 존재하지 않으면 자동 생성

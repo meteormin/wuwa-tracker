@@ -33,13 +33,30 @@ This workflow automatically stages all changes, generates a descriptive commit m
    git push
    ```
 7. **Prepare PR Description**: If a PR will be created, generate and print a PR description that can be pasted into the PR body.
-   - Include a concise `Summary` section with the main changes.
-   - Include a `Tests` section with commands that were run.
-   - Include extra sections such as `Notes`, `Migration`, or `Release` only when relevant.
+   - Use a concise `Summary` section with the overall intent of the PR.
+   - Use a `Changes` section for the concrete implementation details.
+   - Use a `Verification` section with checked commands.
+   - Include `Commits` when the PR is intentionally split into meaningful commits.
+   - Include `Review Notes` only for compatibility notes, reviewer focus areas, migrations, or release concerns.
+   - Keep each bullet focused and avoid long narrative paragraphs.
    ```markdown
    ## Summary
+
+   <One short paragraph explaining the purpose of the PR.>
+
+   ## Changes
+
    - ...
 
-   ## Tests
+   ## Commits
+
+   - `<commit message>`
+
+   ## Verification
+
+   - [x] `...`
+
+   ## Review Notes
+
    - ...
    ```

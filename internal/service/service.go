@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/meteormin/wuwa-tracker/config"
-	"github.com/meteormin/wuwa-tracker/internal/db"
 	reporter "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/tracker"
@@ -19,29 +18,45 @@ var (
 	ErrInvalidURL      = errors.New("invalid url")
 	ErrMissingPlayerID = errors.New("missing player id")
 	ErrEmptyUploadData = errors.New("empty upload data")
-	ErrMissingDB       = errors.New("missing database")
+	ErrMissingRepo     = errors.New("missing repository")
 	ErrMissingConfig   = errors.New("missing config")
 	ErrMissingClient   = errors.New("missing tracker client")
 	ErrMissingCalc     = errors.New("missing stats calculator")
 )
 
+type GachaRepository interface {
+	SaveGachaRecords(playerID, cardPoolType string, records []types.Record) error
+	GetGachaRecords(playerID, cardPoolType string) ([]types.Record, error)
+	ListPlayers() ([]string, error)
+}
+
+type GachaClient interface {
+	ParsePayloadFromURL(urlStr string) (types.Payload, error)
+	FetchAllRecords(payload types.Payload, gachaTypes []types.GachaType) (*types.FetchResult, error)
+	FetchGachaLocale(lang string) (types.LocaleData, error)
+}
+
+type StatsCalculator interface {
+	Calc(records []types.Record, gachaType types.GachaType) types.Stats
+}
+
 type Deps struct {
-	DB     *db.BadgerDB
-	Config *config.Config
-	Client *tracker.Client
-	Calc   *tracker.StatsCalculator
+	Repository GachaRepository
+	Config     *config.Config
+	Client     GachaClient
+	Calc       StatsCalculator
 }
 
 type Service struct {
-	db     *db.BadgerDB
+	repo   GachaRepository
 	cfg    *config.Config
-	client *tracker.Client
-	calc   *tracker.StatsCalculator
+	client GachaClient
+	calc   StatsCalculator
 }
 
 func New(deps Deps) (*Service, error) {
-	if deps.DB == nil {
-		return nil, ErrMissingDB
+	if deps.Repository == nil {
+		return nil, ErrMissingRepo
 	}
 	if deps.Config == nil {
 		return nil, ErrMissingConfig
@@ -54,7 +69,7 @@ func New(deps Deps) (*Service, error) {
 	}
 
 	return &Service{
-		db:     deps.DB,
+		repo:   deps.Repository,
 		cfg:    deps.Config,
 		client: deps.Client,
 		calc:   deps.Calc,
@@ -147,7 +162,7 @@ func (s *Service) SaveFetchResult(fetchResult types.FetchResult) error {
 			records = []types.Record{}
 		}
 
-		if err := s.db.SaveGachaRecords(playerID, gachaType.Key, records); err != nil {
+		if err := s.repo.SaveGachaRecords(playerID, gachaType.Key, records); err != nil {
 			return err
 		}
 	}
@@ -162,7 +177,7 @@ func (s *Service) GetStats(playerID string) (types.StatsResponse, error) {
 
 	statsList := make([]types.Stats, 0, len(s.cfg.GachaTypes.Items))
 	for _, gachaType := range s.cfg.GachaTypes.Items {
-		records, err := s.db.GetGachaRecords(playerID, gachaType.Key)
+		records, err := s.repo.GetGachaRecords(playerID, gachaType.Key)
 		if err != nil {
 			return types.StatsResponse{}, err
 		}
@@ -177,7 +192,7 @@ func (s *Service) GetStats(playerID string) (types.StatsResponse, error) {
 }
 
 func (s *Service) ListPlayers() ([]string, error) {
-	return s.db.ListPlayers()
+	return s.repo.ListPlayers()
 }
 
 func (s *Service) ExportReport(w io.Writer, playerID string, format reporter.Format, lang string) error {
