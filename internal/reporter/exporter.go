@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/types"
@@ -15,6 +16,19 @@ const (
 	FormatCSV  Format = "csv"
 	FormatHTML Format = "html"
 )
+
+func ParseFormat(value string) (Format, error) {
+	switch Format(strings.ToLower(strings.TrimSpace(value))) {
+	case FormatJSON:
+		return FormatJSON, nil
+	case FormatCSV:
+		return FormatCSV, nil
+	case FormatHTML:
+		return FormatHTML, nil
+	default:
+		return "", fmt.Errorf("unsupported format: %s", value)
+	}
+}
 
 // Exporter 인터페이스는 다양한 포맷으로 통계 데이터를 출력하는 기능을 정의합니다.
 type Exporter interface {

@@ -91,5 +91,7 @@
     "err.empty_upload_data": "Upload data cannot be empty.",
     "err.missing_player_id": "Player ID is missing.",
     "err.database_list_players_failed": "Failed to retrieve player list.",
-    "err.database_query_failed": "Failed to query player records from database."
+    "err.database_query_failed": "Failed to query player records from database.",
+    "err.unsupported_report_format": "Unsupported report format.",
+    "err.report_generation_failed": "Failed to generate report."
 }

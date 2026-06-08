@@ -91,5 +91,7 @@
     "err.empty_upload_data": "업로드할 가챠 데이터가 존재하지 않습니다.",
     "err.missing_player_id": "플레이어 ID가 누락되었습니다.",
     "err.database_list_players_failed": "플레이어 목록 조회에 실패했습니다.",
-    "err.database_query_failed": "플레이어 데이터를 조회하는 중 데이터베이스 오류가 발생했습니다."
+    "err.database_query_failed": "플레이어 데이터를 조회하는 중 데이터베이스 오류가 발생했습니다.",
+    "err.unsupported_report_format": "지원하지 않는 리포트 형식입니다.",
+    "err.report_generation_failed": "리포트 생성에 실패했습니다."
 }
