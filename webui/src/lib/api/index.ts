@@ -1,7 +1,5 @@
 import type { Stats, LuckScoreThreshold } from "../types";
-
-// 호스트 자동 감지 (Vite 개발 모드 시 3000 포트로 라우팅)
-const apiHost = import.meta.env.DEV ? "http://localhost:3000" : "";
+import { apiHost } from "./config";
 
 // API 표준 공통 응답 구조
 export interface BaseResponse {
@@ -107,5 +105,4 @@ export async function uploadJSON(data: any): Promise<UploadResponse> {
   });
   return res.json();
 }
-
 

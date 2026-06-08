@@ -17,11 +17,11 @@ func Runner(cfg *config.Config) func(args []string) error {
 }
 
 // Run 은 merge 서브커맨드를 실행합니다.
-// BadgerDB 백업 파일을 현재 DB에 가챠 기록 단위로 병합합니다.
+// Badger repository 백업 파일을 현재 repository에 가챠 기록 단위로 병합합니다.
 func run(cfg *config.Config, args []string) error {
 	fs := flag.NewFlagSet("merge", flag.ExitOnError)
-	fileFlag := fs.String("f", "", "Path to a BadgerDB backup file")
-	fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	fileFlag := fs.String("f", "", "Path to a Badger repository backup file")
+	fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -30,12 +30,17 @@ func run(cfg *config.Config, args []string) error {
 		return fmt.Errorf("backup file path is required. Use -f")
 	}
 
-	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
+	core, err := db.OpenBadger(cfg.DBPath)
 	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
+		return fmt.Errorf("failed to open badger core: %w", err)
+	}
+	repository, err := db.NewBadgerRepository(core)
+	if err != nil {
+		_ = core.Close()
+		return fmt.Errorf("failed to initialize repository: %w", err)
 	}
 	defer func() {
-		_ = badgerDB.Close()
+		_ = repository.Close()
 	}()
 
 	f, err := os.Open(*fileFlag)
@@ -46,7 +51,7 @@ func run(cfg *config.Config, args []string) error {
 		_ = f.Close()
 	}()
 
-	result, err := badgerDB.MergeFromBackup(f)
+	result, err := repository.MergeFromBackup(f)
 	if err != nil {
 		return fmt.Errorf("failed to merge backup: %w", err)
 	}

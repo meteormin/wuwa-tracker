@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/goccy/go-json"
+
 	"github.com/gofiber/fiber/v3/log"
 
 	"github.com/gofiber/fiber/v3"
@@ -42,7 +44,7 @@ func run(cfg *config.Config, buildTag string, args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	hostFlag := fs.String("host", cfg.ServerHost, "Host address to listen on")
 	portFlag := fs.String("port", cfg.ServerPort, "Port to listen on")
-	dbPathFlag := fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	dbGCEnabledFlag := fs.Bool("db-gc", cfg.DBGCEnabled, "Enable periodic Badger value log GC")
 	dbGCIntervalFlag := fs.Duration("db-gc-interval", cfg.DBGCInterval, "Badger value log GC interval")
 	dbGCDiscardRatioFlag := fs.Float64("db-gc-discard-ratio", cfg.DBGCDiscardRatio, "Badger value log GC discard ratio")
@@ -58,13 +60,15 @@ func run(cfg *config.Config, buildTag string, args []string) error {
 	cfg.DBGCDiscardRatio = *dbGCDiscardRatioFlag
 
 	log.Infof("Build tag: %s\n", buildTag)
-	log.Infof("Configured BadgerDB directory: %s\n", cfg.DBPath)
+	log.Infof("Configured Badger repository directory: %s\n", cfg.DBPath)
 
 	// Fiber v3 애플리케이션 생성
 	runtime := server.NewRuntimeService(cfg)
 	app := fiber.New(fiber.Config{
-		AppName:  appName,
-		Services: []fiber.Service{runtime},
+		AppName:     appName,
+		Services:    []fiber.Service{runtime},
+		JSONEncoder: json.Marshal,
+		JSONDecoder: json.Unmarshal,
 	})
 	defer func() {
 		_ = runtime.Terminate(context.Background())

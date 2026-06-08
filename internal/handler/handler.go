@@ -31,7 +31,7 @@ func RegisterRoutes(api fiber.Router) {
 }
 
 // Track 은 사용자가 제출한 Kurogame 가챠 로그 URL을 기반으로 데이터를 페치하고,
-// BadgerDB에 기존 기록과 병합 저장한 뒤 최신 통계 데이터를 반환합니다.
+// repository에 기존 기록과 병합 저장한 뒤 최신 통계 데이터를 반환합니다.
 func Track(c fiber.Ctx) error {
 	svc, err := serviceFromCtx(c)
 	if err != nil {
@@ -208,10 +208,7 @@ func GetI18n(c fiber.Ctx) error {
 func ExportReport(c fiber.Ctx) error {
 	svc, err := serviceFromCtx(c)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "Failed to generate report: " + err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(errReportGenerationFailed)
 	}
 
 	playerID := c.Params("playerId")
@@ -219,30 +216,17 @@ func ExportReport(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errMissingPlayerID)
 	}
 
-	formatParam := strings.ToLower(c.Query("format", config.DefaultReportFormat))
+	formatParam := c.Query("format", config.DefaultReportFormat)
 	lang := c.Query("lang", config.DefaultLanguage)
-	var format report.Format
-	switch formatParam {
-	case "json":
-		format = report.FormatJSON
-	case "csv":
-		format = report.FormatCSV
-	case "html":
-		format = report.FormatHTML
-	default:
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"error":   "Unsupported format: " + formatParam,
-		})
+	format, err := report.ParseFormat(formatParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(newUnsupportedReportFormatErr(formatParam))
 	}
 
 	// 메모리 버퍼에 리포트 내용 쓰기
 	var buf bytes.Buffer
 	if err := svc.ExportReport(&buf, playerID, format, lang); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "Failed to generate report: " + err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(errReportGenerationFailed)
 	}
 
 	// 컨텐트 타입 지정
@@ -256,7 +240,7 @@ func ExportReport(c fiber.Ctx) error {
 	}
 
 	// 파일 다운로드 응답 전송
-	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"report_%s.%s\"", playerID, formatParam))
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"report_%s.%s\"", playerID, format))
 	return c.Send(buf.Bytes())
 }
 

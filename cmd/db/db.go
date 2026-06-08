@@ -36,8 +36,8 @@ func usage() string {
 		"Usage: wuwa-tracker db <command> [arguments]",
 		"",
 		"Commands:",
-		"  stats  Inspect BadgerDB storage size",
-		"  gc     Run BadgerDB value log garbage collection",
+		"  stats  Inspect Badger repository storage size",
+		"  gc     Run Badger repository value log garbage collection",
 		"",
 		"Use 'wuwa-tracker db <command> -h' for more information about a command.",
 	}, "\n")
@@ -45,14 +45,14 @@ func usage() string {
 
 func runStats(cfg *config.Config, args []string) error {
 	fs := flag.NewFlagSet("db stats", flag.ExitOnError)
-	dbPathFlag := fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	stats, err := statsFromDBPath(*dbPathFlag)
 	if err != nil {
-		return fmt.Errorf("failed to inspect database size: %w", err)
+		return fmt.Errorf("failed to inspect repository size: %w", err)
 	}
 
 	printStats("DB Stats", stats)
@@ -61,32 +61,37 @@ func runStats(cfg *config.Config, args []string) error {
 
 func runGC(cfg *config.Config, args []string) error {
 	fs := flag.NewFlagSet("db gc", flag.ExitOnError)
-	dbPathFlag := fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	discardRatioFlag := fs.Float64("discard-ratio", cfg.DBGCDiscardRatio, "Badger value log discard ratio")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	badgerDB, err := db.NewBadgerDB(*dbPathFlag)
+	core, err := db.OpenBadger(*dbPathFlag)
 	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
+		return fmt.Errorf("failed to open badger core: %w", err)
+	}
+	repository, err := db.NewBadgerRepository(core)
+	if err != nil {
+		_ = core.Close()
+		return fmt.Errorf("failed to initialize repository: %w", err)
 	}
 	defer func() {
-		_ = badgerDB.Close()
+		_ = repository.Close()
 	}()
 
-	before, err := badgerDB.Stats()
+	before, err := repository.Stats()
 	if err != nil {
-		return fmt.Errorf("failed to inspect database size before gc: %w", err)
+		return fmt.Errorf("failed to inspect repository size before gc: %w", err)
 	}
 
-	if err := badgerDB.RunValueLogGC(*discardRatioFlag); err != nil {
+	if err := repository.RunValueLogGC(*discardRatioFlag); err != nil {
 		return fmt.Errorf("failed to run value log gc: %w", err)
 	}
 
-	after, err := badgerDB.Stats()
+	after, err := repository.Stats()
 	if err != nil {
-		return fmt.Errorf("failed to inspect database size after gc: %w", err)
+		return fmt.Errorf("failed to inspect repository size after gc: %w", err)
 	}
 
 	printStats("Before GC", before)
@@ -96,13 +101,18 @@ func runGC(cfg *config.Config, args []string) error {
 }
 
 func statsFromDBPath(path string) (db.Stats, error) {
-	badgerDB, err := db.NewBadgerDB(path)
+	core, err := db.OpenBadger(path)
+	if err != nil {
+		return db.StatsFromPath(path)
+	}
+	repository, err := db.NewBadgerRepository(core)
 	if err == nil {
 		defer func() {
-			_ = badgerDB.Close()
+			_ = repository.Close()
 		}()
-		return badgerDB.Stats()
+		return repository.Stats()
 	}
+	_ = core.Close()
 
 	return db.StatsFromPath(path)
 }

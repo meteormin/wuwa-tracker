@@ -12,10 +12,20 @@ import (
 	"github.com/meteormin/wuwa-tracker/internal/types"
 )
 
-func TestBadgerDB_GetGachaRecordsMissingKey(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestNewBadgerRepositoryRejectsMissingCore(t *testing.T) {
+	repository, err := NewBadgerRepository(nil)
+	if err == nil {
+		t.Fatal("NewBadgerRepository returned nil error")
+	}
+	if repository != nil {
+		t.Fatalf("NewBadgerRepository returned repository: %#v", repository)
+	}
+}
 
-	records, err := database.GetGachaRecords("player-1", "character")
+func TestBadgerRepository_GetGachaRecordsMissingKey(t *testing.T) {
+	repository := openTestBadgerRepository(t)
+
+	records, err := repository.GetGachaRecords("player-1", "character")
 	if err != nil {
 		t.Fatalf("GetGachaRecords returned error: %v", err)
 	}
@@ -27,18 +37,18 @@ func TestBadgerDB_GetGachaRecordsMissingKey(t *testing.T) {
 	}
 }
 
-func TestBadgerDB_SaveAndGetGachaRecords(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_SaveAndGetGachaRecords(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 	records := []types.Record{
 		testRecord(1001, "character", "Alpha", "2026-05-20 12:00:00"),
 		testRecord(1002, "character", "Beta", "2026-05-19 12:00:00"),
 	}
 
-	if err := database.SaveGachaRecords("player-1", "character", records); err != nil {
+	if err := repository.SaveGachaRecords("player-1", "character", records); err != nil {
 		t.Fatalf("SaveGachaRecords returned error: %v", err)
 	}
 
-	got, err := database.GetGachaRecords("player-1", "character")
+	got, err := repository.GetGachaRecords("player-1", "character")
 	if err != nil {
 		t.Fatalf("GetGachaRecords returned error: %v", err)
 	}
@@ -47,8 +57,8 @@ func TestBadgerDB_SaveAndGetGachaRecords(t *testing.T) {
 	}
 }
 
-func TestBadgerDB_SaveGachaRecordsMergesExistingRecords(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_SaveGachaRecordsMergesExistingRecords(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 
 	existing := []types.Record{
 		testRecord(1003, "weapon", "Gamma", "2026-05-18 12:00:00"),
@@ -66,14 +76,14 @@ func TestBadgerDB_SaveGachaRecordsMergesExistingRecords(t *testing.T) {
 		testRecord(1004, "weapon", "Delta", "2026-05-17 12:00:00"),
 	}
 
-	if err := database.SaveGachaRecords("player-1", "weapon", existing); err != nil {
+	if err := repository.SaveGachaRecords("player-1", "weapon", existing); err != nil {
 		t.Fatalf("SaveGachaRecords existing returned error: %v", err)
 	}
-	if err := database.SaveGachaRecords("player-1", "weapon", incoming); err != nil {
+	if err := repository.SaveGachaRecords("player-1", "weapon", incoming); err != nil {
 		t.Fatalf("SaveGachaRecords incoming returned error: %v", err)
 	}
 
-	got, err := database.GetGachaRecords("player-1", "weapon")
+	got, err := repository.GetGachaRecords("player-1", "weapon")
 	if err != nil {
 		t.Fatalf("GetGachaRecords returned error: %v", err)
 	}
@@ -82,14 +92,14 @@ func TestBadgerDB_SaveGachaRecordsMergesExistingRecords(t *testing.T) {
 	}
 }
 
-func TestBadgerDB_SaveGachaRecordsNilInputStoresEmptySlice(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_SaveGachaRecordsNilInputStoresEmptySlice(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 
-	if err := database.SaveGachaRecords("player-1", "character", nil); err != nil {
+	if err := repository.SaveGachaRecords("player-1", "character", nil); err != nil {
 		t.Fatalf("SaveGachaRecords returned error: %v", err)
 	}
 
-	records, err := database.GetGachaRecords("player-1", "character")
+	records, err := repository.GetGachaRecords("player-1", "character")
 	if err != nil {
 		t.Fatalf("GetGachaRecords returned error: %v", err)
 	}
@@ -101,8 +111,30 @@ func TestBadgerDB_SaveGachaRecordsNilInputStoresEmptySlice(t *testing.T) {
 	}
 }
 
-func TestBadgerDB_ListPlayers(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_SaveGachaRecordsUsesMergePolicy(t *testing.T) {
+	repository := openTestBadgerRepository(t, WithMergePolicy(overwriteMergePolicy{}))
+
+	existing := []types.Record{testRecord(1001, "character", "Old", "2026-05-19 12:00:00")}
+	incoming := []types.Record{testRecord(1002, "character", "New", "2026-05-20 12:00:00")}
+
+	if err := repository.SaveGachaRecords("player-1", "character", existing); err != nil {
+		t.Fatalf("SaveGachaRecords existing returned error: %v", err)
+	}
+	if err := repository.SaveGachaRecords("player-1", "character", incoming); err != nil {
+		t.Fatalf("SaveGachaRecords incoming returned error: %v", err)
+	}
+
+	got, err := repository.GetGachaRecords("player-1", "character")
+	if err != nil {
+		t.Fatalf("GetGachaRecords returned error: %v", err)
+	}
+	if !reflect.DeepEqual(got, incoming) {
+		t.Fatalf("records mismatch\nexpected: %+v\nactual:   %+v", incoming, got)
+	}
+}
+
+func TestBadgerRepository_ListPlayers(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 
 	saves := []struct {
 		playerID     string
@@ -115,12 +147,12 @@ func TestBadgerDB_ListPlayers(t *testing.T) {
 	}
 
 	for _, save := range saves {
-		if err := database.SaveGachaRecords(save.playerID, save.cardPoolType, []types.Record{save.record}); err != nil {
+		if err := repository.SaveGachaRecords(save.playerID, save.cardPoolType, []types.Record{save.record}); err != nil {
 			t.Fatalf("SaveGachaRecords(%q, %q) returned error: %v", save.playerID, save.cardPoolType, err)
 		}
 	}
 
-	players, err := database.ListPlayers()
+	players, err := repository.ListPlayers()
 	if err != nil {
 		t.Fatalf("ListPlayers returned error: %v", err)
 	}
@@ -132,9 +164,9 @@ func TestBadgerDB_ListPlayers(t *testing.T) {
 	}
 }
 
-func TestBadgerDB_BackupAndMergeFromBackup(t *testing.T) {
-	source := openTestBadgerDB(t)
-	target := openTestBadgerDB(t)
+func TestBadgerRepository_BackupAndMergeFromBackup(t *testing.T) {
+	source := openTestBadgerRepository(t)
+	target := openTestBadgerRepository(t)
 
 	sourceRecords := []types.Record{
 		testRecord(1001, "character", "Alpha", "2026-05-20 12:00:00"),
@@ -199,16 +231,16 @@ func TestBadgerDB_BackupAndMergeFromBackup(t *testing.T) {
 	}
 }
 
-func TestBadgerDB_Stats(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_Stats(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 
-	if err := database.SaveGachaRecords("player-1", "character", []types.Record{
+	if err := repository.SaveGachaRecords("player-1", "character", []types.Record{
 		testRecord(1001, "character", "Alpha", "2026-05-20 12:00:00"),
 	}); err != nil {
 		t.Fatalf("SaveGachaRecords returned error: %v", err)
 	}
 
-	stats, err := database.Stats()
+	stats, err := repository.Stats()
 	if err != nil {
 		t.Fatalf("Stats returned error: %v", err)
 	}
@@ -272,50 +304,61 @@ func TestStatsFromPathRejectsFilePath(t *testing.T) {
 	}
 }
 
-func TestBadgerDB_RunValueLogGCNoRewrite(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_RunValueLogGCNoRewrite(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 
-	if err := database.RunValueLogGC(0.5); err != nil {
+	if err := repository.RunValueLogGC(0.5); err != nil {
 		t.Fatalf("RunValueLogGC returned error: %v", err)
 	}
 }
 
-func TestBadgerDB_RunValueLogGCRejectsInvalidDiscardRatio(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_RunValueLogGCRejectsInvalidDiscardRatio(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 
-	if err := database.RunValueLogGC(1); err == nil {
+	if err := repository.RunValueLogGC(1); err == nil {
 		t.Fatal("RunValueLogGC returned nil error for invalid discard ratio")
 	}
 }
 
-func TestBadgerDB_StartValueLogGCStop(t *testing.T) {
-	database := openTestBadgerDB(t)
+func TestBadgerRepository_StartValueLogGCStop(t *testing.T) {
+	repository := openTestBadgerRepository(t)
 
-	if err := database.StartValueLogGC(t.Context(), ValueLogGCOptions{
+	if err := repository.StartValueLogGC(t.Context(), ValueLogGCOptions{
 		Interval:     time.Hour,
 		DiscardRatio: 0.5,
 	}, nil); err != nil {
 		t.Fatalf("StartValueLogGC returned error: %v", err)
 	}
 
-	database.StopValueLogGC()
-	database.StopValueLogGC()
+	repository.StopValueLogGC()
+	repository.StopValueLogGC()
 }
 
-func openTestBadgerDB(t *testing.T) *BadgerDB {
+type overwriteMergePolicy struct{}
+
+func (overwriteMergePolicy) Merge(existing, incoming []types.Record) []types.Record {
+	return incoming
+}
+
+func openTestBadgerRepository(t *testing.T, opts ...BadgerRepositoryOption) *BadgerRepository {
 	t.Helper()
 
-	database, err := NewBadgerDB(t.TempDir())
+	core, err := OpenBadger(t.TempDir())
 	if err != nil {
-		t.Fatalf("NewBadgerDB returned error: %v", err)
+		t.Fatalf("OpenBadger returned error: %v", err)
+	}
+	repository, err := NewBadgerRepository(core, opts...)
+	if err != nil {
+		_ = core.Close()
+		t.Fatalf("NewBadgerRepository returned error: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := database.Close(); err != nil {
+		if err := repository.Close(); err != nil {
 			t.Fatalf("Close returned error: %v", err)
 		}
 	})
 
-	return database
+	return repository
 }
 
 func testRecord(resourceID int, cardPoolType, name, time string) types.Record {

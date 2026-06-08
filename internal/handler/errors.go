@@ -66,7 +66,7 @@ var (
 		ErrorKey: "err.missing_player_id_in_url",
 	}
 
-	// errDatabaseSaveFailed 는 가챠 기록을 BadgerDB에 저장하는 데 실패했을 때의 에러 응답입니다.
+	// errDatabaseSaveFailed 는 가챠 기록을 repository에 저장하는 데 실패했을 때의 에러 응답입니다.
 	errDatabaseSaveFailed = types.ErrorResponse{
 		Success:  false,
 		Error:    "failed to save records to database",
@@ -107,6 +107,12 @@ var (
 		Error:    "failed to query player records",
 		ErrorKey: "err.database_query_failed",
 	}
+
+	errReportGenerationFailed = types.ErrorResponse{
+		Success:  false,
+		Error:    "failed to generate report",
+		ErrorKey: "err.report_generation_failed",
+	}
 )
 
 // newInvalidRequestBodyErr 는 올바르지 않은 요청 바디 수신 시 동적 에러 상세를 포함한 에러 응답을 생성합니다.
@@ -115,5 +121,13 @@ func newInvalidRequestBodyErr(err error) types.ErrorResponse {
 		Success:  false,
 		Error:    "invalid request body: " + err.Error(),
 		ErrorKey: "err.invalid_request_body",
+	}
+}
+
+func newUnsupportedReportFormatErr(format string) types.ErrorResponse {
+	return types.ErrorResponse{
+		Success:  false,
+		Error:    "unsupported report format: " + format,
+		ErrorKey: "err.unsupported_report_format",
 	}
 }

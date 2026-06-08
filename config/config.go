@@ -19,7 +19,8 @@ const (
 	DefaultTrackingURL    = "https://gmserver-api.aki-game2.net"
 	DefaultServerHost     = "127.0.0.1"
 	DefaultServerPort     = "3000"
-	DefaultDBPath         = "data/wuwa_badger"
+	DefaultAppDirName     = ".wuwa-tracker"
+	DefaultDBDirName      = "badger"
 	DefaultCORSLocalhost  = "http://localhost:5173"
 	DefaultCORSLoopback   = "http://127.0.0.1:5173"
 	DefaultCORSIPv6       = "http://[::1]:5173"
@@ -34,6 +35,8 @@ const (
 )
 
 var (
+	DefaultDBPath = defaultDBPath()
+
 	DefaultScanLogPaths = []string{
 		// Windows 기본 로그 경로입니다.
 		filepath.Join("Client", "Saved", "Logs", "Client.log"),
@@ -135,6 +138,14 @@ var (
 		},
 	}
 )
+
+func defaultDBPath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil || homeDir == "" {
+		return filepath.Join(DefaultAppDirName, DefaultDBDirName)
+	}
+	return filepath.Join(homeDir, DefaultAppDirName, DefaultDBDirName)
+}
 
 type Config struct {
 	ResourcesURL              string                     `json:"resourcesURL"`
