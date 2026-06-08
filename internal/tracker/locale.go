@@ -9,10 +9,14 @@ import (
 
 const fallbackLang = "ko"
 
+type LocaleFetcher interface {
+	FetchGachaLocale(lang string) (types.LocaleData, error)
+}
+
 // LoadGachaLocaleWithFallback 은 Client를 통해 원격 API로부터 가챠 로케일을 조회하고,
 // 실패할 경우 로컬 내장 로케일 파일을 단계적(요청 언어 -> ko)으로 fallback하여 불러옵니다.
 // Client 객체는 순수하게 외부 연동 책임만 수행하도록 유지하기 위해, 폴백 제어 로직을 별도 유틸리티 함수로 정의합니다.
-func LoadGachaLocaleWithFallback(client *Client, lang string) types.LocaleData {
+func LoadGachaLocaleWithFallback(client LocaleFetcher, lang string) types.LocaleData {
 	if lang == "" {
 		lang = "ko"
 	}

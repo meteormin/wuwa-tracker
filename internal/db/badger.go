@@ -20,11 +20,24 @@ import (
 const backupLoadMaxPendingWrites = 256
 const defaultValueLogGCDiscardRatio = 0.5
 
-type BadgerDB struct {
-	core     *badger.DB
-	mu       sync.Mutex
-	gcWorker *valueLogGCWorker
-	closed   bool
+var ErrMissingBadgerDB = errors.New("missing badger db")
+
+type BadgerRepository struct {
+	db          *badger.DB
+	mergePolicy MergePolicy
+	mu          sync.Mutex
+	gcWorker    *valueLogGCWorker
+	closed      bool
+}
+
+type BadgerRepositoryOption func(*BadgerRepository)
+
+func WithMergePolicy(policy MergePolicy) BadgerRepositoryOption {
+	return func(repository *BadgerRepository) {
+		if policy != nil {
+			repository.mergePolicy = policy
+		}
+	}
 }
 
 type MergeFromBackupResult struct {
@@ -56,21 +69,29 @@ type valueLogGCWorker struct {
 	once sync.Once
 }
 
-// NewBadgerDB 는 지정된 디렉터리에 BadgerDB 데이터베이스를 기동하고 커넥션을 반환합니다.
-// 디버그/압축 통계 로그 스팸을 방지하기 위해 로거는 nil로 초기화합니다.
-func NewBadgerDB(path string) (*BadgerDB, error) {
+// OpenBadger 는 지정된 디렉터리에 Badger 엔진을 기동하고 반환합니다.
+func OpenBadger(path string) (*badger.DB, error) {
 	opts := badger.DefaultOptions(path).WithLogger(nil)
-	badgerDB, err := badger.Open(opts)
-	if err != nil {
-		return nil, err
-	}
-	return &BadgerDB{
-		core: badgerDB,
-	}, nil
+	return badger.Open(opts)
 }
 
-// Close 는 BadgerDB 데이터베이스 커넥션을 닫습니다.
-func (b *BadgerDB) Close() error {
+// NewBadgerRepository 는 주입된 Badger 엔진을 가챠 기록 repository로 감쌉니다.
+func NewBadgerRepository(db *badger.DB, opts ...BadgerRepositoryOption) (*BadgerRepository, error) {
+	if db == nil {
+		return nil, ErrMissingBadgerDB
+	}
+	repository := &BadgerRepository{
+		db:          db,
+		mergePolicy: SequenceMergePolicy{},
+	}
+	for _, opt := range opts {
+		opt(repository)
+	}
+	return repository, nil
+}
+
+// Close 는 Badger 기반 repository 커넥션을 닫습니다.
+func (b *BadgerRepository) Close() error {
 	b.StopValueLogGC()
 
 	b.mu.Lock()
@@ -79,26 +100,26 @@ func (b *BadgerDB) Close() error {
 	if b.closed {
 		return nil
 	}
-	if err := b.core.Close(); err != nil {
+	if err := b.db.Close(); err != nil {
 		return err
 	}
 	b.closed = true
 	return nil
 }
 
-// Backup 은 현재 BadgerDB 데이터를 단일 백업 스트림으로 내보냅니다.
-func (b *BadgerDB) Backup(w io.Writer) (uint64, error) {
-	return b.core.Backup(w, 0)
+// Backup 은 현재 repository 데이터를 단일 백업 스트림으로 내보냅니다.
+func (b *BadgerRepository) Backup(w io.Writer) (uint64, error) {
+	return b.db.Backup(w, 0)
 }
 
-// Stats 는 BadgerDB 디렉터리의 논리 크기와 실제 디스크 사용량을 집계합니다.
-func (b *BadgerDB) Stats() (Stats, error) {
-	stats, err := StatsFromPath(b.core.Opts().Dir)
+// Stats 는 repository 디렉터리의 논리 크기와 실제 디스크 사용량을 집계합니다.
+func (b *BadgerRepository) Stats() (Stats, error) {
+	stats, err := StatsFromPath(b.db.Opts().Dir)
 	if err != nil {
 		return Stats{}, err
 	}
 
-	lsmSize, vlogSize := b.core.Size()
+	lsmSize, vlogSize := b.db.Size()
 	stats.LSMSizeBytes = lsmSize
 	stats.VLogSizeBytes = vlogSize
 	if badgerSize := lsmSize + vlogSize; badgerSize > 0 {
@@ -155,7 +176,7 @@ func StatsFromPath(path string) (Stats, error) {
 }
 
 // RunValueLogGC 는 정리 가능한 Badger value log를 가능한 만큼 정리합니다.
-func (b *BadgerDB) RunValueLogGC(discardRatio float64) error {
+func (b *BadgerRepository) RunValueLogGC(discardRatio float64) error {
 	normalizedDiscardRatio, err := normalizeValueLogGCDiscardRatio(discardRatio)
 	if err != nil {
 		return err
@@ -172,7 +193,7 @@ func (b *BadgerDB) RunValueLogGC(discardRatio float64) error {
 }
 
 // StartValueLogGC 는 서버 환경에서 주기적으로 value log GC를 1회씩 시도합니다.
-func (b *BadgerDB) StartValueLogGC(ctx context.Context, opts ValueLogGCOptions, onError func(error)) error {
+func (b *BadgerRepository) StartValueLogGC(ctx context.Context, opts ValueLogGCOptions, onError func(error)) error {
 	if opts.Interval <= 0 {
 		return nil
 	}
@@ -186,7 +207,7 @@ func (b *BadgerDB) StartValueLogGC(ctx context.Context, opts ValueLogGCOptions, 
 	defer b.mu.Unlock()
 
 	if b.closed {
-		return fmt.Errorf("database is closed")
+		return fmt.Errorf("repository is closed")
 	}
 	if b.gcWorker != nil {
 		return nil
@@ -223,7 +244,7 @@ func (b *BadgerDB) StartValueLogGC(ctx context.Context, opts ValueLogGCOptions, 
 }
 
 // StopValueLogGC 는 실행 중인 value log GC 루프를 멈춥니다.
-func (b *BadgerDB) StopValueLogGC() {
+func (b *BadgerRepository) StopValueLogGC() {
 	b.mu.Lock()
 	worker := b.gcWorker
 	b.gcWorker = nil
@@ -243,8 +264,8 @@ func (w *valueLogGCWorker) Stop() {
 	})
 }
 
-func (b *BadgerDB) runValueLogGCOnce(discardRatio float64) error {
-	return b.core.RunValueLogGC(discardRatio)
+func (b *BadgerRepository) runValueLogGCOnce(discardRatio float64) error {
+	return b.db.RunValueLogGC(discardRatio)
 }
 
 func normalizeValueLogGCDiscardRatio(discardRatio float64) (float64, error) {
@@ -258,7 +279,7 @@ func normalizeValueLogGCDiscardRatio(discardRatio float64) (float64, error) {
 }
 
 // MergeFromBackup 은 Badger 백업 스트림을 임시 DB에 복원한 뒤 현재 DB에 가챠 기록을 병합합니다.
-func (b *BadgerDB) MergeFromBackup(r io.Reader) (MergeFromBackupResult, error) {
+func (b *BadgerRepository) MergeFromBackup(r io.Reader) (MergeFromBackupResult, error) {
 	tmpDir, err := os.MkdirTemp("", "wuwa-tracker-merge-*")
 	if err != nil {
 		return MergeFromBackupResult{}, err
@@ -267,15 +288,20 @@ func (b *BadgerDB) MergeFromBackup(r io.Reader) (MergeFromBackupResult, error) {
 		_ = os.RemoveAll(tmpDir)
 	}()
 
-	imported, err := NewBadgerDB(tmpDir)
+	importedCore, err := OpenBadger(tmpDir)
 	if err != nil {
+		return MergeFromBackupResult{}, err
+	}
+	imported, err := NewBadgerRepository(importedCore)
+	if err != nil {
+		_ = importedCore.Close()
 		return MergeFromBackupResult{}, err
 	}
 	defer func() {
 		_ = imported.Close()
 	}()
 
-	if err := imported.core.Load(r, backupLoadMaxPendingWrites); err != nil {
+	if err := imported.db.Load(r, backupLoadMaxPendingWrites); err != nil {
 		return MergeFromBackupResult{}, err
 	}
 
@@ -299,9 +325,9 @@ func (b *BadgerDB) MergeFromBackup(r io.Reader) (MergeFromBackupResult, error) {
 	return result, nil
 }
 
-// SaveGachaRecords 는 특정 플레이어의 특정 배너 가챠 리스트를 기존 데이터와 병합하여 BadgerDB에 저장합니다.
+// SaveGachaRecords 는 특정 플레이어의 특정 배너 가챠 리스트를 기존 데이터와 병합하여 repository에 저장합니다.
 // 명조 API가 최근 6개월 데이터만 제공하므로, 기존 데이터를 보존하면서 새로운 데이터를 증분 병합합니다.
-func (b *BadgerDB) SaveGachaRecords(playerID, cardPoolType string, records []types.Record) error {
+func (b *BadgerRepository) SaveGachaRecords(playerID, cardPoolType string, records []types.Record) error {
 	if records == nil {
 		records = []types.Record{}
 	}
@@ -313,7 +339,7 @@ func (b *BadgerDB) SaveGachaRecords(playerID, cardPoolType string, records []typ
 	}
 
 	// 기존 기록과 신규 기록 병합
-	merged := MergeRecords(existing, records)
+	merged := b.mergePolicy.Merge(existing, records)
 
 	recordsJSON, err := json.Marshal(merged)
 	if err != nil {
@@ -321,17 +347,17 @@ func (b *BadgerDB) SaveGachaRecords(playerID, cardPoolType string, records []typ
 	}
 
 	key := []byte("gacha:" + playerID + ":" + cardPoolType)
-	return b.core.Update(func(txn *badger.Txn) error {
+	return b.db.Update(func(txn *badger.Txn) error {
 		return txn.Set(key, recordsJSON)
 	})
 }
 
 // GetGachaRecords 는 특정 플레이어의 특정 배너 가챠 기록을 복원하여 반환합니다.
-func (b *BadgerDB) GetGachaRecords(playerID, cardPoolType string) ([]types.Record, error) {
+func (b *BadgerRepository) GetGachaRecords(playerID, cardPoolType string) ([]types.Record, error) {
 	var records []types.Record
 	key := []byte("gacha:" + playerID + ":" + cardPoolType)
 
-	err := b.core.View(func(txn *badger.Txn) error {
+	err := b.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
@@ -357,10 +383,10 @@ func (b *BadgerDB) GetGachaRecords(playerID, cardPoolType string) ([]types.Recor
 
 // ListPlayers 는 접두사 "gacha:"를 가진 모든 키를 Key-Only 스캔으로 초고속 순회하여
 // 고유 플레이어 ID 목록을 수 마이크로초 내에 파싱 및 리스트업합니다.
-func (b *BadgerDB) ListPlayers() ([]string, error) {
+func (b *BadgerRepository) ListPlayers() ([]string, error) {
 	playersMap := make(map[string]bool)
 
-	err := b.core.View(func(txn *badger.Txn) error {
+	err := b.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchValues = false // 값은 읽지 않고 키명만 조회하여 성능 극대화
 
@@ -395,10 +421,10 @@ type gachaRecordSet struct {
 	records      []types.Record
 }
 
-func (b *BadgerDB) listGachaRecordSets() ([]gachaRecordSet, error) {
+func (b *BadgerRepository) listGachaRecordSets() ([]gachaRecordSet, error) {
 	var recordSets []gachaRecordSet
 
-	err := b.core.View(func(txn *badger.Txn) error {
+	err := b.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchValues = true
 

@@ -72,8 +72,8 @@ func main() {
 }
 
 type cliRuntime struct {
-	svc *service.Service
-	db  *db.BadgerDB
+	svc        *service.Service
+	repository *db.BadgerRepository
 }
 
 func runWithRuntime(cfg *config.Config, args []string, commandFactory func(*service.Service) func([]string) error) error {
@@ -91,31 +91,36 @@ func runWithRuntime(cfg *config.Config, args []string, commandFactory func(*serv
 func newCLIRuntime(cfg *config.Config, args []string) (*cliRuntime, error) {
 	cfg.DBPath = extractStringFlag(args, "dbpath", cfg.DBPath)
 	client := newTrackerClient(cfg.ResourcesURL, cfg.TrackingURL, cfg.HTTPTimeout, extractBoolFlag(args, "v"))
-	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
+	core, err := db.OpenBadger(cfg.DBPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize database: %w", err)
+		return nil, fmt.Errorf("failed to open badger core: %w", err)
+	}
+	repository, err := db.NewBadgerRepository(core)
+	if err != nil {
+		_ = core.Close()
+		return nil, fmt.Errorf("failed to initialize repository: %w", err)
 	}
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
 	svc, err := service.New(service.Deps{
-		DB:     badgerDB,
-		Config: cfg,
-		Client: client,
-		Calc:   calc,
+		Repository: repository,
+		Config:     cfg,
+		Client:     client,
+		Calc:       calc,
 	})
 	if err != nil {
-		_ = badgerDB.Close()
+		_ = repository.Close()
 		return nil, fmt.Errorf("failed to initialize service: %w", err)
 	}
 
 	return &cliRuntime{
-		svc: svc,
-		db:  badgerDB,
+		svc:        svc,
+		repository: repository,
 	}, nil
 }
 
 func (r *cliRuntime) Close() error {
-	return r.db.Close()
+	return r.repository.Close()
 }
 
 func newTrackerClient(resourcesURL, trackingURL string, timeout time.Duration, verbose bool) *tracker.Client {
@@ -180,9 +185,9 @@ func printUsage() {
 	fmt.Println("  serve   Run the HTTP server (default)")
 	fmt.Println("  version Print build tag")
 	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
-	fmt.Println("  backup  Create a BadgerDB backup file")
-	fmt.Println("  merge   Merge records from a BadgerDB backup file")
-	fmt.Println("  db      Inspect and maintain the BadgerDB storage")
+	fmt.Println("  backup  Create a Badger repository backup file")
+	fmt.Println("  merge   Merge records from a Badger repository backup file")
+	fmt.Println("  db      Inspect and maintain the Badger repository storage")
 	fmt.Println("  report  Fetch gacha records and generate a report (use -url or -f)")
 	fmt.Println("  run     Run the entire flow (scan for URL, fetch data, and generate report)")
 	fmt.Println()
@@ -204,7 +209,7 @@ func runAll(svc *service.Service, args []string) error {
 	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
 	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
 	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
-	fs.String("dbpath", defaults.DBPath, "BadgerDB storage directory")
+	fs.String("dbpath", defaults.DBPath, "Badger repository storage directory")
 	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
 
 	if err := fs.Parse(args); err != nil {
@@ -276,24 +281,17 @@ func runAll(svc *service.Service, args []string) error {
 
 	statsResponse, err := svc.GetStats(fetchResult.Payload.PlayerID)
 	if err != nil {
-		return fmt.Errorf("failed to load stats from database: %w", err)
+		return fmt.Errorf("failed to load stats from repository: %w", err)
 	}
 
-	var format rep.Format
-	switch strings.ToLower(*formatFlag) {
-	case "json":
-		format = rep.FormatJSON
-	case "csv":
-		format = rep.FormatCSV
-	case "html":
-		format = rep.FormatHTML
-	default:
-		return fmt.Errorf("unsupported format: %s", *formatFlag)
+	format, err := rep.ParseFormat(*formatFlag)
+	if err != nil {
+		return err
 	}
 
 	finalOut := *outFlag
-	if !strings.HasSuffix(finalOut, "."+*formatFlag) {
-		finalOut = finalOut + "." + *formatFlag
+	if !strings.HasSuffix(finalOut, "."+string(format)) {
+		finalOut = finalOut + "." + string(format)
 	}
 
 	f, err := os.Create(finalOut)

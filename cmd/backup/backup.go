@@ -17,11 +17,11 @@ func Runner(cfg *config.Config) func(args []string) error {
 }
 
 // Run 은 backup 서브커맨드를 실행합니다.
-// 현재 BadgerDB 데이터를 단일 백업 파일로 출력합니다.
+// 현재 Badger repository 데이터를 단일 백업 파일로 출력합니다.
 func run(cfg *config.Config, args []string) error {
 	fs := flag.NewFlagSet("backup", flag.ExitOnError)
 	outFlag := fs.String("o", "wuwa-tracker.backup", "Output backup file path")
-	fs.String("dbpath", cfg.DBPath, "BadgerDB storage directory")
+	fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -30,12 +30,17 @@ func run(cfg *config.Config, args []string) error {
 		return fmt.Errorf("output file path is required. Use -o")
 	}
 
-	badgerDB, err := db.NewBadgerDB(cfg.DBPath)
+	core, err := db.OpenBadger(cfg.DBPath)
 	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
+		return fmt.Errorf("failed to open badger core: %w", err)
+	}
+	repository, err := db.NewBadgerRepository(core)
+	if err != nil {
+		_ = core.Close()
+		return fmt.Errorf("failed to initialize repository: %w", err)
 	}
 	defer func() {
-		_ = badgerDB.Close()
+		_ = repository.Close()
 	}()
 
 	f, err := os.Create(*outFlag)
@@ -46,7 +51,7 @@ func run(cfg *config.Config, args []string) error {
 		_ = f.Close()
 	}()
 
-	if _, err := badgerDB.Backup(f); err != nil {
+	if _, err := repository.Backup(f); err != nil {
 		return fmt.Errorf("failed to create backup: %w", err)
 	}
 

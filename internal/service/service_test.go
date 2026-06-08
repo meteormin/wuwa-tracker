@@ -20,7 +20,7 @@ import (
 )
 
 func TestNewValidatesDependencies(t *testing.T) {
-	database := openTestDB(t)
+	repository := openTestRepository(t)
 	cfg := testConfig()
 	client := newTestTrackerClient(http.DefaultClient, cfg)
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
@@ -31,28 +31,28 @@ func TestNewValidatesDependencies(t *testing.T) {
 		err  error
 	}{
 		{
-			name: "missing db",
+			name: "missing repository",
 			deps: Deps{Config: cfg, Client: client, Calc: calc},
-			err:  ErrMissingDB,
+			err:  ErrMissingRepo,
 		},
 		{
 			name: "missing config",
-			deps: Deps{DB: database, Client: client, Calc: calc},
+			deps: Deps{Repository: repository, Client: client, Calc: calc},
 			err:  ErrMissingConfig,
 		},
 		{
 			name: "missing client",
-			deps: Deps{DB: database, Config: cfg, Calc: calc},
+			deps: Deps{Repository: repository, Config: cfg, Calc: calc},
 			err:  ErrMissingClient,
 		},
 		{
 			name: "missing calc",
-			deps: Deps{DB: database, Config: cfg, Client: client},
+			deps: Deps{Repository: repository, Config: cfg, Client: client},
 			err:  ErrMissingCalc,
 		},
 		{
 			name: "valid",
-			deps: Deps{DB: database, Config: cfg, Client: client, Calc: calc},
+			deps: Deps{Repository: repository, Config: cfg, Client: client, Calc: calc},
 		},
 	}
 
@@ -122,7 +122,7 @@ func TestServiceUploadSavesRecordsAndReturnsStats(t *testing.T) {
 		t.Fatalf("expected empty weapon stats, got %d pulls", statsResponse.Stats[1].TotalPulls)
 	}
 
-	stored, err := svc.db.GetGachaRecords("player-1", "character")
+	stored, err := svc.repo.GetGachaRecords("player-1", "character")
 	if err != nil {
 		t.Fatalf("GetGachaRecords returned error: %v", err)
 	}
@@ -345,10 +345,10 @@ func newTestServiceWithClient(t *testing.T, cfg *config.Config, client *tracker.
 
 	calc := tracker.NewStatsCalculator(cfg.StandardFiveStarResources, cfg.CostPolicy)
 	svc, err := New(Deps{
-		DB:     openTestDB(t),
-		Config: cfg,
-		Client: client,
-		Calc:   calc,
+		Repository: openTestRepository(t),
+		Config:     cfg,
+		Client:     client,
+		Calc:       calc,
 	})
 	if err != nil {
 		t.Fatalf("New returned error: %v", err)
@@ -356,19 +356,24 @@ func newTestServiceWithClient(t *testing.T, cfg *config.Config, client *tracker.
 	return svc
 }
 
-func openTestDB(t *testing.T) *db.BadgerDB {
+func openTestRepository(t *testing.T) *db.BadgerRepository {
 	t.Helper()
 
-	database, err := db.NewBadgerDB(t.TempDir())
+	core, err := db.OpenBadger(t.TempDir())
 	if err != nil {
-		t.Fatalf("NewBadgerDB returned error: %v", err)
+		t.Fatalf("OpenBadger returned error: %v", err)
+	}
+	repository, err := db.NewBadgerRepository(core)
+	if err != nil {
+		_ = core.Close()
+		t.Fatalf("NewBadgerRepository returned error: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := database.Close(); err != nil {
+		if err := repository.Close(); err != nil {
 			t.Fatalf("Close returned error: %v", err)
 		}
 	})
-	return database
+	return repository
 }
 
 func testConfig() *config.Config {
