@@ -1,10 +1,10 @@
 package dbcmd
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 
+	"github.com/meteormin/wuwa-tracker/cmd/cli"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 )
@@ -17,11 +17,28 @@ func Runner(cfg *config.Config) func(args []string) error {
 
 // run 은 db 관리 서브커맨드를 실행합니다.
 func run(cfg *config.Config, args []string) error {
+	if cli.HelpRequested(args) {
+		fmt.Println(usage())
+		return nil
+	}
 	if len(args) < 1 {
 		return fmt.Errorf("missing db command\n\n%s", usage())
 	}
 
 	switch args[0] {
+	case "help":
+		if len(args) == 1 {
+			fmt.Println(usage())
+			return nil
+		}
+		switch args[1] {
+		case "stats":
+			return runStats(cfg, []string{"help"})
+		case "gc":
+			return runGC(cfg, []string{"help"})
+		default:
+			return fmt.Errorf("unknown db command: %s\n\n%s", args[1], usage())
+		}
 	case "stats":
 		return runStats(cfg, args[1:])
 	case "gc":
@@ -44,9 +61,9 @@ func usage() string {
 }
 
 func runStats(cfg *config.Config, args []string) error {
-	fs := flag.NewFlagSet("db stats", flag.ExitOnError)
+	fs := cli.NewFlagSet("db stats", "wuwa-tracker db stats [arguments]")
 	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
-	if err := fs.Parse(args); err != nil {
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 
@@ -60,10 +77,10 @@ func runStats(cfg *config.Config, args []string) error {
 }
 
 func runGC(cfg *config.Config, args []string) error {
-	fs := flag.NewFlagSet("db gc", flag.ExitOnError)
+	fs := cli.NewFlagSet("db gc", "wuwa-tracker db gc [arguments]")
 	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	discardRatioFlag := fs.Float64("discard-ratio", cfg.DBGCDiscardRatio, "Badger value log discard ratio")
-	if err := fs.Parse(args); err != nil {
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 
