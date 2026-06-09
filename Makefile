@@ -1,4 +1,4 @@
-.PHONY: all build build-webui clean distclean test lint fmt run run-cli run-server audit
+.PHONY: all build build-webui clean distclean test benchmark lint fmt run run-cli run-server audit
 
 APP_NAME=wuwa-tracker
 BIN_DIR=bin
@@ -14,6 +14,9 @@ COMMIT_HASH ?=
 BUILD_TAG=$(BUILD_DATE)$(if $(COMMIT_HASH),-$(COMMIT_HASH),)
 GO_BUILD_FLAGS=-trimpath
 LD_FLAGS=-s -w -X main.buildTag=$(BUILD_TAG)
+BENCHTIME ?= 1s
+BENCH_PKGS=./internal/scanner ./internal/tracker ./internal/db
+BENCH_PATTERN=Benchmark(FindURL|URLRegexZeroAllocCandidate|StatsCalculatorCalc|StatsReverseZeroAlloc|BadgerRepositorySaveGachaRecords|MergeRecordsZeroAllocCandidates)
 
 GOVERSION ?= $(shell go env GOVERSION)
 export GOCACHE ?= $(CURDIR)/$(GO_BUILD_CACHE_DIR)
@@ -64,6 +67,10 @@ distclean: clean
 test: build-webui
 	@echo "Running tests..."
 	@go test -v ./...
+
+benchmark:
+	@echo "Running benchmarks..."
+	@go test -bench '$(BENCH_PATTERN)' -benchmem -benchtime=$(BENCHTIME) $(BENCH_PKGS)
 
 lint: build-webui
 	@echo "Running linter..."

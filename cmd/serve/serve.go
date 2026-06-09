@@ -2,7 +2,6 @@ package serve
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/meteormin/wuwa-tracker/cmd/cli"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/handler"
 	"github.com/meteormin/wuwa-tracker/internal/server"
@@ -41,14 +41,14 @@ func Runner(cfg *config.Config, buildTag string) func(args []string) error {
 
 // run 은 HTTP 서버를 실행합니다.
 func run(cfg *config.Config, buildTag string, args []string) error {
-	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	fs := cli.NewFlagSet("serve", "wuwa-tracker serve [arguments]")
 	hostFlag := fs.String("host", cfg.ServerHost, "Host address to listen on")
 	portFlag := fs.String("port", cfg.ServerPort, "Port to listen on")
 	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	dbGCEnabledFlag := fs.Bool("db-gc", cfg.DBGCEnabled, "Enable periodic Badger value log GC")
 	dbGCIntervalFlag := fs.Duration("db-gc-interval", cfg.DBGCInterval, "Badger value log GC interval")
 	dbGCDiscardRatioFlag := fs.Float64("db-gc-discard-ratio", cfg.DBGCDiscardRatio, "Badger value log GC discard ratio")
-	if err := fs.Parse(args); err != nil {
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 

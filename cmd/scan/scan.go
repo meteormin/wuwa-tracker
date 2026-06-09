@@ -2,12 +2,12 @@ package scan
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"os/exec"
 	"runtime"
 	"strings"
 
+	"github.com/meteormin/wuwa-tracker/cmd/cli"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
 )
@@ -21,10 +21,10 @@ func Runner(cfg *config.Config) func(args []string) error {
 // Run 은 scan 서브커맨드를 실행합니다.
 // 게임 로그 경로를 전달받아 가챠 기록 URL을 추출하고 표준 출력으로 반환합니다.
 func run(cfg *config.Config, args []string) error {
-	fs := flag.NewFlagSet("scan", flag.ExitOnError)
+	fs := cli.NewFlagSet("scan", "wuwa-tracker scan -path <game-root-or-log-path> [arguments]")
 	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
 	clipboardFlag := fs.Bool("clipboard", false, "Copy the URL to the clipboard")
-	if err := fs.Parse(args); err != nil {
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 

@@ -1,11 +1,11 @@
 package merge
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/meteormin/wuwa-tracker/cmd/cli"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 )
@@ -19,10 +19,10 @@ func Runner(cfg *config.Config) func(args []string) error {
 // Run 은 merge 서브커맨드를 실행합니다.
 // Badger repository 백업 파일을 현재 repository에 가챠 기록 단위로 병합합니다.
 func run(cfg *config.Config, args []string) error {
-	fs := flag.NewFlagSet("merge", flag.ExitOnError)
+	fs := cli.NewFlagSet("merge", "wuwa-tracker merge -f <backup-file> [arguments]")
 	fileFlag := fs.String("f", "", "Path to a Badger repository backup file")
 	fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
-	if err := fs.Parse(args); err != nil {
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 

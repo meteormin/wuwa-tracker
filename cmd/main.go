@@ -13,6 +13,7 @@ import (
 	"github.com/goccy/go-json"
 
 	"github.com/meteormin/wuwa-tracker/cmd/backup"
+	"github.com/meteormin/wuwa-tracker/cmd/cli"
 	dbcmd "github.com/meteormin/wuwa-tracker/cmd/db"
 	"github.com/meteormin/wuwa-tracker/cmd/merge"
 	"github.com/meteormin/wuwa-tracker/cmd/report"
@@ -33,7 +34,13 @@ func main() {
 	args := os.Args[1:]
 
 	var err error
-	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+	if cli.HelpRequested(args) {
+		printUsage()
+		return
+	}
+	if len(args) > 0 && args[0] == "help" {
+		err = printCommandUsage(cfg, buildTag, args[1:])
+	} else if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		err = serve.Runner(cfg, buildTag)(args)
 	} else {
 		cmd := args[0]
@@ -41,6 +48,10 @@ func main() {
 
 		switch cmd {
 		case "version":
+			if cli.HelpRequested(cmdArgs) {
+				printVersionUsage()
+				break
+			}
 			fmt.Println(buildTag)
 		case "serve":
 			err = serve.Runner(cfg, buildTag)(cmdArgs)
@@ -56,9 +67,17 @@ func main() {
 			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
 			err = dbcmd.Runner(cfg)(cmdArgs)
 		case "report":
-			err = runWithRuntime(cfg, cmdArgs, report.Runner)
+			if cli.HelpRequested(cmdArgs) {
+				report.PrintUsage(cfg)
+			} else {
+				err = runWithRuntime(cfg, cmdArgs, report.Runner)
+			}
 		case "run":
-			err = runWithRuntime(cfg, cmdArgs, runAllRunner)
+			if cli.HelpRequested(cmdArgs) {
+				printRunUsage(cfg)
+			} else {
+				err = runWithRuntime(cfg, cmdArgs, runAllRunner)
+			}
 		default:
 			fmt.Printf("unknown command: %s\n\n", cmd)
 			printUsage()
@@ -69,6 +88,37 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
+}
+
+func printCommandUsage(cfg *config.Config, buildTag string, args []string) error {
+	if len(args) == 0 {
+		printUsage()
+		return nil
+	}
+
+	switch args[0] {
+	case "help":
+		printUsage()
+	case "version":
+		printVersionUsage()
+	case "serve":
+		return serve.Runner(cfg, buildTag)([]string{"help"})
+	case "scan":
+		return scan.Runner(cfg)([]string{"help"})
+	case "backup":
+		return backup.Runner(cfg)([]string{"help"})
+	case "merge":
+		return merge.Runner(cfg)([]string{"help"})
+	case "db":
+		return dbcmd.Runner(cfg)(append([]string{"help"}, args[1:]...))
+	case "report":
+		report.PrintUsage(cfg)
+	case "run":
+		printRunUsage(cfg)
+	default:
+		return fmt.Errorf("unknown command: %s", args[0])
+	}
+	return nil
 }
 
 type cliRuntime struct {
@@ -182,6 +232,7 @@ func printUsage() {
 	fmt.Println("Usage: wuwa-tracker [command] [arguments]")
 	fmt.Println()
 	fmt.Println("Commands:")
+	fmt.Println("  help    Show usage for the CLI or a specific command")
 	fmt.Println("  serve   Run the HTTP server (default)")
 	fmt.Println("  version Print build tag")
 	fmt.Println("  scan    Scan log files to extract the Wuthering Waves gacha record URL")
@@ -191,7 +242,13 @@ func printUsage() {
 	fmt.Println("  report  Fetch gacha records and generate a report (use -url or -f)")
 	fmt.Println("  run     Run the entire flow (scan for URL, fetch data, and generate report)")
 	fmt.Println()
-	fmt.Println("Use 'wuwa-tracker <command> -h' for more information about a command.")
+	fmt.Println("Use 'wuwa-tracker help <command>' or 'wuwa-tracker <command> -h' for more information about a command.")
+}
+
+func printVersionUsage() {
+	fmt.Println("Usage: wuwa-tracker version")
+	fmt.Println()
+	fmt.Println("Print build tag.")
 }
 
 func runAllRunner(svc *service.Service) func(args []string) error {
@@ -203,16 +260,8 @@ func runAllRunner(svc *service.Service) func(args []string) error {
 // runAll 은 전체 가챠 데이터 추출 및 리포트 생성을 실행하는 run 서브커맨드 로직입니다.
 func runAll(svc *service.Service, args []string) error {
 	defaults := svc.Config()
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
-	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
-	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
-	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
-	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
-	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
-	fs.String("dbpath", defaults.DBPath, "Badger repository storage directory")
-	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
-
-	if err := fs.Parse(args); err != nil {
+	fs, urlFlag, pathFlag, formatFlag, outFlag, langFlag, verboseFlag := newRunFlagSet(defaults)
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 
@@ -312,4 +361,21 @@ func runAll(svc *service.Service, args []string) error {
 
 	fmt.Printf("Report successfully generated! File: %s\n", finalOut)
 	return nil
+}
+
+func printRunUsage(defaults *config.Config) {
+	fs, _, _, _, _, _, _ := newRunFlagSet(defaults)
+	fs.Usage()
+}
+
+func newRunFlagSet(defaults *config.Config) (*flag.FlagSet, *string, *string, *string, *string, *string, *bool) {
+	fs := cli.NewFlagSet("run", "wuwa-tracker run (-url <gacha-url> | -path <game-root-or-log-path>) [arguments]")
+	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
+	pathFlag := fs.String("path", "", "Wuthering Waves Game root path to scan for logs")
+	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
+	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
+	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
+	fs.String("dbpath", defaults.DBPath, "Badger repository storage directory")
+	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
+	return fs, urlFlag, pathFlag, formatFlag, outFlag, langFlag, verboseFlag
 }

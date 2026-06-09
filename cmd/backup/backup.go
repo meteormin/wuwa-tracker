@@ -1,11 +1,11 @@
 package backup
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/meteormin/wuwa-tracker/cmd/cli"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
 )
@@ -19,10 +19,10 @@ func Runner(cfg *config.Config) func(args []string) error {
 // Run 은 backup 서브커맨드를 실행합니다.
 // 현재 Badger repository 데이터를 단일 백업 파일로 출력합니다.
 func run(cfg *config.Config, args []string) error {
-	fs := flag.NewFlagSet("backup", flag.ExitOnError)
+	fs := cli.NewFlagSet("backup", "wuwa-tracker backup [arguments]")
 	outFlag := fs.String("o", "wuwa-tracker.backup", "Output backup file path")
 	fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
-	if err := fs.Parse(args); err != nil {
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 
