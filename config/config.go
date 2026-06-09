@@ -29,7 +29,7 @@ const (
 	DefaultLanguage       = "ko"
 	DefaultHTTPTimeout    = 5 * time.Second
 	DefaultDBGCEnabled    = true
-	DefaultDBGCInterval   = time.Hour
+	DefaultDBGCInterval   = 30 * time.Minute
 	DefaultDBGCDiscard    = 0.5
 	DefaultAstritePerPull = 160
 )
