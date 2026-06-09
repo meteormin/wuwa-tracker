@@ -138,8 +138,8 @@ WebUI에서 가능한 작업:
 | `GET` | `/api/stats/:playerId` | 저장된 기록 기반 통계 조회 |
 | `GET` | `/api/players` | 저장된 플레이어 ID 목록 조회 |
 | `GET` | `/api/config` | 프론트 표시용 `luckScoreThresholds` 조회 |
-| `GET` | `/api/i18n?lang=ko|en` | WebUI와 HTML 리포트에서 공유하는 UI 번역 조회 |
-| `GET` | `/api/export/:playerId?format=html|json|csv&lang=ko|en` | 저장된 기록의 리포트 다운로드 |
+| `GET` | `/api/i18n?lang={lang}` | WebUI와 HTML 리포트에서 공유하는 UI 번역 조회 (`lang`: `ko`, `en`) |
+| `GET` | `/api/export/:playerId?format={format}&lang={lang}` | 저장된 기록의 리포트 다운로드 (`format`: `html`, `json`, `csv`; `lang`: `ko`, `en`) |
 
 ## 프로젝트 구조
 
