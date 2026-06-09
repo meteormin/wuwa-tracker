@@ -12,6 +12,8 @@ import (
 
 	"github.com/goccy/go-json"
 
+	"github.com/meteormin/wuwa-tracker/cmd/cli"
+	"github.com/meteormin/wuwa-tracker/config"
 	reporter "github.com/meteormin/wuwa-tracker/internal/reporter"
 	"github.com/meteormin/wuwa-tracker/internal/scanner"
 	"github.com/meteormin/wuwa-tracker/internal/service"
@@ -28,16 +30,8 @@ func Runner(svc *service.Service) func(args []string) error {
 // -url 제공 시 온라인 모드, -f 제공 시 오프라인 모드로 동작합니다.
 func run(svc *service.Service, args []string) error {
 	defaults := svc.Config()
-	fs := flag.NewFlagSet("report", flag.ExitOnError)
-	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
-	fileFlag := fs.String("f", "", "Path to a local JSON log file (offline mode)")
-	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
-	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
-	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
-	fs.String("dbpath", defaults.DBPath, "Badger repository storage directory")
-	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
-
-	if err := fs.Parse(args); err != nil {
+	fs, urlFlag, fileFlag, formatFlag, outFlag, langFlag, verboseFlag := newFlagSet(defaults)
+	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
 
@@ -72,6 +66,23 @@ func run(svc *service.Service, args []string) error {
 	}
 
 	return exportReport(svc, playerID, *formatFlag, *outFlag, *langFlag)
+}
+
+func PrintUsage(defaults *config.Config) {
+	fs, _, _, _, _, _, _ := newFlagSet(defaults)
+	fs.Usage()
+}
+
+func newFlagSet(defaults *config.Config) (*flag.FlagSet, *string, *string, *string, *string, *string, *bool) {
+	fs := cli.NewFlagSet("report", "wuwa-tracker report (-url <gacha-url> | -f <records-json>) [arguments]")
+	urlFlag := fs.String("url", "", "Wuthering Waves gacha record URL")
+	fileFlag := fs.String("f", "", "Path to a local JSON log file (offline mode)")
+	formatFlag := fs.String("format", defaults.ReportFormat, "Report format (json, csv, html)")
+	outFlag := fs.String("o", defaults.ReportOutput, "Output file path (without extension)")
+	langFlag := fs.String("lang", defaults.Language, "Report UI language (ko, en)")
+	fs.String("dbpath", defaults.DBPath, "Badger repository storage directory")
+	verboseFlag := fs.Bool("v", false, "Enable verbose logging")
+	return fs, urlFlag, fileFlag, formatFlag, outFlag, langFlag, verboseFlag
 }
 
 // runOffline 은 로컬 JSON 파일에서 데이터를 읽어 통계를 계산합니다.
