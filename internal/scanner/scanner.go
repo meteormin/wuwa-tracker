@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -61,7 +62,17 @@ func ScanLogFile(filePath string, targetURL ...string) (string, error) {
 		_ = f.Close()
 	}()
 
-	return FindURL(f, targetURL...)
+	url, err := FindURL(f, targetURL...)
+	if err == nil || !errors.Is(err, ErrURLNotFound) {
+		return url, err
+	}
+
+	data, readErr := os.ReadFile(filePath)
+	if readErr != nil {
+		return "", readErr
+	}
+	decodeObfuscatedLog(data)
+	return FindURL(bytes.NewReader(data), targetURL...)
 }
 
 func newURLRegex(targetURL ...string) (*regexp.Regexp, error) {
@@ -69,4 +80,14 @@ func newURLRegex(targetURL ...string) (*regexp.Regexp, error) {
 		return regexp.Compile(regexp.QuoteMeta(targetURL[0]) + `/aki/gacha/index\.html#/record[^"\s]*`)
 	}
 	return nil, ErrInvalidURL
+}
+
+func decodeObfuscatedLog(data []byte) {
+	for i, b := range data {
+		if (b&0x0F)%2 == 1 {
+			data[i] = b ^ 0xA5
+		} else {
+			data[i] = b ^ 0xEF
+		}
+	}
 }
