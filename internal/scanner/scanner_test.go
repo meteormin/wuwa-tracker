@@ -1,6 +1,8 @@
 package scanner
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -62,4 +64,36 @@ func TestFindURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestScanLogFileDecryptsObfuscatedLog(t *testing.T) {
+	trackingURL := "https://aki-gm-resources-oversea.aki-game.net"
+	expectedURL := trackingURL + "/aki/gacha/index.html#/record?serverId=123&playerId=456&recordId=789"
+	content := []byte("LogHttp: Display: HTTP URL: " + expectedURL)
+
+	logPath := filepath.Join(t.TempDir(), "game.log")
+	if err := os.WriteFile(logPath, encodeClientLogForTest(content), 0o644); err != nil {
+		t.Fatalf("write obfuscated log: %v", err)
+	}
+
+	url, err := ScanLogFile(logPath, trackingURL)
+	if err != nil {
+		t.Fatalf("ScanLogFile() error = %v, want nil", err)
+	}
+	if url != expectedURL {
+		t.Fatalf("ScanLogFile() result = %q, want %q", url, expectedURL)
+	}
+}
+
+func encodeClientLogForTest(data []byte) []byte {
+	encoded := make([]byte, len(data))
+	for i, b := range data {
+		candidate := b ^ 0xA5
+		if (candidate&0x0F)%2 == 1 {
+			encoded[i] = candidate
+			continue
+		}
+		encoded[i] = b ^ 0xEF
+	}
+	return encoded
 }
