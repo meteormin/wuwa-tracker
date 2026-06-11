@@ -102,41 +102,61 @@ Go 언어에서 권장하는 표준을 준수
 
 ### Commit Workflow
 
-이 워크플로우는 모든 현재 변경 사항을 스테이징하고, 설명적인 커밋 메시지를 생성한 뒤 커밋하는 절차입니다.
+이 워크플로우는 현재 수정 내용에 맞는 브랜치를 생성하고, 모든 현재 변경 사항을 스테이징한 뒤 설명적인 커밋 메시지로 커밋하는 절차입니다.
 
-1. Audit Packages
+1. Prepare Branch
+   - 현재 브랜치와 변경 내용을 확인합니다.
+   ```bash
+   git status --short
+   git branch --show-current
+   ```
+   - 변경 성격에 맞는 브랜치 prefix를 선택합니다.
+     - 기능 추가: `feature/<description>`
+     - 버그 수정: `fix/<description>`
+     - 긴급 수정: `hotfix/<description>`
+     - 문서 변경: `docs/<description>`
+     - 테스트 변경: `test/<description>`
+     - 리팩터링: `refactor/<description>`
+     - 기타 관리 작업: `chore/<description>`
+   - 이미 적절한 작업 브랜치에 있다면 새 브랜치를 만들지 않습니다.
+   - `main` 또는 `develop`에 있다면 수정 내용에 맞는 브랜치를 생성한 뒤 작업합니다.
+   ```bash
+   git switch -c "<type>/<description>"
+   ```
+
+2. Audit Packages
    ```bash
    make audit
    ```
 
-2. Build Check
+3. Build Check
    ```bash
    go build ./...
    ```
 
-3. Stage All Changes
+4. Stage All Changes
    ```bash
    git add .
    ```
 
-4. Analyze Changes
+5. Analyze Changes
    ```bash
    git diff --cached
    ```
 
-5. Generate and Commit
+6. Generate and Commit
    - Conventional Commits 형식의 전문적인 메시지를 생성하여 커밋합니다.
    ```bash
    git commit -m "<ai_generated_message>"
    ```
 
-6. Push
+7. Push
    - 필요할 경우 변경 사항을 push합니다.
    ```bash
    git push
    ```
 
-7. Prepare PR Description
+8. Prepare PR Description
    - PR을 생성할 경우 PR 본문에 붙여 넣을 설명을 생성하고 출력합니다.
    - `Summary` 섹션은 PR의 전체 의도를 간결하게 설명합니다.
    - `Changes` 섹션은 구체적인 구현 변경 사항을 작성합니다.
