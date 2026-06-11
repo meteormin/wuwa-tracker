@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
 	"github.com/meteormin/wuwa-tracker/config"
 	"github.com/meteormin/wuwa-tracker/internal/db"
@@ -16,6 +17,7 @@ import (
 const RuntimeServiceName = "wuwa-tracker-runtime"
 
 type ServiceProvider interface {
+	fiber.Service
 	Service() *service.Service
 }
 
