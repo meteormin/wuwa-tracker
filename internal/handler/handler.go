@@ -245,11 +245,7 @@ func ExportReport(c fiber.Ctx) error {
 }
 
 func serviceFromCtx(c fiber.Ctx) (*service.Service, error) {
-	runtime, ok := fiber.GetService[fiber.Service](c.App().State(), server.RuntimeServiceName)
-	if !ok {
-		return nil, errRuntimeServiceUnavailable
-	}
-	provider, ok := runtime.(server.ServiceProvider)
+	provider, ok := fiber.GetService[server.ServiceProvider](c.App().State(), server.RuntimeServiceName)
 	if !ok {
 		return nil, errRuntimeServiceUnavailable
 	}
