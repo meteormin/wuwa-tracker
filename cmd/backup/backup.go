@@ -21,7 +21,7 @@ func Runner(cfg *config.Config) func(args []string) error {
 func run(cfg *config.Config, args []string) error {
 	fs := cli.NewFlagSet("backup", "wuwa-tracker backup [arguments]")
 	outFlag := fs.String("o", "wuwa-tracker.backup", "Output backup file path")
-	fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func run(cfg *config.Config, args []string) error {
 		return fmt.Errorf("output file path is required. Use -o")
 	}
 
-	core, err := db.OpenBadger(cfg.DBPath)
+	core, err := db.OpenBadger(*dbPathFlag)
 	if err != nil {
 		return fmt.Errorf("failed to open badger core: %w", err)
 	}

@@ -21,7 +21,7 @@ func Runner(cfg *config.Config) func(args []string) error {
 func run(cfg *config.Config, args []string) error {
 	fs := cli.NewFlagSet("merge", "wuwa-tracker merge -f <backup-file> [arguments]")
 	fileFlag := fs.String("f", "", "Path to a Badger repository backup file")
-	fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
+	dbPathFlag := fs.String("dbpath", cfg.DBPath, "Badger repository storage directory")
 	if handled, err := cli.Parse(fs, args); handled || err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func run(cfg *config.Config, args []string) error {
 		return fmt.Errorf("backup file path is required. Use -f")
 	}
 
-	core, err := db.OpenBadger(cfg.DBPath)
+	core, err := db.OpenBadger(*dbPathFlag)
 	if err != nil {
 		return fmt.Errorf("failed to open badger core: %w", err)
 	}
