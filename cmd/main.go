@@ -58,13 +58,10 @@ func main() {
 		case "scan":
 			err = scan.Runner(cfg)(cmdArgs)
 		case "backup":
-			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
 			err = backup.Runner(cfg)(cmdArgs)
 		case "merge":
-			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
 			err = merge.Runner(cfg)(cmdArgs)
 		case "db":
-			cfg.DBPath = extractStringFlag(cmdArgs, "dbpath", cfg.DBPath)
 			err = dbcmd.Runner(cfg)(cmdArgs)
 		case "report":
 			if cli.HelpRequested(cmdArgs) {
