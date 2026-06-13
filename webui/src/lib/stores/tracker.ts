@@ -1,4 +1,5 @@
 import { get, writable } from "svelte/store";
+import { persisted } from 'svelte-persisted-store';
 import type { LuckScoreThreshold, Stats } from "../types";
 import {
   fetchConfig,
@@ -10,8 +11,8 @@ import {
 } from "../api";
 import { initI18n, t } from "../i18n";
 
+export const scanPathInput = persisted("scanPath", "");
 export const urlInput = writable("");
-export const scanPathInput = writable("");
 export const isLoading = writable(false);
 export const isScanning = writable(false);
 export const errorMessage = writable("");
