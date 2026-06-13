@@ -116,15 +116,16 @@ var (
 		{
 			ID:               10,
 			Key:              "characterCollaboration",
-			HasOffBannerDrop: false,
+			HasOffBannerDrop: true,
 			BaseRate:         0.8,
 			ExpectedPulls:    80,
 		},
 		{
-			ID:            11,
-			Key:           "weaponCollaboration",
-			BaseRate:      0.8,
-			ExpectedPulls: 55,
+			ID:               11,
+			Key:              "weaponCollaboration",
+			HasOffBannerDrop: false,
+			BaseRate:         0.8,
+			ExpectedPulls:    55,
 		},
 	}
 
