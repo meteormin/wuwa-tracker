@@ -8,7 +8,7 @@ use wuwa_tracker_core::{Config, Service};
 
 #[derive(Debug, Parser)]
 #[command(name = "wuwa-tracker")]
-#[command(about = "Wuwa Tracker v2")]
+#[command(about = "Wuwa Tracker")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
