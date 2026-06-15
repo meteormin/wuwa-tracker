@@ -2,29 +2,30 @@
 
 ## Architecture
 
-- cmd: entry point
-- internal: backend api server 및 비즈니스로직, 서버 기반은 gofiber 사용
-- webui: frontend, svelte 사용
+- crates/wuwa-tracker-core: Rust domain logic, scanner, stats, merge, local store
+- crates/wuwa-tracker-app: Rust desktop app and optional `serve` command
+- webui: Svelte frontend reused by the desktop app and optional server mode
+- locales: embedded JSON locale resources
 
 ## Global Rules
 
 1. 코드 내, 주석 제외 한글 사용 금지
-2. CGO 사용 금지
-3. 기타 외부 통신 라이브러리 사용 금지 (http client 제외)
+2. Rust 코드는 `cargo fmt` 표준 포맷을 유지
+3. 외부 통신은 Rust HTTP client 계층으로만 격리
 
 ## Build Guide
 
-- backend server는 `Makefile` 및 `go build`를 사용
+- Rust workspace는 `cargo`를 사용
 - frontend webui는 `yarn`, `vite`를 사용
 - 빌드 관련 커맨드는 [Makefile](./Makefile)을 참조
 
 ## Codebase Rules
 
-Go 언어에서 권장하는 표준을 준수
+Rust 언어에서 권장하는 표준을 준수
 
-- Linter: golangci-lint
-- LSP: gopls
-- Formatter: gofumpt
+- Formatter: rustfmt
+- Build/Test: cargo check, cargo test
+- Frontend Check: yarn run check
 
 ### Comments
 
@@ -128,12 +129,12 @@ Go 언어에서 권장하는 표준을 준수
 
 2. Audit Packages
    ```bash
-   make audit
+   make ci
    ```
 
 3. Build Check
    ```bash
-   go build ./...
+   make build
    ```
 
 4. Stage All Changes
