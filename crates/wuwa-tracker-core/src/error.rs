@@ -14,7 +14,7 @@ pub enum AppError {
     LogFileNotFound,
     #[error("url not found")]
     UrlNotFound,
-    #[error("remote tracking is not implemented in rust v2 yet")]
+    #[error("remote tracking is not implemented yet")]
     RemoteTrackingUnsupported,
     #[error("invalid gacha url or unsupported domain")]
     InvalidGachaUrl,

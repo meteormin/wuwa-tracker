@@ -12,39 +12,61 @@ use wuwa_tracker_core::{
 
 #[derive(Debug, Clone, Args)]
 pub struct ScanArgs {
-    #[arg(short, long)]
+    #[arg(short, long, help = "Game root directory or log file path to scan")]
     pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct ReportArgs {
-    #[arg(long)]
+    #[arg(long, help = "Tracking URL to fetch gacha records from")]
     pub url: Option<String>,
-    #[arg(short = 'f', long = "file")]
+    #[arg(
+        short = 'f',
+        long = "file",
+        help = "FetchResult or legacy JSON file to import before reporting"
+    )]
     pub file: Option<PathBuf>,
-    #[arg(long, default_value = "html")]
+    #[arg(
+        long,
+        default_value = "html",
+        help = "Report format: html, json, or csv"
+    )]
     pub format: String,
-    #[arg(short = 'o', long = "output", default_value = "report")]
+    #[arg(
+        short = 'o',
+        long = "output",
+        default_value = "report",
+        help = "Output file path or basename"
+    )]
     pub output: PathBuf,
-    #[arg(long, default_value = "ko")]
+    #[arg(long, default_value = "ko", help = "Report language code")]
     pub lang: String,
-    #[arg(short = 'v', long)]
+    #[arg(short = 'v', long, help = "Print progress messages")]
     pub verbose: bool,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
-    #[arg(long)]
+    #[arg(long, help = "Tracking URL to fetch gacha records from")]
     pub url: Option<String>,
-    #[arg(short, long)]
+    #[arg(short, long, help = "Game root directory or log file path to scan")]
     pub path: Option<PathBuf>,
-    #[arg(long, default_value = "html")]
+    #[arg(
+        long,
+        default_value = "html",
+        help = "Report format: html, json, or csv"
+    )]
     pub format: String,
-    #[arg(short = 'o', long = "output", default_value = "report")]
+    #[arg(
+        short = 'o',
+        long = "output",
+        default_value = "report",
+        help = "Output file path or basename"
+    )]
     pub output: PathBuf,
-    #[arg(long, default_value = "ko")]
+    #[arg(long, default_value = "ko", help = "Report language code")]
     pub lang: String,
-    #[arg(short = 'v', long)]
+    #[arg(short = 'v', long, help = "Print progress messages")]
     pub verbose: bool,
 }
 
@@ -53,14 +75,15 @@ pub struct BackupArgs {
     #[arg(
         short = 'o',
         long = "output",
-        default_value = "wuwa-tracker.backup.json"
+        default_value = "wuwa-tracker.backup.json",
+        help = "Backup JSON output path"
     )]
     pub output: PathBuf,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct MergeArgs {
-    #[arg(short = 'f', long = "file")]
+    #[arg(short = 'f', long = "file", help = "Backup JSON file to merge")]
     pub file: PathBuf,
 }
 
@@ -72,6 +95,7 @@ pub struct DbArgs {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum DbCommand {
+    #[command(about = "List player IDs stored locally")]
     Players,
 }
 

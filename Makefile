@@ -9,7 +9,7 @@ YARN ?= yarn
 YARN_INSTALL_FLAGS ?= --frozen-lockfile
 
 help:
-	@echo "Wuwa Tracker Rust v2"
+	@echo "Wuwa Tracker"
 	@echo ""
 	@echo "Development:"
 	@echo "  make setup           Install WebUI dependencies"

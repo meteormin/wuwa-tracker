@@ -19,9 +19,19 @@ use wuwa_tracker_core::{
 
 #[derive(Debug, Clone, Args)]
 pub struct ServeArgs {
-    #[arg(long, env = "WUWA_TRACKER_HOST", default_value = "127.0.0.1")]
+    #[arg(
+        long,
+        env = "WUWA_TRACKER_HOST",
+        default_value = "127.0.0.1",
+        help = "Host address to bind"
+    )]
     pub host: String,
-    #[arg(long, env = "WUWA_TRACKER_PORT", default_value = "3000")]
+    #[arg(
+        long,
+        env = "WUWA_TRACKER_PORT",
+        default_value = "3000",
+        help = "TCP port to listen on"
+    )]
     pub port: u16,
 }
 
