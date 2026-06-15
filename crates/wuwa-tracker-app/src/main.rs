@@ -16,13 +16,21 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    #[command(about = "Run the embedded WebUI and HTTP API server")]
     Serve(http::ServeArgs),
+    #[command(about = "Print the application version")]
     Version,
+    #[command(about = "Scan a game directory or log file for a tracking URL")]
     Scan(cli::ScanArgs),
+    #[command(about = "Generate a report from a URL or saved JSON file")]
     Report(cli::ReportArgs),
+    #[command(about = "Scan or fetch gacha records and generate a report")]
     Run(cli::RunArgs),
+    #[command(about = "Export the local store to a backup JSON file")]
     Backup(cli::BackupArgs),
+    #[command(about = "Merge a backup JSON file into the local store")]
     Merge(cli::MergeArgs),
+    #[command(about = "Inspect local store data")]
     Db(cli::DbArgs),
 }
 
