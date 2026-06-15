@@ -1,12 +1,10 @@
 # Wuwa Tracker Design
 
 - Updated Date: 2026-06-15
-- Source of Truth: Rust v2 implementation
-- 주요 근거 파일: `Cargo.toml`, `crates/wuwa-tracker-core/src/service.rs`, `crates/wuwa-tracker-core/src/tracker.rs`, `crates/wuwa-tracker-core/src/reporter.rs`, `crates/wuwa-tracker-app/src/main.rs`, `crates/wuwa-tracker-app/src/http.rs`, `webui/src/lib/api/index.ts`
 
 ## Architecture Overview
 
-Wuwa Tracker v2는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 binary에 embed된 WebUI asset과 HTTP API를 제공합니다. 기존 Go 구현은 제거되었습니다.
+Wuwa Tracker는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 binary에 embed된 WebUI asset과 HTTP API를 제공합니다.
 
 ```mermaid
 flowchart TD
@@ -72,7 +70,7 @@ Offline upload/report flow:
 
 ### Persistence
 
-기본 저장소는 `~/.wuwa-tracker/v2-store.json`입니다. 구조는 player ID와 banner key를 기준으로 기록 배열을 저장합니다.
+기본 저장소는 `~/.wuwa-tracker/store.json`입니다. 구조는 player ID와 banner key를 기준으로 기록 배열을 저장합니다.
 
 병합 전략:
 
@@ -105,5 +103,4 @@ GUI mode는 같은 기능을 Tauri command로 호출합니다.
 ## Notes
 
 - Svelte `webui`는 유지합니다.
-- 기존 BadgerDB 자동 마이그레이션은 아직 없습니다.
-- HTML 리포트는 기존 Go template가 아니라 Askama template로 재작성되었습니다.
+- HTML 리포트는 Askama template로 렌더링합니다.
