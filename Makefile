@@ -1,4 +1,4 @@
-.PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve clean distclean
+.PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve version release-dry-run bump-patch bump-minor bump-major clean distclean
 
 APP := wuwa-tracker
 WEBUI_DIR := webui
@@ -28,6 +28,13 @@ help:
 	@echo "Build:"
 	@echo "  make build           Build WebUI and debug Rust workspace"
 	@echo "  make release         Build WebUI and release Rust binary"
+	@echo ""
+	@echo "Versioning:"
+	@echo "  make version         Print Cargo package version"
+	@echo "  make release-dry-run Preview cargo-release changes"
+	@echo "  make bump-patch      Bump patch version and create release commit/tag"
+	@echo "  make bump-minor      Bump minor version and create release commit/tag"
+	@echo "  make bump-major      Bump major version and create release commit/tag"
 	@echo ""
 	@echo "Options:"
 	@echo "  make serve HOST=127.0.0.1 PORT=3000"
@@ -73,6 +80,21 @@ run: webui-build
 
 serve: webui-build
 	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT) --webui-dist $(WEBUI_DIR)/dist
+
+version:
+	@$(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//'
+
+release-dry-run:
+	$(CARGO) release patch --workspace --dry-run
+
+bump-patch:
+	$(CARGO) release patch --workspace --execute
+
+bump-minor:
+	$(CARGO) release minor --workspace --execute
+
+bump-major:
+	$(CARGO) release major --workspace --execute
 
 clean:
 	$(CARGO) clean

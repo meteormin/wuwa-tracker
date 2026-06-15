@@ -73,6 +73,11 @@ make serve           # WebUI 빌드 후 HTTP WebUI 서버 실행
 make webui-dev       # Vite 개발 서버 실행
 make build           # WebUI + Rust workspace debug build
 make release         # WebUI + optimized Rust binary build
+make version         # Cargo package version 출력
+make release-dry-run # cargo-release 변경 preview
+make bump-patch      # patch version bump + release commit/tag
+make bump-minor      # minor version bump + release commit/tag
+make bump-major      # major version bump + release commit/tag
 make check           # cargo check + Svelte/TypeScript check
 make clippy          # cargo clippy
 make test            # cargo test
@@ -81,6 +86,30 @@ make fmt             # cargo fmt
 make clean           # Rust/WebUI build output 제거
 make distclean       # dependency cache와 node_modules까지 제거
 ```
+
+## Versioning
+
+버전의 기준은 root `Cargo.toml`의 `[workspace.package] version`입니다. 각 crate는 `version.workspace = true`를 사용하고, CLI `version` 명령도 Cargo가 컴파일 시 주입하는 `CARGO_PKG_VERSION`을 출력합니다.
+
+릴리즈 버전 bump는 `cargo-release`를 사용합니다.
+
+```bash
+cargo install cargo-release
+make release-dry-run
+make bump-patch
+make bump-minor
+make bump-major
+```
+
+`make release`는 현재 버전으로 로컬 release build만 수행하며 버전을 올리거나 tag를 만들지 않습니다. 실제 배포는 `vX.Y.Z` tag push로 시작됩니다.
+
+```bash
+make release-dry-run
+make bump-patch
+git push --follow-tags
+```
+
+GitHub release workflow는 tag push에서만 실행되며, `cargo pkgid -p wuwa-tracker`에서 읽은 버전과 tag 이름이 일치하는지 확인한 뒤 배포 산출물을 생성합니다.
 
 ## CLI
 

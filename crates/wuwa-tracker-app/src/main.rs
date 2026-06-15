@@ -34,10 +34,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Some(Command::Serve(args)) => http::serve(args, service).await,
         Some(Command::Version) => {
-            println!(
-                "{}",
-                option_env!("WUWA_TRACKER_BUILD_TAG").unwrap_or(env!("CARGO_PKG_VERSION"))
-            );
+            println!("{}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
         Some(Command::Scan(args)) => cli::scan(args, service),

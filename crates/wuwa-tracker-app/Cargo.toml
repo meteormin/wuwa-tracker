@@ -1,6 +1,6 @@
 [package]
 name = "wuwa-tracker"
-version = "0.2.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -22,4 +22,3 @@ wuwa-tracker-core = { path = "../wuwa-tracker-core" }
 [[bin]]
 name = "wuwa-tracker"
 path = "src/main.rs"
-
