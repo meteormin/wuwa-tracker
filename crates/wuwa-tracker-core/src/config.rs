@@ -1,6 +1,8 @@
 use crate::types::{GachaType, LuckScoreThreshold};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
+
+const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -78,8 +80,36 @@ fn threshold(min_score: f64, state: &str) -> LuckScoreThreshold {
 }
 
 fn default_db_path() -> PathBuf {
+    if let Ok(value) = env::var(ENV_DB_PATH) {
+        let value = value.trim();
+        if !value.is_empty() {
+            return PathBuf::from(value);
+        }
+    }
+
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".wuwa-tracker")
         .join("store.json")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_uses_db_path_env() {
+        let previous = env::var(ENV_DB_PATH).ok();
+        let expected = PathBuf::from("custom-store.json");
+        env::set_var(ENV_DB_PATH, &expected);
+
+        let config = Config::default();
+
+        assert_eq!(config.db_path, expected);
+        if let Some(value) = previous {
+            env::set_var(ENV_DB_PATH, value);
+        } else {
+            env::remove_var(ENV_DB_PATH);
+        }
+    }
 }

@@ -13,6 +13,16 @@ pub struct JsonStore {
     data: Mutex<StoreData>,
 }
 
+#[derive(Debug, Clone)]
+pub struct StoreStats {
+    pub path: PathBuf,
+    pub exists: bool,
+    pub size_bytes: u64,
+    pub players: usize,
+    pub banners: usize,
+    pub records: usize,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct StoreData {
     players: BTreeMap<String, BTreeMap<String, Vec<Record>>>,
@@ -68,6 +78,32 @@ impl JsonStore {
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect()
+    }
+
+    pub fn has_player(&self, player_id: &str) -> bool {
+        let data = self.data.lock().expect("store lock poisoned");
+        data.players.contains_key(player_id)
+    }
+
+    pub fn stats(&self) -> Result<StoreStats, AppError> {
+        let data = self.data.lock().expect("store lock poisoned");
+        let metadata = fs::metadata(&self.path).ok();
+        let banners = data.players.values().map(BTreeMap::len).sum();
+        let records = data
+            .players
+            .values()
+            .flat_map(BTreeMap::values)
+            .map(Vec::len)
+            .sum();
+
+        Ok(StoreStats {
+            path: self.path.clone(),
+            exists: metadata.is_some(),
+            size_bytes: metadata.map(|value| value.len()).unwrap_or_default(),
+            players: data.players.len(),
+            banners,
+            records,
+        })
     }
 
     pub fn export_backup(&self, path: &std::path::Path) -> Result<(), AppError> {

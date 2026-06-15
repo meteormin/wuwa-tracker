@@ -5,9 +5,16 @@ use crate::{
     stats::StatsCalculator,
     store::JsonStore,
     tracker::{self, TrackerClient},
-    types::{FetchResult, GachaType, ReportData, ReportFormat, ScanResponse, StatsResponse},
+    types::{
+        FetchResult, GachaType, LocaleData, ReportData, ReportFormat, ScanResponse, StatsResponse,
+    },
 };
-use std::{collections::BTreeMap, fs, path::Path, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::Path,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Clone)]
 pub struct Service {
@@ -15,6 +22,15 @@ pub struct Service {
     store: Arc<JsonStore>,
     calc: StatsCalculator,
     tracker: TrackerClient,
+    locale: Arc<RwLock<Option<LocaleData>>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BannerRecordCount {
+    pub id: i32,
+    pub key: String,
+    pub name: String,
+    pub records: usize,
 }
 
 impl Service {
@@ -27,6 +43,7 @@ impl Service {
             store,
             calc,
             tracker,
+            locale: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -38,9 +55,63 @@ impl Service {
         self.store.list_players()
     }
 
+    pub fn store_stats(&self) -> Result<crate::store::StoreStats, AppError> {
+        self.store.stats()
+    }
+
+    pub fn banner_record_counts(
+        &self,
+        player_id: impl AsRef<str>,
+    ) -> Result<Vec<BannerRecordCount>, AppError> {
+        let player_id = player_id.as_ref().trim();
+        if player_id.is_empty() {
+            return Err(AppError::MissingPlayerId);
+        }
+        if !self.store.has_player(player_id) {
+            return Err(AppError::PlayerNotFound);
+        }
+
+        self.config
+            .gacha_types
+            .iter()
+            .map(|gacha_type| {
+                let records = self.store.get_gacha_records(player_id, &gacha_type.key)?;
+                let gacha_type = self.localized_gacha_type(gacha_type);
+                Ok(BannerRecordCount {
+                    id: gacha_type.id,
+                    key: gacha_type.key,
+                    name: gacha_type.name,
+                    records: records.len(),
+                })
+            })
+            .collect()
+    }
+
     pub fn scan(&self, path: impl AsRef<Path>) -> Result<ScanResponse, AppError> {
-        let url = scanner::scan_url(path.as_ref(), &self.config.scan_log_paths)?;
+        let url = scanner::scan_url(
+            path.as_ref(),
+            &self.config.scan_log_paths,
+            &self.config.resources_url,
+        )?;
         Ok(ScanResponse { success: true, url })
+    }
+
+    pub async fn prepare_locale(&self, lang: &str) {
+        let lang = if lang.trim().is_empty() {
+            self.config.language.as_str()
+        } else {
+            lang.trim()
+        };
+        let locale = self
+            .tracker
+            .fetch_gacha_locale(lang)
+            .await
+            .or_else(|_| tracker::load_local_gacha_locale(lang))
+            .or_else(|_| tracker::load_local_gacha_locale("ko"));
+
+        if let Ok(locale) = locale {
+            *self.locale.write().expect("locale lock poisoned") = Some(locale);
+        }
     }
 
     pub fn upload(&self, fetch_result: FetchResult) -> Result<StatsResponse, AppError> {
@@ -101,6 +172,9 @@ impl Service {
             return Err(AppError::MissingUrl);
         }
         let payload = self.tracker.parse_payload_from_url(&target_url)?;
+        if !payload.language_code.trim().is_empty() {
+            self.prepare_locale(&payload.language_code).await;
+        }
         let fetch_result = self
             .tracker
             .fetch_all_records(payload, &self.config.gacha_types)
@@ -174,9 +248,20 @@ impl Service {
 
     fn localized_gacha_type(&self, gacha_type: &GachaType) -> GachaType {
         let mut item = gacha_type.clone();
+        if let Some(name) = self
+            .locale
+            .read()
+            .expect("locale lock poisoned")
+            .as_ref()
+            .and_then(|locale| locale.select_list.get(&item.key))
+            .cloned()
+        {
+            item.name = name;
+            return item;
+        }
         if let Ok(locale) = tracker::load_local_gacha_locale(&self.config.language) {
-            if let Some(name) = locale.select_list.get(&item.key) {
-                item.name = name.clone();
+            if let Some(name) = locale.select_list.get(&item.key).cloned() {
+                item.name = name;
             }
         }
         item
