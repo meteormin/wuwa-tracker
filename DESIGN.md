@@ -6,7 +6,7 @@
 
 ## Architecture Overview
 
-Wuwa Tracker v2는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 WebUI 서버와 HTTP API를 제공합니다. 기존 Go 구현은 제거되었습니다.
+Wuwa Tracker v2는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 binary에 embed된 WebUI asset과 HTTP API를 제공합니다. 기존 Go 구현은 제거되었습니다.
 
 ```mermaid
 flowchart TD
@@ -33,7 +33,7 @@ flowchart TD
 ### Workspace
 
 - `crates/wuwa-tracker-core`: 데이터 모델, 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다.
-- `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
+- `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, embedded WebUI를 제공하는 Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
 - `webui`: Svelte UI입니다. Tauri runtime에서는 `invoke`를 사용하고, 브라우저/server mode에서는 HTTP API를 사용합니다.
 - `locales`: game locale fallback과 UI locale JSON입니다.
 
