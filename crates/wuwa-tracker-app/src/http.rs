@@ -1,15 +1,16 @@
 use anyhow::Result;
 use axum::{
     extract::{Path, Query, State},
-    http::{header, StatusCode},
+    http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use clap::Args;
+use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use tower_http::{cors::CorsLayer, services::ServeDir};
+use tower_http::cors::CorsLayer;
 use wuwa_tracker_core::{
     translations,
     types::{ErrorResponse, FetchResult, ReportFormat},
@@ -22,9 +23,11 @@ pub struct ServeArgs {
     pub host: String,
     #[arg(long, env = "WUWA_TRACKER_PORT", default_value = "3000")]
     pub port: u16,
-    #[arg(long, default_value = "webui/dist")]
-    pub webui_dist: String,
 }
+
+#[derive(RustEmbed)]
+#[folder = "../../webui/dist"]
+struct WebAssets;
 
 #[derive(Debug, Deserialize)]
 struct ScanRequest {
@@ -70,13 +73,41 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         .route("/api/upload", post(upload_json))
         .route("/api/i18n", get(get_i18n))
         .route("/api/export/{player_id}", get(export_report))
-        .fallback_service(ServeDir::new(args.webui_dist))
+        .fallback(get(static_asset))
         .layer(CorsLayer::permissive())
         .with_state(service);
 
     let listener = tokio::net::TcpListener::bind((args.host.as_str(), args.port)).await?;
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+async fn static_asset(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
+    let path = if path.is_empty() { "index.html" } else { path };
+    let asset = WebAssets::get(path).or_else(|| WebAssets::get("index.html"));
+
+    match asset {
+        Some(file) => Response::builder()
+            .header(header::CONTENT_TYPE, content_type(path))
+            .body(file.data.into_owned().into())
+            .expect("valid static asset response"),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+fn content_type(path: &str) -> &'static str {
+    match path.rsplit('.').next().unwrap_or_default() {
+        "css" => "text/css; charset=utf-8",
+        "html" => "text/html; charset=utf-8",
+        "js" => "text/javascript; charset=utf-8",
+        "json" => "application/json; charset=utf-8",
+        "png" => "image/png",
+        "svg" => "image/svg+xml",
+        "wasm" => "application/wasm",
+        "webp" => "image/webp",
+        _ => "application/octet-stream",
+    }
 }
 
 async fn get_config(State(service): State<Service>) -> Json<ConfigResponse> {

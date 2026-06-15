@@ -58,13 +58,13 @@ fmt:
 fmt-check:
 	$(CARGO) fmt --all -- --check
 
-check: webui-check
+check: webui-check webui-build
 	$(CARGO) check --workspace
 
-clippy:
+clippy: webui-build
 	$(CARGO) clippy --workspace --all-targets -- -D warnings
 
-test:
+test: webui-build
 	$(CARGO) test --workspace
 
 ci: fmt-check check clippy test
@@ -79,7 +79,7 @@ run: webui-build
 	$(CARGO) run -p $(APP)
 
 serve: webui-build
-	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT) --webui-dist $(WEBUI_DIR)/dist
+	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT)
 
 version:
 	@$(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//'
