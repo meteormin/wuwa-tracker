@@ -97,23 +97,27 @@ jobs:
         shell: bash
         run: make release
 
-      - name: Package
+      - name: Package Unix
+        if: matrix.os != 'windows'
         shell: bash
         run: |
           VERSION="${{ steps.version.outputs.tag }}"
           TARGET="wuwa-tracker-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
           mkdir -p "dist/${TARGET}"
           cp README.md "dist/${TARGET}/"
+          cp target/release/wuwa-tracker "dist/${TARGET}/wuwa-tracker"
+          tar -czf "dist/${TARGET}.tar.gz" -C dist "${TARGET}"
 
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            cp target/release/wuwa-tracker.exe "dist/${TARGET}/wuwa-tracker.exe"
-            cd dist
-            zip -r "${TARGET}.zip" "${TARGET}"
-          else
-            cp target/release/wuwa-tracker "dist/${TARGET}/wuwa-tracker"
-            cd dist
-            tar -czf "${TARGET}.tar.gz" "${TARGET}"
-          fi
+      - name: Package Windows
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $Version = "${{ steps.version.outputs.tag }}"
+          $Target = "wuwa-tracker-$Version-${{ matrix.os }}-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Force -Path "dist/$Target" | Out-Null
+          Copy-Item README.md "dist/$Target/"
+          Copy-Item target/release/wuwa-tracker.exe "dist/$Target/wuwa-tracker.exe"
+          Compress-Archive -Path "dist/$Target" -DestinationPath "dist/$Target.zip" -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

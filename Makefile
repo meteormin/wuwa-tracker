@@ -46,10 +46,10 @@ setup webui-install:
 webui-build: webui-install
 	$(YARN) --cwd $(WEBUI_DIR) run build
 
-webui-check:
+webui-check: webui-install
 	$(YARN) --cwd $(WEBUI_DIR) run check
 
-webui-dev:
+webui-dev: webui-install
 	$(YARN) --cwd $(WEBUI_DIR) run dev
 
 fmt:
