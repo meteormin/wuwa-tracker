@@ -2,8 +2,8 @@ name: release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
@@ -11,40 +11,60 @@ permissions:
 
 jobs:
   test:
-    uses: ./.github/workflows/go-test.yml
+    uses: ./.github/workflows/rust-test.yml
 
   build:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - goos: linux
-            goarch: amd64
+          - os: linux
+            arch: amd64
+            runner: ubuntu-latest
             archive_ext: tar.gz
-          - goos: darwin
-            goarch: amd64
+          - os: darwin
+            arch: amd64
+            runner: macos-13
             archive_ext: tar.gz
-          - goos: darwin
-            goarch: arm64
+          - os: darwin
+            arch: arm64
+            runner: macos-latest
             archive_ext: tar.gz
-          - goos: windows
-            goarch: amd64
+          - os: windows
+            arch: amd64
+            runner: windows-latest
             archive_ext: zip
-    env:
-      CGO_ENABLED: "0"
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
+      - name: Install Linux desktop dependencies
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            wget
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install make on Windows
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: choco install make -y
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -58,41 +78,51 @@ jobs:
 
       - name: Create version
         id: version
+        shell: bash
         run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          BUILD_DATE="$(date -u +'%Y.%m.%d')"
-          VERSION="${BUILD_DATE}-${SHORT_SHA}"
-          echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
-          echo "commit_hash=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          VERSION="$(cargo pkgid -p wuwa-tracker | sed 's/.*#//; s/.*@//')"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release tag
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "${{ steps.version.outputs.tag }}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Cargo version ${{ steps.version.outputs.version }}."
+            exit 1
+          fi
 
       - name: Build
-        run: |
-          make build \
-            BUILD_DATE="${{ steps.version.outputs.build_date }}" \
-            COMMIT_HASH="${{ steps.version.outputs.commit_hash }}"
+        shell: bash
+        run: make release
 
-      - name: Package
+      - name: Package Unix
+        if: matrix.os != 'windows'
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TARGET="wuwa-tracker-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          VERSION="${{ steps.version.outputs.tag }}"
+          TARGET="wuwa-tracker-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
           mkdir -p "dist/${TARGET}"
           cp README.md "dist/${TARGET}/"
+          cp target/release/wuwa-tracker "dist/${TARGET}/wuwa-tracker"
+          tar -czf "dist/${TARGET}.tar.gz" -C dist "${TARGET}"
 
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            mv bin/wuwa-tracker "dist/${TARGET}/wuwa-tracker.exe"
-            cd dist
-            zip -r "${TARGET}.zip" "${TARGET}"
-          else
-            mv bin/wuwa-tracker "dist/${TARGET}/wuwa-tracker"
-            cd dist
-            tar -czf "${TARGET}.tar.gz" "${TARGET}"
-          fi
+      - name: Package Windows
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $Version = "${{ steps.version.outputs.tag }}"
+          $Target = "wuwa-tracker-$Version-${{ matrix.os }}-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Force -Path "dist/$Target" | Out-Null
+          Copy-Item README.md "dist/$Target/"
+          Copy-Item target/release/wuwa-tracker.exe "dist/$Target/wuwa-tracker.exe"
+          Compress-Archive -Path "dist/$Target" -DestinationPath "dist/$Target.zip" -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wuwa-tracker-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: wuwa-tracker-${{ steps.version.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*.${{ matrix.archive_ext }}
           if-no-files-found: error
 
@@ -105,12 +135,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Create version
         id: version
+        shell: bash
         run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          VERSION="$(date -u +'%Y.%m.%d')-${SHORT_SHA}"
+          VERSION="$(cargo pkgid -p wuwa-tracker | sed 's/.*#//; s/.*@//')"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release tag
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "${{ steps.version.outputs.tag }}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Cargo version ${{ steps.version.outputs.version }}."
+            exit 1
+          fi
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -118,21 +161,10 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Create tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.version.outputs.version }} already exists."
-          else
-            git tag "${{ steps.version.outputs.version }}"
-            git push origin "${{ steps.version.outputs.version }}"
-          fi
-
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
           files: dist/*
           generate_release_notes: true

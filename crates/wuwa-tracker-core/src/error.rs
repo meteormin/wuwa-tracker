@@ -1,0 +1,48 @@
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum AppError {
+    #[error("invalid request body")]
+    InvalidRequest,
+    #[error("missing player id")]
+    MissingPlayerId,
+    #[error("empty upload data")]
+    EmptyUploadData,
+    #[error("scan path not found")]
+    ScanPathNotFound,
+    #[error("log file not found")]
+    LogFileNotFound,
+    #[error("url not found")]
+    UrlNotFound,
+    #[error("remote tracking is not implemented in rust v2 yet")]
+    RemoteTrackingUnsupported,
+    #[error("invalid gacha url or unsupported domain")]
+    InvalidGachaUrl,
+    #[error("missing url")]
+    MissingUrl,
+    #[error("unsupported report format: {0}")]
+    UnsupportedReportFormat(String),
+    #[error("no valid records found")]
+    NoValidRecords,
+    #[error("player not found")]
+    PlayerNotFound,
+    #[error(transparent)]
+    Http(#[from] reqwest::Error),
+    #[error(transparent)]
+    Url(#[from] url::ParseError),
+    #[error(transparent)]
+    Template(#[from] askama::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+impl serde::Serialize for AppError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
