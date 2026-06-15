@@ -4,6 +4,7 @@
     activePlayerID,
     activeStats,
     errorMessage,
+    exportReport,
     handleFileError,
     handleFileSelect,
     initializeTracker,
@@ -45,6 +46,7 @@
     onSelectPlayer={selectPlayer}
     onFileSelect={handleFileSelect}
     onFileError={handleFileError}
+    onExport={exportReport}
   />
 
   <!-- 통계 리포트 뷰어 영역 -->

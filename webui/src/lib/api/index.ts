@@ -1,5 +1,6 @@
 import type { Stats, LuckScoreThreshold } from "../types";
-import { apiHost } from "./config";
+import { invoke } from "@tauri-apps/api/core";
+import { apiHost, isTauriRuntime } from "./config";
 
 // API 표준 공통 응답 구조
 export interface BaseResponse {
@@ -40,10 +41,19 @@ export interface UploadResponse extends BaseResponse {
   stats: Stats[];
 }
 
+export interface ExportResponse extends BaseResponse {
+  filename: string;
+  contentType: string;
+  content: number[];
+}
+
 /**
  * 서버의 가챠 리포트 설정을 유연하게 로드합니다.
  */
 export async function fetchConfig(): Promise<ConfigResponse> {
+  if (isTauriRuntime()) {
+    return invoke<ConfigResponse>("get_config");
+  }
   const res = await fetch(`${apiHost}/api/config`);
   return res.json();
 }
@@ -52,6 +62,9 @@ export async function fetchConfig(): Promise<ConfigResponse> {
  * 저장된 플레이어 목록을 조회합니다.
  */
 export async function fetchPlayers(): Promise<PlayersResponse> {
+  if (isTauriRuntime()) {
+    return invoke<PlayersResponse>("list_players");
+  }
   const res = await fetch(`${apiHost}/api/players`);
   return res.json();
 }
@@ -60,6 +73,9 @@ export async function fetchPlayers(): Promise<PlayersResponse> {
  * 플레이어 ID에 해당하는 가챠 통계 데이터를 조회합니다.
  */
 export async function fetchStats(playerId: string): Promise<StatsResponse> {
+  if (isTauriRuntime()) {
+    return invoke<StatsResponse>("get_stats", { playerId });
+  }
   const res = await fetch(`${apiHost}/api/stats/${playerId}`);
   return res.json();
 }
@@ -68,6 +84,9 @@ export async function fetchStats(playerId: string): Promise<StatsResponse> {
  * 로컬 게임 로그 경로에서 가챠 URL 스캔을 요청합니다.
  */
 export async function scanURL(path: string): Promise<ScanResponse> {
+  if (isTauriRuntime()) {
+    return invoke<ScanResponse>("scan_url", { path });
+  }
   const res = await fetch(`${apiHost}/api/scan`, {
     method: "POST",
     headers: {
@@ -82,6 +101,9 @@ export async function scanURL(path: string): Promise<ScanResponse> {
  * Kurogame 가챠 결과 원격 스캔 및 트래킹 등록을 요청합니다.
  */
 export async function trackURL(url: string): Promise<TrackResponse> {
+  if (isTauriRuntime()) {
+    return invoke<TrackResponse>("track_url", { url });
+  }
   const res = await fetch(`${apiHost}/api/track`, {
     method: "POST",
     headers: {
@@ -96,6 +118,9 @@ export async function trackURL(url: string): Promise<TrackResponse> {
  * 오프라인 분석을 위한 JSON 파일 데이터를 서버에 업로드합니다.
  */
 export async function uploadJSON(data: any): Promise<UploadResponse> {
+  if (isTauriRuntime()) {
+    return invoke<UploadResponse>("upload_json", { data });
+  }
   const res = await fetch(`${apiHost}/api/upload`, {
     method: "POST",
     headers: {
@@ -106,3 +131,39 @@ export async function uploadJSON(data: any): Promise<UploadResponse> {
   return res.json();
 }
 
+export async function exportReport(
+  playerId: string,
+  format: "html" | "json" | "csv",
+  lang: string,
+): Promise<void> {
+  if (isTauriRuntime()) {
+    const data = await invoke<ExportResponse>("export_report", {
+      playerId,
+      format,
+      lang,
+    });
+    const blob = new Blob([new Uint8Array(data.content)], {
+      type: data.contentType,
+    });
+    downloadBlob(blob, data.filename);
+    return;
+  }
+
+  const res = await fetch(`${apiHost}/api/export/${playerId}?format=${format}&lang=${lang}`);
+  if (!res.ok) {
+    throw new Error(`failed to export report: ${res.status}`);
+  }
+  const blob = await res.blob();
+  downloadBlob(blob, `report_${playerId}.${format}`);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

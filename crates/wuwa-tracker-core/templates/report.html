@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="{{ lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Wuwa Tracker Report</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 32px;
+        background: #10131a;
+        color: #edf2f7;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 12px;
+      }
+
+      section {
+        margin: 0 0 24px;
+        padding: 20px;
+        border: 1px solid #2d3748;
+        border-radius: 8px;
+        background: #161b25;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 12px;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #2d3748;
+        text-align: left;
+      }
+
+      .muted {
+        color: #94a3b8;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+      }
+
+      .metric {
+        padding: 12px;
+        border-radius: 6px;
+        background: #0f141d;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Wuwa Tracker Report</h1>
+    <p class="muted">Player ID: {{ player_id }}</p>
+
+    {% for stat in stats %}
+      <section>
+        <h2>{{ stat.gacha_name }}</h2>
+        <div class="grid">
+          <div class="metric">
+            <div class="muted">Total Pulls</div>
+            <strong>{{ stat.total_pulls }}</strong>
+          </div>
+          <div class="metric">
+            <div class="muted">Astrite</div>
+            <strong>{{ stat.total_astrite }}</strong>
+          </div>
+          <div class="metric">
+            <div class="muted">Pity 5</div>
+            <strong>{{ stat.current_pity5 }}</strong>
+          </div>
+          <div class="metric">
+            <div class="muted">Pity 4</div>
+            <strong>{{ stat.current_pity4 }}</strong>
+          </div>
+          <div class="metric">
+            <div class="muted">{{ luck_score_label }}</div>
+            <strong>{{ "{:.2}"|format(stat.luck_score) }}</strong>
+          </div>
+        </div>
+
+        {% if !stat.five_stars.is_empty() %}
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Time</th>
+                <th>Pity</th>
+                <th>Pick Up</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in stat.five_stars %}
+                <tr>
+                  <td>{{ item.name }}</td>
+                  <td>{{ item.time }}</td>
+                  <td>{{ item.pity }}</td>
+                  <td>{{ item.is_pick_up }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </section>
+    {% endfor %}
+
+    <p class="muted">{{ luck_score_label }} thresholds: {{ threshold_count }}</p>
+  </body>
+</html>

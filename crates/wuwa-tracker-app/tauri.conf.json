@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Wuwa Tracker",
+  "version": "0.2.0",
+  "identifier": "com.meteormin.wuwa-tracker",
+  "build": {
+    "frontendDist": "../../webui/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Wuwa Tracker",
+        "width": 1180,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 680
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ]
+  }
+}

@@ -26,7 +26,9 @@
         "beginner": "초보자 튜닝",
         "beginnerSelect": "초보자 자유 선택 튜닝",
         "characterNovice": "캐릭터 새출발 튜닝",
-        "weaponNovice": "무기 새출발 튜닝"
+        "weaponNovice": "무기 새출발 튜닝",
+        "characterCollaboration": "캐릭터 콜라보 튜닝",
+        "weaponCollaboration": "무기 콜라보 튜닝"
     },
     "headerInfo": {
         "type": "유형",
