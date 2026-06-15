@@ -13,5 +13,5 @@ permissions:
   contents: read
 
 jobs:
-  go-test:
-    uses: ./.github/workflows/go-test.yml
+  rust-test:
+    uses: ./.github/workflows/rust-test.yml

@@ -1,17 +1,19 @@
 import { get, writable } from "svelte/store";
+import { persisted } from 'svelte-persisted-store';
 import type { LuckScoreThreshold, Stats } from "../types";
 import {
   fetchConfig,
   fetchPlayers,
   fetchStats,
+  exportReport as apiExportReport,
   scanURL as apiScanURL,
   trackURL as apiTrackURL,
   uploadJSON,
 } from "../api";
-import { initI18n, t } from "../i18n";
+import { initI18n, locale, t } from "../i18n";
 
+export const scanPathInput = persisted("scanPath", "");
 export const urlInput = writable("");
-export const scanPathInput = writable("");
 export const isLoading = writable(false);
 export const isScanning = writable(false);
 export const errorMessage = writable("");
@@ -169,6 +171,24 @@ export async function handleFileSelect(data: any, fileName: string) {
 export function handleFileError(message: string) {
   errorMessage.set(message);
   successMessage.set("");
+}
+
+export async function exportReport(format: "html" | "json" | "csv") {
+  const playerId = get(activePlayerID);
+  if (!playerId) {
+    return;
+  }
+
+  isLoading.set(true);
+  clearMessages();
+  try {
+    await apiExportReport(playerId, format, get(locale));
+    successMessage.set(translate("control.export_report"));
+  } catch (e) {
+    errorMessage.set(translate("app.network_error"));
+  } finally {
+    isLoading.set(false);
+  }
 }
 
 export async function initializeTracker() {

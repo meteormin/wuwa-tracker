@@ -1,91 +1,104 @@
-.PHONY: all build build-webui clean distclean test benchmark lint fmt run run-cli run-server audit
+.PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve version release-dry-run bump-patch bump-minor bump-major clean distclean
 
-APP_NAME=wuwa-tracker
-BIN_DIR=bin
-CACHE_DIR=.cache
-CMD_DIR=./cmd
-WEBUI_DIR=webui
-GO_BUILD_CACHE_DIR=$(CACHE_DIR)/go-build
-GO_MOD_CACHE_DIR=$(CACHE_DIR)/go-mod
-GOLANGCI_LINT_CACHE_DIR=$(CACHE_DIR)/golangci-lint
-YARN_CACHE_DIR=$(CACHE_DIR)/yarn
-BUILD_DATE ?= $(shell date +%Y.%m.%d)
-COMMIT_HASH ?=
-BUILD_TAG=$(BUILD_DATE)$(if $(COMMIT_HASH),-$(COMMIT_HASH),)
-GO_BUILD_FLAGS=-trimpath
-LD_FLAGS=-s -w -X main.buildTag=$(BUILD_TAG)
-BENCHTIME ?= 1s
-BENCH_PKGS=./internal/scanner ./internal/tracker ./internal/db
-BENCH_PATTERN=Benchmark(FindURL|URLRegexZeroAllocCandidate|StatsCalculatorCalc|StatsReverseZeroAlloc|BadgerRepositorySaveGachaRecords|MergeRecordsZeroAllocCandidates)
+APP := wuwa-tracker
+WEBUI_DIR := webui
+HOST ?= 127.0.0.1
+PORT ?= 3000
+CARGO ?= cargo
+YARN ?= yarn
+YARN_INSTALL_FLAGS ?= --frozen-lockfile
 
-GOVERSION ?= $(shell go env GOVERSION)
-export GOCACHE ?= $(CURDIR)/$(GO_BUILD_CACHE_DIR)
-export GOMODCACHE ?= $(CURDIR)/$(GO_MOD_CACHE_DIR)
-export GOLANGCI_LINT_CACHE ?= $(CURDIR)/$(GOLANGCI_LINT_CACHE_DIR)
-export YARN_CACHE_FOLDER ?= $(CURDIR)/$(YARN_CACHE_DIR)
+help:
+	@echo "Wuwa Tracker Rust v2"
+	@echo ""
+	@echo "Development:"
+	@echo "  make setup           Install WebUI dependencies"
+	@echo "  make run             Build WebUI and run Tauri GUI"
+	@echo "  make serve           Build WebUI and run Axum WebUI server"
+	@echo "  make webui-dev       Run Vite dev server"
+	@echo ""
+	@echo "Checks:"
+	@echo "  make fmt             Format Rust code"
+	@echo "  make fmt-check       Check Rust formatting"
+	@echo "  make check           cargo check + WebUI type check"
+	@echo "  make clippy          cargo clippy"
+	@echo "  make test            cargo test"
+	@echo "  make ci              fmt-check + check + clippy + test"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build           Build WebUI and debug Rust workspace"
+	@echo "  make release         Build WebUI and release Rust binary"
+	@echo ""
+	@echo "Versioning:"
+	@echo "  make version         Print Cargo package version"
+	@echo "  make release-dry-run Preview cargo-release changes"
+	@echo "  make bump-patch      Bump patch version and create release commit/tag"
+	@echo "  make bump-minor      Bump minor version and create release commit/tag"
+	@echo "  make bump-major      Bump major version and create release commit/tag"
+	@echo ""
+	@echo "Options:"
+	@echo "  make serve HOST=127.0.0.1 PORT=3000"
+	@echo "  make setup YARN_INSTALL_FLAGS='--offline'"
 
-GO_FILES=$(shell find . \
-	-path ./$(CACHE_DIR) -prune -o \
-	-path ./$(BIN_DIR) -prune -o \
-	-path ./$(WEBUI_DIR)/node_modules -prune -o \
-	-name '*.go' -print)
+setup webui-install:
+	$(YARN) --cwd $(WEBUI_DIR) install $(YARN_INSTALL_FLAGS)
 
-all: clean build-webui fmt lint test build
+webui-build: webui-install
+	$(YARN) --cwd $(WEBUI_DIR) run build
 
-audit: build-webui
-	@echo "Starting audit..."
-	@go mod verify
-	@go vet ./...
-	@GOTOOLCHAIN=$(GOVERSION) go run golang.org/x/vuln/cmd/govulncheck@latest ./...
-	@echo "Complete audit!"
+webui-check: webui-install
+	$(YARN) --cwd $(WEBUI_DIR) run check
 
-build: build-webui
-	@echo "Building $(APP_NAME)..."
-	@mkdir -p $(BIN_DIR)
-	@go build $(GO_BUILD_FLAGS) -ldflags "$(LD_FLAGS)" -o $(BIN_DIR)/$(APP_NAME) $(CMD_DIR)
-	@echo "Build successful! Executable is located at $(BIN_DIR)/$(APP_NAME)"
-
-build-webui:
-	@echo "Building WebUI..."
-	@cd $(WEBUI_DIR) && yarn install && yarn run build
-	@echo "WebUI Build successful!"
-
-clean:
-	@echo "Cleaning up..."
-	@rm -rf $(BIN_DIR)
-	@rm -rf $(GO_BUILD_CACHE_DIR) $(GOLANGCI_LINT_CACHE_DIR) $(WEBUI_DIR)/dist
-	@echo "Clean successful!"
-
-distclean: clean
-	@echo "Cleaning dependency caches..."
-	@go clean -cache
-	@go clean -modcache
-	@rm -rf $(GO_MOD_CACHE_DIR) $(YARN_CACHE_DIR) $(WEBUI_DIR)/node_modules
-	@cd $(WEBUI_DIR) && yarn cache clean
-	@echo "Dependency cache clean successful!"
-
-test: build-webui
-	@echo "Running tests..."
-	@go test -v ./...
-
-benchmark:
-	@echo "Running benchmarks..."
-	@go test -bench '$(BENCH_PATTERN)' -benchmem -benchtime=$(BENCHTIME) $(BENCH_PKGS)
-
-lint: build-webui
-	@echo "Running linter..."
-	@golangci-lint run ./...
+webui-dev: webui-install
+	$(YARN) --cwd $(WEBUI_DIR) run dev
 
 fmt:
-	@echo "Formatting code..."
-	@gofmt -w $(GO_FILES)
+	$(CARGO) fmt --all
 
-run: build
-	@echo "Running $(APP_NAME)..."
-	@./$(BIN_DIR)/$(APP_NAME)
+fmt-check:
+	$(CARGO) fmt --all -- --check
 
-run-cli: run
+check: webui-check webui-build
+	$(CARGO) check --workspace
 
-run-server: build
-	@echo "Running Server..."
-	@./$(BIN_DIR)/$(APP_NAME)
+clippy: webui-build
+	$(CARGO) clippy --workspace --all-targets -- -D warnings
+
+test: webui-build
+	$(CARGO) test --workspace
+
+ci: fmt-check check clippy test
+
+build: webui-build
+	$(CARGO) build --workspace
+
+release: webui-build
+	$(CARGO) build --release -p $(APP)
+
+run: webui-build
+	$(CARGO) run -p $(APP)
+
+serve: webui-build
+	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT)
+
+version:
+	@$(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//'
+
+release-dry-run:
+	$(CARGO) release patch --workspace --dry-run
+
+bump-patch:
+	$(CARGO) release patch --workspace --execute
+
+bump-minor:
+	$(CARGO) release minor --workspace --execute
+
+bump-major:
+	$(CARGO) release major --workspace --execute
+
+clean:
+	$(CARGO) clean
+	rm -rf $(WEBUI_DIR)/dist
+
+distclean: clean
+	rm -rf $(WEBUI_DIR)/node_modules .cache/yarn

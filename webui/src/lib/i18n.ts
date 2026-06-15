@@ -1,5 +1,8 @@
 import { writable, derived } from "svelte/store";
-import { apiHost } from "./api/config";
+import { invoke } from "@tauri-apps/api/core";
+import { apiHost, isTauriRuntime } from "./api/config";
+import koTranslations from "../../../locales/ui/ko.json";
+import enTranslations from "../../../locales/ui/en.json";
 
 export type Locale = "ko" | "en";
 
@@ -17,7 +20,9 @@ const initialLocale: Locale =
       : "en";
 
 export const locale = writable<Locale>(initialLocale);
-export const translations = writable<Record<string, string>>({});
+export const translations = writable<Record<string, string>>(
+  initialLocale === "ko" ? koTranslations : enTranslations,
+);
 
 if (typeof window !== "undefined") {
   locale.subscribe((value) => {
@@ -26,6 +31,20 @@ if (typeof window !== "undefined") {
 }
 
 export async function loadTranslations(targetLocale: Locale) {
+  if (isTauriRuntime()) {
+    const data = await invoke<{
+      success: boolean;
+      lang: Locale;
+      translations: Record<string, string>;
+    }>("get_i18n", { lang: targetLocale });
+
+    translations.set(data.translations);
+    if (data.lang === "ko" || data.lang === "en") {
+      locale.set(data.lang);
+    }
+    return;
+  }
+
   const res = await fetch(`${apiHost}/api/i18n?lang=${targetLocale}`);
   if (!res.ok) {
     throw new Error(`failed to load translations: ${res.status}`);
@@ -51,10 +70,17 @@ export async function initI18n() {
     await loadTranslations(initialLocale);
   } catch (e) {
     if (initialLocale !== fallbackLocale) {
-      await loadTranslations(fallbackLocale);
-      return;
+      try {
+        await loadTranslations(fallbackLocale);
+        return;
+      } catch {
+        translations.set(koTranslations);
+        locale.set(fallbackLocale);
+        return;
+      }
     }
-    throw e;
+    translations.set(koTranslations);
+    locale.set(fallbackLocale);
   }
 }
 

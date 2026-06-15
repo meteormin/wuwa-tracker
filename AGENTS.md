@@ -2,29 +2,30 @@
 
 ## Architecture
 
-- cmd: entry point
-- internal: backend api server 및 비즈니스로직, 서버 기반은 gofiber 사용
-- webui: frontend, svelte 사용
+- crates/wuwa-tracker-core: Rust domain logic, scanner, stats, merge, local store
+- crates/wuwa-tracker-app: Rust desktop app and optional `serve` command
+- webui: Svelte frontend reused by the desktop app and optional server mode
+- locales: embedded JSON locale resources
 
 ## Global Rules
 
 1. 코드 내, 주석 제외 한글 사용 금지
-2. CGO 사용 금지
-3. 기타 외부 통신 라이브러리 사용 금지 (http client 제외)
+2. Rust 코드는 `cargo fmt` 표준 포맷을 유지
+3. 외부 통신은 Rust HTTP client 계층으로만 격리
 
 ## Build Guide
 
-- backend server는 `Makefile` 및 `go build`를 사용
+- Rust workspace는 `cargo`를 사용
 - frontend webui는 `yarn`, `vite`를 사용
 - 빌드 관련 커맨드는 [Makefile](./Makefile)을 참조
 
 ## Codebase Rules
 
-Go 언어에서 권장하는 표준을 준수
+Rust 언어에서 권장하는 표준을 준수
 
-- Linter: golangci-lint
-- LSP: gopls
-- Formatter: gofumpt
+- Formatter: rustfmt
+- Build/Test: cargo check, cargo test
+- Frontend Check: yarn run check
 
 ### Comments
 
@@ -49,10 +50,12 @@ Go 언어에서 권장하는 표준을 준수
 - 메시지 형식은 `<type>: <summary>`를 기본으로 합니다.
 - 기능 추가는 `feat`, 버그 수정은 `fix`, CI/워크플로우 변경은 `ci`, 문서 변경은 `docs`, 테스트 변경은 `test`, 리팩터링은 `refactor`, 기타 관리 작업은 `chore`를 사용합니다.
 - 브랜치 성격과 변경 내용을 기준으로 적절한 prefix를 선택합니다.
+- 소스 코드와 실제 빌드 산출물에 전혀 영향이 없는 변경은 CI/CD 파이프라인을 건너뛸 수 있도록 커밋 메시지 앞에 `[skip ci]`를 붙입니다.
 - 예시:
   - `feat: centralize runtime config defaults`
   - `fix: prepare embedded webui before CI tests`
   - `ci: add release workflow`
+  - `[skip ci] docs: update agent workflow guidance`
 
 ## Workflows
 
@@ -126,12 +129,12 @@ Go 언어에서 권장하는 표준을 준수
 
 2. Audit Packages
    ```bash
-   make audit
+   make ci
    ```
 
 3. Build Check
    ```bash
-   go build ./...
+   make build
    ```
 
 4. Stage All Changes
@@ -146,8 +149,12 @@ Go 언어에서 권장하는 표준을 준수
 
 6. Generate and Commit
    - Conventional Commits 형식의 전문적인 메시지를 생성하여 커밋합니다.
+   - 소스 코드와 실제 빌드 산출물에 전혀 영향이 없는 문서, 주석, 메타데이터성 변경은 `[skip ci] <commit_message>` 형식을 사용합니다.
    ```bash
    git commit -m "<ai_generated_message>"
+   ```
+   ```bash
+   git commit -m "[skip ci] docs: update agent workflow guidance"
    ```
 
 7. Push
