@@ -2,8 +2,10 @@ use crate::{
     error::AppError,
     types::{FetchResult, GachaResponse, GachaType, LocaleData, Payload},
 };
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 use url::Url;
+
+const HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone)]
 pub struct TrackerClient {
@@ -14,8 +16,13 @@ pub struct TrackerClient {
 
 impl TrackerClient {
     pub fn new(resources_url: String, tracking_url: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(HTTP_TIMEOUT)
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
         Self {
-            client: reqwest::Client::new(),
+            client,
             resources_url,
             tracking_url,
         }

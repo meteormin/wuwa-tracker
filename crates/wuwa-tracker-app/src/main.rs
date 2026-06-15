@@ -4,12 +4,20 @@ mod http;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 use wuwa_tracker_core::{Config, Service};
 
 #[derive(Debug, Parser)]
 #[command(name = "wuwa-tracker")]
 #[command(about = "Wuwa Tracker")]
 struct Cli {
+    #[arg(
+        long = "dbpath",
+        env = "WUWA_TRACKER_DB_PATH",
+        global = true,
+        help = "Local JSON store path"
+    )]
+    db_path: Option<PathBuf>,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -37,7 +45,11 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let service = Service::new(Config::default())?;
+    let mut config = Config::default();
+    if let Some(db_path) = cli.db_path {
+        config.db_path = db_path;
+    }
+    let service = Service::new(config)?;
 
     match cli.command {
         Some(Command::Serve(args)) => http::serve(args, service).await,
