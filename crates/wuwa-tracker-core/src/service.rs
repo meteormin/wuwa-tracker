@@ -207,8 +207,8 @@ impl Service {
         )
     }
 
-    pub fn backup(&self, output: impl AsRef<Path>) -> Result<(), AppError> {
-        self.store.export_backup(output.as_ref())
+    pub fn export_backup(&self) -> Result<Vec<u8>, AppError> {
+        self.store.export_backup()
     }
 
     pub fn merge_backup(&self, input: impl AsRef<Path>) -> Result<(), AppError> {

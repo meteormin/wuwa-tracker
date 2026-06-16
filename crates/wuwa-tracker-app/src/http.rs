@@ -83,6 +83,7 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         .route("/api/upload", post(upload_json))
         .route("/api/i18n", get(get_i18n))
         .route("/api/export/{player_id}", get(export_report))
+        .route("/api/backup", get(export_backup))
         .fallback(get(static_asset))
         .layer(CorsLayer::permissive())
         .with_state(service);
@@ -187,6 +188,18 @@ async fn export_report(
                 player_id,
                 format.extension()
             ),
+        )
+        .body(content.into())
+        .expect("valid response"))
+}
+
+async fn export_backup(State(service): State<Service>) -> Result<Response, ApiError> {
+    let content = service.export_backup()?;
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .header(
+            header::CONTENT_DISPOSITION,
+            "attachment; filename=\"wuwa-tracker.backup.json\"",
         )
         .body(content.into())
         .expect("valid response"))

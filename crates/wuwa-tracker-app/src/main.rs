@@ -79,6 +79,7 @@ fn run_gui(service: Service) -> Result<()> {
             api::upload_json,
             api::get_i18n,
             api::export_report,
+            api::export_backup,
         ])
         .run(tauri::generate_context!())?;
     Ok(())
