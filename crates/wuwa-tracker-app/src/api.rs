@@ -98,3 +98,14 @@ pub fn export_report(
         content,
     })
 }
+
+#[tauri::command]
+pub fn export_backup(service: State<'_, Service>) -> Result<ExportResponse, AppError> {
+    let content = service.export_backup()?;
+    Ok(ExportResponse {
+        success: true,
+        filename: "wuwa-tracker.backup.json".to_string(),
+        content_type: "application/json; charset=utf-8".to_string(),
+        content,
+    })
+}

@@ -106,13 +106,9 @@ impl JsonStore {
         })
     }
 
-    pub fn export_backup(&self, path: &std::path::Path) -> Result<(), AppError> {
+    pub fn export_backup(&self) -> Result<Vec<u8>, AppError> {
         let data = self.data.lock().expect("store lock poisoned");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, serde_json::to_vec_pretty(&*data)?)?;
-        Ok(())
+        Ok(serde_json::to_vec_pretty(&*data)?)
     }
 
     pub fn merge_backup(&self, path: &std::path::Path) -> Result<(), AppError> {

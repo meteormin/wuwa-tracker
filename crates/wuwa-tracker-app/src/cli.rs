@@ -175,7 +175,10 @@ pub async fn run(args: RunArgs, service: Service) -> Result<()> {
 }
 
 pub fn backup(args: BackupArgs, service: Service) -> Result<()> {
-    service.backup(&args.output)?;
+    if let Some(parent) = args.output.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&args.output, service.export_backup()?)?;
     println!("Backup created: {}", args.output.display());
     Ok(())
 }

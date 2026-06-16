@@ -157,6 +157,24 @@ export async function exportReport(
   downloadBlob(blob, `report_${playerId}.${format}`);
 }
 
+export async function exportBackup(): Promise<void> {
+  if (isTauriRuntime()) {
+    const data = await invoke<ExportResponse>("export_backup");
+    const blob = new Blob([new Uint8Array(data.content)], {
+      type: data.contentType,
+    });
+    downloadBlob(blob, data.filename);
+    return;
+  }
+
+  const res = await fetch(`${apiHost}/api/backup`);
+  if (!res.ok) {
+    throw new Error(`failed to export backup: ${res.status}`);
+  }
+  const blob = await res.blob();
+  downloadBlob(blob, "wuwa-tracker.backup.json");
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
