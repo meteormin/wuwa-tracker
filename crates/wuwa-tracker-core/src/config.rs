@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::{env, path::PathBuf};
 
 const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
+const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +16,7 @@ pub struct Config {
     pub astrite_per_pull: usize,
     pub scan_log_paths: Vec<PathBuf>,
     pub db_path: PathBuf,
+    pub log_path: PathBuf,
     pub report_format: String,
     pub report_output: String,
     pub language: String,
@@ -54,6 +56,7 @@ impl Default for Config {
                 PathBuf::from("Client.log"),
             ],
             db_path: default_db_path(),
+            log_path: default_log_path(),
             report_format: "html".to_string(),
             report_output: "report".to_string(),
             language: "ko".to_string(),
@@ -79,18 +82,28 @@ fn threshold(min_score: f64, state: &str) -> LuckScoreThreshold {
     }
 }
 
-fn default_db_path() -> PathBuf {
-    if let Ok(value) = env::var(ENV_DB_PATH) {
-        let value = value.trim();
-        if !value.is_empty() {
-            return PathBuf::from(value);
-        }
-    }
+// get_env를 Option의 메서드 체이닝으로 단순화
+fn get_env(key: &str) -> Option<PathBuf> {
+    env::var(key)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+}
 
+// 기본 베이스가 되는 앱 폴더 경로 구하기 (~/.wuwa-tracker)
+fn default_app_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".wuwa-tracker")
-        .join("store.json")
+}
+
+fn default_db_path() -> PathBuf {
+    get_env(ENV_DB_PATH).unwrap_or_else(|| default_app_dir().join("store.json"))
+}
+
+fn default_log_path() -> PathBuf {
+    get_env(ENV_LOG_PATH).unwrap_or_else(|| default_app_dir().join("wuwa-tracker.log"))
 }
 
 #[cfg(test)]
@@ -110,6 +123,22 @@ mod tests {
             env::set_var(ENV_DB_PATH, value);
         } else {
             env::remove_var(ENV_DB_PATH);
+        }
+    }
+
+    #[test]
+    fn default_config_uses_log_path_env() {
+        let previous = env::var(ENV_LOG_PATH).ok();
+        let expected = PathBuf::from("custom-app.log");
+        env::set_var(ENV_LOG_PATH, &expected);
+
+        let config = Config::default();
+
+        assert_eq!(config.log_path, expected);
+        if let Some(value) = previous {
+            env::set_var(ENV_LOG_PATH, value);
+        } else {
+            env::remove_var(ENV_LOG_PATH);
         }
     }
 }

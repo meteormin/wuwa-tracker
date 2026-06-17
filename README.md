@@ -129,6 +129,12 @@ cargo run -p wuwa-tracker -- db players
 
 지원 리포트 포맷은 `html`, `json`, `csv`입니다.
 
+전역 옵션으로 local store와 application log 경로를 바꿀 수 있습니다. 같은 값은 `WUWA_TRACKER_DB_PATH`, `WUWA_TRACKER_LOG_PATH` 환경 변수로도 지정할 수 있습니다.
+
+```bash
+cargo run -p wuwa-tracker -- --dbpath ./store.json --logpath ./wuwa-tracker.log serve
+```
+
 ## API Spec
 
 | Method | Path | 설명 |
@@ -147,6 +153,10 @@ cargo run -p wuwa-tracker -- db players
 기본 저장소는 `~/.wuwa-tracker/store.json`입니다.
 
 필요한 경우 JSON export 또는 verbose log를 `report --file`이나 WebUI 업로드로 가져올 수 있습니다.
+
+## Logging
+
+기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`입니다. `Service` 작업은 JSON Lines 형식으로 event log를 남기고, `serve` mode는 Axum middleware를 통해 HTTP access log를 같은 파일에 기록합니다. Log file은 10 MiB를 넘기기 전에 rotation되며 최대 10개까지 보관합니다.
 
 ## Verification
 
