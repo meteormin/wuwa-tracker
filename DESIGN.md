@@ -1,10 +1,10 @@
 # Wuwa Tracker Design
 
-- Updated Date: 2026-06-15
+- Updated Date: 2026-06-17
 
 ## Architecture Overview
 
-Wuwa Tracker는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 binary에 embed된 WebUI asset과 HTTP API를 제공합니다.
+Wuwa Tracker는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 WebUI asset을 제공하지 않는 API-only HTTP server를 실행합니다.
 
 ```mermaid
 flowchart TD
@@ -31,14 +31,14 @@ flowchart TD
 ### Workspace
 
 - `crates/wuwa-tracker-core`: 데이터 모델, 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다.
-- `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, embedded WebUI를 제공하는 Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
-- `webui`: Svelte UI입니다. Tauri runtime에서는 `invoke`를 사용하고, 브라우저/server mode에서는 HTTP API를 사용합니다.
+- `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, API-only Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
+- `webui`: Svelte UI입니다. Tauri runtime에서는 `invoke`를 사용하고, Vite 개발 서버에서는 HTTP API를 사용합니다.
 - `locales`: game locale fallback과 UI locale JSON입니다.
 
 ### Runtime Modes
 
 - GUI: `make run` 또는 `cargo run -p wuwa-tracker`
-- WebUI server: `make serve` 또는 `cargo run -p wuwa-tracker -- serve --host 127.0.0.1 --port 3000`
+- API server: `make serve` 또는 `cargo run -p wuwa-tracker -- serve --host 127.0.0.1 --port 3000`
 - CLI: `cargo run -p wuwa-tracker -- <command> [args]`
 
 지원 CLI command:
@@ -86,9 +86,9 @@ Offline upload/report flow:
 - JSON: `ReportData` pretty JSON
 - CSV: 기록 단위 flat CSV
 
-### WebUI API
+### HTTP API
 
-Server mode는 다음 route를 제공합니다.
+`serve` mode는 WebUI static asset을 제공하지 않고 다음 API route만 제공합니다.
 
 - `POST /api/track`
 - `POST /api/upload`
@@ -97,10 +97,12 @@ Server mode는 다음 route를 제공합니다.
 - `GET /api/config`
 - `GET /api/i18n`
 - `GET /api/export/{player_id}`
+- `GET /api/backup`
 
 GUI mode는 같은 기능을 Tauri command로 호출합니다.
 
 ## Notes
 
-- Svelte `webui`는 유지합니다.
+- Svelte `webui`는 Tauri GUI와 Vite 개발 서버에서 사용합니다.
+- CLI `serve`는 API-only 모드이며 루트 또는 비 API 경로에 WebUI를 노출하지 않습니다.
 - HTML 리포트는 Askama template로 렌더링합니다.
