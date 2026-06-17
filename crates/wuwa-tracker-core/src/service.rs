@@ -144,7 +144,7 @@ impl Service {
     pub fn scan(&self, path: impl AsRef<Path>) -> Result<ScanResponse, AppError> {
         let path = path.as_ref();
         let result = scanner::scan_url(
-            path.as_ref(),
+            path,
             &self.config.scan_log_paths,
             &self.config.resources_url,
         )
