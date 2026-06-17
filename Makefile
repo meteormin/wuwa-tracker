@@ -14,7 +14,7 @@ help:
 	@echo "Development:"
 	@echo "  make setup           Install WebUI dependencies"
 	@echo "  make run             Build WebUI and run Tauri GUI"
-	@echo "  make serve           Build WebUI and run Axum WebUI server"
+	@echo "  make serve           Run Axum API server"
 	@echo "  make webui-dev       Run Vite dev server"
 	@echo ""
 	@echo "Checks:"
@@ -78,7 +78,7 @@ release: webui-build
 run: webui-build
 	$(CARGO) run -p $(APP)
 
-serve: webui-build
+serve:
 	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT)
 
 version:

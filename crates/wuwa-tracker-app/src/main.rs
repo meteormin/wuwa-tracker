@@ -24,7 +24,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    #[command(about = "Run the embedded WebUI and HTTP API server")]
+    #[command(about = "Run the HTTP API server")]
     Serve(http::ServeArgs),
     #[command(about = "Print the application version")]
     Version,
