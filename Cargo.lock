@@ -5103,7 +5103,7 @@ dependencies = [
 
 [[package]]
 name = "wuwa-tracker"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -5122,7 +5122,7 @@ dependencies = [
 
 [[package]]
 name = "wuwa-tracker-core"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "askama",
