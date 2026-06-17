@@ -71,6 +71,7 @@ struct I18nQuery {
 }
 
 pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
+    print_startup_info(&args);
     let app = Router::new()
         .route("/api/config", get(get_config))
         .route("/api/players", get(list_players))
@@ -88,6 +89,13 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
     let listener = tokio::net::TcpListener::bind((args.host.as_str(), args.port)).await?;
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+fn print_startup_info(args: &ServeArgs) {
+    let api_url = format!("http://{}:{}", args.host, args.port);
+    println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    println!("Server: HTTP API");
+    println!("Listening: {api_url}");
 }
 
 async fn access_log(State(service): State<Service>, request: Request, next: Next) -> Response {
