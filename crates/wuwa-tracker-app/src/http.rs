@@ -225,7 +225,8 @@ impl IntoResponse for ApiError {
             | AppError::InvalidRequest
             | AppError::InvalidGachaUrl
             | AppError::MissingUrl
-            | AppError::UnsupportedReportFormat(_) => StatusCode::BAD_REQUEST,
+            | AppError::UnsupportedReportFormat(_)
+            | AppError::TrackerRejected { .. } => StatusCode::BAD_REQUEST,
             AppError::ScanPathNotFound | AppError::LogFileNotFound | AppError::UrlNotFound => {
                 StatusCode::NOT_FOUND
             }
@@ -256,7 +257,9 @@ fn error_key(error: &AppError) -> &'static str {
         AppError::ScanPathNotFound => "err.scan_path_not_found",
         AppError::LogFileNotFound => "err.scan_log_file_not_found",
         AppError::UrlNotFound => "err.scan_url_not_found",
-        AppError::InvalidGachaUrl | AppError::Url(_) => "err.invalid_url_format",
+        AppError::InvalidGachaUrl | AppError::TrackerRejected { .. } | AppError::Url(_) => {
+            "err.invalid_url_format"
+        }
         AppError::UnsupportedReportFormat(_) => "err.unsupported_report_format",
         AppError::NoValidRecords | AppError::Template(_) => "err.report_generation_failed",
         AppError::PlayerNotFound => "err.database_query_failed",
