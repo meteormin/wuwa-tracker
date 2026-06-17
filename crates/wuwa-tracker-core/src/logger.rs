@@ -34,18 +34,27 @@ impl AppLogger {
     }
 
     pub fn log(&self, level: &str, event: &str, fields: &[(&str, Value)]) -> Result<(), AppError> {
+        let mut entry = Map::new();
+        for (key, value) in fields {
+            entry.insert((*key).to_string(), value.clone());
+        }
+        self.log_entry(level, event, entry)
+    }
+
+    pub fn log_entry(
+        &self,
+        level: &str,
+        event: &str,
+        mut entry: Map<String, Value>,
+    ) -> Result<(), AppError> {
         let _guard = self.lock.lock().expect("logger lock poisoned");
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        let mut entry = Map::new();
         entry.insert("timestamp".to_string(), Value::String(timestamp()));
         entry.insert("level".to_string(), Value::String(level.to_string()));
         entry.insert("event".to_string(), Value::String(event.to_string()));
-        for (key, value) in fields {
-            entry.insert((*key).to_string(), value.clone());
-        }
 
         let line = format!("{}\n", Value::Object(entry));
         self.rotate_if_needed(line.len() as u64)?;

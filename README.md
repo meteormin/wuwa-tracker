@@ -156,7 +156,7 @@ cargo run -p wuwa-tracker -- --dbpath ./store.json --logpath ./wuwa-tracker.log 
 
 ## Logging
 
-기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`입니다. `Service` 작업은 JSON Lines 형식으로 event log를 남기고, `serve` mode는 Axum middleware를 통해 HTTP access log를 같은 파일에 기록합니다. Log file은 10 MiB를 넘기기 전에 rotation되며 최대 10개까지 보관합니다.
+기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`입니다. Core와 app layer는 `tracing` event를 발생시키고, CLI/serve 실행은 콘솔에도 INFO 이상 로그를 출력합니다. 파일 로그는 JSON Lines 형식이며, `serve` mode는 HTTP access log도 같은 파일에 기록합니다. Log file은 10 MiB를 넘기기 전에 rotation되며 최대 10개까지 보관합니다.
 
 ## Verification
 

@@ -9,7 +9,6 @@ use axum::{
 };
 use clap::Args;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::{str::FromStr, time::Instant};
 use tower_http::cors::CorsLayer;
 use wuwa_tracker_core::{
@@ -82,7 +81,7 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         .route("/api/i18n", get(get_i18n))
         .route("/api/export/{player_id}", get(export_report))
         .route("/api/backup", get(export_backup))
-        .layer(middleware::from_fn_with_state(service.clone(), access_log))
+        .layer(middleware::from_fn(access_log))
         .layer(CorsLayer::permissive())
         .with_state(service);
 
@@ -98,7 +97,7 @@ fn print_startup_info(args: &ServeArgs) {
     println!("Listening: {api_url}");
 }
 
-async fn access_log(State(service): State<Service>, request: Request, next: Next) -> Response {
+async fn access_log(request: Request, next: Next) -> Response {
     let started = Instant::now();
     let method = request.method().to_string();
     let path = request.uri().path().to_string();
@@ -111,16 +110,13 @@ async fn access_log(State(service): State<Service>, request: Request, next: Next
 
     let response = next.run(request).await;
     let status = response.status();
-    service.log_event(
-        "info",
-        "http_access",
-        &[
-            ("method", json!(method)),
-            ("path", json!(path)),
-            ("status", json!(status.as_u16())),
-            ("duration_ms", json!(started.elapsed().as_millis())),
-            ("user_agent", json!(user_agent)),
-        ],
+    tracing::info!(
+        event = "http_access",
+        method = %method,
+        path = %path,
+        status = status.as_u16(),
+        duration_ms = started.elapsed().as_millis() as u64,
+        user_agent = %user_agent,
     );
     response
 }
