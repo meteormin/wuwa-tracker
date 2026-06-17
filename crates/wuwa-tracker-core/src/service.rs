@@ -15,6 +15,7 @@ use std::{
     path::Path,
     sync::{Arc, RwLock},
 };
+use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct Service {
@@ -38,13 +39,19 @@ impl Service {
         let calc = StatsCalculator::new(&config);
         let store = Arc::new(JsonStore::new(config.db_path.clone())?);
         let tracker = TrackerClient::new(config.resources_url.clone(), config.tracking_url.clone());
-        Ok(Self {
+        let service = Self {
             config: Arc::new(config),
             store,
             calc,
             tracker,
             locale: Arc::new(RwLock::new(None)),
-        })
+        };
+        info!(
+            event = "service_initialized",
+            db_path = %service.config.db_path.display(),
+            log_path = %service.config.log_path.display(),
+        );
+        Ok(service)
     }
 
     pub fn config(&self) -> &Config {
@@ -52,11 +59,24 @@ impl Service {
     }
 
     pub fn list_players(&self) -> Vec<String> {
-        self.store.list_players()
+        let players = self.store.list_players();
+        info!(event = "players_listed", players = players.len());
+        players
     }
 
     pub fn store_stats(&self) -> Result<crate::store::StoreStats, AppError> {
-        self.store.stats()
+        let result = self.store.stats();
+        match &result {
+            Ok(stats) => info!(
+                event = "store_stats_loaded",
+                players = stats.players,
+                banners = stats.banners,
+                records = stats.records,
+                size_bytes = stats.size_bytes,
+            ),
+            Err(error) => error!(event = "store_stats_failed", error = %error),
+        }
+        result
     }
 
     pub fn banner_record_counts(
@@ -71,7 +91,8 @@ impl Service {
             return Err(AppError::PlayerNotFound);
         }
 
-        self.config
+        let result: Result<Vec<BannerRecordCount>, AppError> = self
+            .config
             .gacha_types
             .iter()
             .map(|gacha_type| {
@@ -84,16 +105,42 @@ impl Service {
                     records: records.len(),
                 })
             })
-            .collect()
+            .collect();
+        match &result {
+            Ok(counts) => info!(
+                event = "banner_record_counts_loaded",
+                player_id = %player_id,
+                banners = counts.len(),
+            ),
+            Err(error) => error!(
+                event = "banner_record_counts_failed",
+                error = %error,
+                player_id = %player_id,
+            ),
+        }
+        result
     }
 
     pub fn scan(&self, path: impl AsRef<Path>) -> Result<ScanResponse, AppError> {
-        let url = scanner::scan_url(
-            path.as_ref(),
+        let path = path.as_ref();
+        let result = scanner::scan_url(
+            path,
             &self.config.scan_log_paths,
             &self.config.resources_url,
-        )?;
-        Ok(ScanResponse { success: true, url })
+        )
+        .map(|url| ScanResponse { success: true, url });
+        match &result {
+            Ok(_) => info!(
+                event = "scan_completed",
+                path = %path.display(),
+            ),
+            Err(error) => error!(
+                event = "scan_failed",
+                error = %error,
+                path = %path.display(),
+            ),
+        }
+        result
     }
 
     pub async fn prepare_locale(&self, lang: &str) {
@@ -109,15 +156,39 @@ impl Service {
             .or_else(|_| tracker::load_local_gacha_locale(lang))
             .or_else(|_| tracker::load_local_gacha_locale("ko"));
 
-        if let Ok(locale) = locale {
-            *self.locale.write().expect("locale lock poisoned") = Some(locale);
+        match locale {
+            Ok(locale) => {
+                *self.locale.write().expect("locale lock poisoned") = Some(locale);
+                info!(event = "locale_prepared", lang = %lang);
+            }
+            Err(error) => error!(
+                event = "locale_prepare_failed",
+                error = %error,
+                lang = %lang,
+            ),
         }
     }
 
     pub fn upload(&self, fetch_result: FetchResult) -> Result<StatsResponse, AppError> {
         let player_id = fetch_result.payload.player_id.trim().to_string();
-        self.save_fetch_result(fetch_result)?;
-        self.get_stats(player_id)
+        let total_records = count_records(&fetch_result.records);
+        let result = self
+            .save_fetch_result(fetch_result)
+            .and_then(|_| self.get_stats(&player_id));
+        match &result {
+            Ok(_) => info!(
+                event = "upload_completed",
+                player_id = %player_id,
+                records = total_records,
+            ),
+            Err(error) => error!(
+                event = "upload_failed",
+                error = %error,
+                player_id = %player_id,
+                records = total_records,
+            ),
+        }
+        result
     }
 
     pub fn save_fetch_result(&self, fetch_result: FetchResult) -> Result<(), AppError> {
@@ -138,6 +209,11 @@ impl Service {
             self.store
                 .save_gacha_records(player_id, &gacha_type.key, &records)?;
         }
+        info!(
+            event = "fetch_result_saved",
+            player_id = %player_id,
+            records = count_records(&fetch_result.records),
+        );
         Ok(())
     }
 
@@ -154,35 +230,75 @@ impl Service {
             stats.push(self.calc.calc(&records, &gacha_type));
         }
 
-        Ok(StatsResponse {
+        let response = StatsResponse {
             success: true,
             player_id: player_id.to_string(),
             stats,
-        })
+        };
+        info!(
+            event = "stats_loaded",
+            player_id = %player_id,
+            banners = response.stats.len(),
+        );
+        Ok(response)
     }
 
     pub async fn track_url(&self, url: impl AsRef<str>) -> Result<StatsResponse, AppError> {
-        let fetch_result = self.fetch_and_save(url.as_ref()).await?;
-        self.get_stats(fetch_result.payload.player_id)
+        let result = match self.fetch_and_save(url.as_ref()).await {
+            Ok(fetch_result) => self.get_stats(fetch_result.payload.player_id),
+            Err(error) => Err(error),
+        };
+        match &result {
+            Ok(response) => info!(
+                event = "track_url_completed",
+                player_id = %response.player_id,
+            ),
+            Err(error) => error!(event = "track_url_failed", error = %error),
+        }
+        result
     }
 
     pub async fn fetch_and_save(&self, target_url: &str) -> Result<FetchResult, AppError> {
+        info!(event = "fetch_started");
         let target_url = target_url.trim().replace('\\', "");
         if target_url.is_empty() {
+            error!(event = "fetch_failed", error = %AppError::MissingUrl);
             return Err(AppError::MissingUrl);
         }
-        let payload = self.tracker.parse_payload_from_url(&target_url)?;
+        let payload = match self.tracker.parse_payload_from_url(&target_url) {
+            Ok(payload) => payload,
+            Err(error) => {
+                error!(event = "fetch_failed", error = %error);
+                return Err(error);
+            }
+        };
         if !payload.language_code.trim().is_empty() {
             self.prepare_locale(&payload.language_code).await;
         }
-        let fetch_result = self
+        let fetch_result = match self
             .tracker
             .fetch_all_records(payload, &self.config.gacha_types)
-            .await?;
+            .await
+        {
+            Ok(fetch_result) => fetch_result,
+            Err(error) => {
+                error!(event = "fetch_failed", error = %error);
+                return Err(error);
+            }
+        };
         if fetch_result.records.is_empty() {
+            error!(event = "fetch_empty", error = %AppError::InvalidGachaUrl);
             return Err(AppError::InvalidGachaUrl);
         }
-        self.save_fetch_result(fetch_result.clone())?;
+        if let Err(error) = self.save_fetch_result(fetch_result.clone()) {
+            error!(event = "fetch_failed", error = %error);
+            return Err(error);
+        }
+        info!(
+            event = "fetch_completed",
+            player_id = %fetch_result.payload.player_id,
+            records = count_records(&fetch_result.records),
+        );
         Ok(fetch_result)
     }
 
@@ -196,7 +312,7 @@ impl Service {
         if stats.stats.is_empty() {
             return Err(AppError::NoValidRecords);
         }
-        reporter::export(
+        let result = reporter::export(
             &self.config,
             &ReportData {
                 player_id: stats.player_id,
@@ -204,15 +320,48 @@ impl Service {
             },
             format,
             lang,
-        )
+        );
+        match &result {
+            Ok(content) => info!(
+                event = "report_exported",
+                player_id = %player_id,
+                format = %format.extension(),
+                bytes = content.len(),
+            ),
+            Err(error) => error!(
+                event = "report_export_failed",
+                error = %error,
+                player_id = %player_id,
+                format = %format.extension(),
+            ),
+        }
+        result
     }
 
-    pub fn backup(&self, output: impl AsRef<Path>) -> Result<(), AppError> {
-        self.store.export_backup(output.as_ref())
+    pub fn export_backup(&self) -> Result<Vec<u8>, AppError> {
+        let result = self.store.export_backup();
+        match &result {
+            Ok(content) => info!(event = "backup_exported", bytes = content.len()),
+            Err(error) => error!(event = "backup_export_failed", error = %error),
+        }
+        result
     }
 
     pub fn merge_backup(&self, input: impl AsRef<Path>) -> Result<(), AppError> {
-        self.store.merge_backup(input.as_ref())
+        let input = input.as_ref();
+        let result = self.store.merge_backup(input);
+        match &result {
+            Ok(_) => info!(
+                event = "backup_merged",
+                path = %input.display(),
+            ),
+            Err(error) => error!(
+                event = "backup_merge_failed",
+                error = %error,
+                path = %input.display(),
+            ),
+        }
+        result
     }
 
     pub fn load_fetch_result_file(&self, path: impl AsRef<Path>) -> Result<FetchResult, AppError> {
@@ -220,6 +369,11 @@ impl Service {
         let bytes = fs::read(path)?;
         if let Ok(fetch_result) = serde_json::from_slice::<FetchResult>(&bytes) {
             if !fetch_result.records.is_empty() {
+                info!(
+                    event = "fetch_result_file_loaded",
+                    path = %path.display(),
+                    records = count_records(&fetch_result.records),
+                );
                 return Ok(fetch_result);
             }
         }
@@ -237,13 +391,19 @@ impl Service {
                     .unwrap_or("offline")
             })
             .to_string();
-        Ok(FetchResult {
+        let fetch_result = FetchResult {
             payload: crate::types::Payload {
                 player_id,
                 ..Default::default()
             },
             records,
-        })
+        };
+        info!(
+            event = "legacy_fetch_result_file_loaded",
+            path = %path.display(),
+            records = count_records(&fetch_result.records),
+        );
+        Ok(fetch_result)
     }
 
     fn localized_gacha_type(&self, gacha_type: &GachaType) -> GachaType {
@@ -266,4 +426,8 @@ impl Service {
         }
         item
     }
+}
+
+fn count_records(records: &BTreeMap<String, Vec<crate::types::Record>>) -> usize {
+    records.values().map(Vec::len).sum()
 }

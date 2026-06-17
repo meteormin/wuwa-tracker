@@ -1,15 +1,15 @@
 use anyhow::Result;
 use axum::{
-    extract::{Path, Query, State},
-    http::{header, StatusCode, Uri},
+    extract::{Path, Query, Request, State},
+    http::{header, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use clap::Args;
-use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use std::{str::FromStr, time::Instant};
 use tower_http::cors::CorsLayer;
 use wuwa_tracker_core::{
     translations,
@@ -34,10 +34,6 @@ pub struct ServeArgs {
     )]
     pub port: u16,
 }
-
-#[derive(RustEmbed)]
-#[folder = "../../webui/dist"]
-struct WebAssets;
 
 #[derive(Debug, Deserialize)]
 struct ScanRequest {
@@ -74,6 +70,7 @@ struct I18nQuery {
 }
 
 pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
+    print_startup_info(&args);
     let app = Router::new()
         .route("/api/config", get(get_config))
         .route("/api/players", get(list_players))
@@ -83,7 +80,8 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         .route("/api/upload", post(upload_json))
         .route("/api/i18n", get(get_i18n))
         .route("/api/export/{player_id}", get(export_report))
-        .fallback(get(static_asset))
+        .route("/api/backup", get(export_backup))
+        .layer(middleware::from_fn(access_log))
         .layer(CorsLayer::permissive())
         .with_state(service);
 
@@ -92,32 +90,35 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
     Ok(())
 }
 
-async fn static_asset(uri: Uri) -> Response {
-    let path = uri.path().trim_start_matches('/');
-    let path = if path.is_empty() { "index.html" } else { path };
-    let asset = WebAssets::get(path).or_else(|| WebAssets::get("index.html"));
-
-    match asset {
-        Some(file) => Response::builder()
-            .header(header::CONTENT_TYPE, content_type(path))
-            .body(file.data.into_owned().into())
-            .expect("valid static asset response"),
-        None => StatusCode::NOT_FOUND.into_response(),
-    }
+fn print_startup_info(args: &ServeArgs) {
+    let api_url = format!("http://{}:{}", args.host, args.port);
+    println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    println!("Server: HTTP API");
+    println!("Listening: {api_url}");
 }
 
-fn content_type(path: &str) -> &'static str {
-    match path.rsplit('.').next().unwrap_or_default() {
-        "css" => "text/css; charset=utf-8",
-        "html" => "text/html; charset=utf-8",
-        "js" => "text/javascript; charset=utf-8",
-        "json" => "application/json; charset=utf-8",
-        "png" => "image/png",
-        "svg" => "image/svg+xml",
-        "wasm" => "application/wasm",
-        "webp" => "image/webp",
-        _ => "application/octet-stream",
-    }
+async fn access_log(request: Request, next: Next) -> Response {
+    let started = Instant::now();
+    let method = request.method().to_string();
+    let path = request.uri().path().to_string();
+    let user_agent = request
+        .headers()
+        .get(header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+
+    let response = next.run(request).await;
+    let status = response.status();
+    tracing::info!(
+        event = "http_access",
+        method = %method,
+        path = %path,
+        status = status.as_u16(),
+        duration_ms = started.elapsed().as_millis() as u64,
+        user_agent = %user_agent,
+    );
+    response
 }
 
 async fn get_config(State(service): State<Service>) -> Json<ConfigResponse> {
@@ -192,6 +193,18 @@ async fn export_report(
         .expect("valid response"))
 }
 
+async fn export_backup(State(service): State<Service>) -> Result<Response, ApiError> {
+    let content = service.export_backup()?;
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .header(
+            header::CONTENT_DISPOSITION,
+            "attachment; filename=\"wuwa-tracker.backup.json\"",
+        )
+        .body(content.into())
+        .expect("valid response"))
+}
+
 struct ApiError(AppError);
 
 impl From<AppError> for ApiError {
@@ -208,7 +221,8 @@ impl IntoResponse for ApiError {
             | AppError::InvalidRequest
             | AppError::InvalidGachaUrl
             | AppError::MissingUrl
-            | AppError::UnsupportedReportFormat(_) => StatusCode::BAD_REQUEST,
+            | AppError::UnsupportedReportFormat(_)
+            | AppError::TrackerRejected { .. } => StatusCode::BAD_REQUEST,
             AppError::ScanPathNotFound | AppError::LogFileNotFound | AppError::UrlNotFound => {
                 StatusCode::NOT_FOUND
             }
@@ -239,7 +253,9 @@ fn error_key(error: &AppError) -> &'static str {
         AppError::ScanPathNotFound => "err.scan_path_not_found",
         AppError::LogFileNotFound => "err.scan_log_file_not_found",
         AppError::UrlNotFound => "err.scan_url_not_found",
-        AppError::InvalidGachaUrl | AppError::Url(_) => "err.invalid_url_format",
+        AppError::InvalidGachaUrl | AppError::TrackerRejected { .. } | AppError::Url(_) => {
+            "err.invalid_url_format"
+        }
         AppError::UnsupportedReportFormat(_) => "err.unsupported_report_format",
         AppError::NoValidRecords | AppError::Template(_) => "err.report_generation_failed",
         AppError::PlayerNotFound => "err.database_query_failed",

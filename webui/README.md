@@ -1,6 +1,6 @@
 # Wuwa Tracker WebUI
 
-Svelte, TypeScript, Vite로 작성된 Wuwa Tracker 프론트엔드입니다. 빌드 결과물은 `webui/dist`에 생성되고, Rust `serve` 바이너리와 Tauri GUI에 포함됩니다.
+Svelte, TypeScript, Vite로 작성된 Wuwa Tracker 프론트엔드입니다. 빌드 결과물은 `webui/dist`에 생성되고 Tauri GUI에 포함됩니다.
 
 ## 개발 명령
 
@@ -11,7 +11,7 @@ yarn check
 yarn build
 ```
 
-Vite 개발 서버에서 실행할 때 API 요청과 i18n 로딩은 `http://localhost:3000`으로 전달됩니다. 따라서 개발 중에는 Rust `serve` 서버도 함께 실행해야 실제 데이터를 조회할 수 있습니다.
+Vite 개발 서버에서 실행할 때 API 요청과 i18n 로딩은 `http://localhost:3000`으로 전달됩니다. 따라서 개발 중에는 API-only Rust `serve` 서버도 함께 실행해야 실제 데이터를 조회할 수 있습니다.
 
 ```bash
 make serve
@@ -40,5 +40,6 @@ WebUI는 다음 API를 사용합니다.
 - `POST /api/track`
 - `POST /api/upload`
 - `GET /api/export/:playerId?format=html|json|csv&lang=ko|en`
+- `GET /api/backup`
 
 Luck Score의 점수 구간과 상태 값은 서버 설정에서 받고, 표시 문구는 서버 embed i18n 응답으로, Tailwind 클래스 매핑은 프론트에서 `worst`, `bad`, `normal`, `good`, `best` 상태 값 기준으로 처리합니다.

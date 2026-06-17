@@ -1,6 +1,7 @@
 mod api;
 mod cli;
 mod http;
+mod logging;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -18,13 +19,20 @@ struct Cli {
         help = "Local JSON store path"
     )]
     db_path: Option<PathBuf>,
+    #[arg(
+        long = "logpath",
+        env = "WUWA_TRACKER_LOG_PATH",
+        global = true,
+        help = "Application log file path"
+    )]
+    log_path: Option<PathBuf>,
     #[command(subcommand)]
     command: Option<Command>,
 }
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    #[command(about = "Run the embedded WebUI and HTTP API server")]
+    #[command(about = "Run the HTTP API server")]
     Serve(http::ServeArgs),
     #[command(about = "Print the application version")]
     Version,
@@ -45,18 +53,25 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    if matches!(&cli.command, Some(Command::Version)) {
+        println!("{}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     let mut config = Config::default();
     if let Some(db_path) = cli.db_path {
         config.db_path = db_path;
     }
+    if let Some(log_path) = cli.log_path {
+        config.log_path = log_path;
+    }
+    let console_logs = cli.command.is_some();
+    logging::init(&config.log_path, console_logs)?;
     let service = Service::new(config)?;
 
     match cli.command {
         Some(Command::Serve(args)) => http::serve(args, service).await,
-        Some(Command::Version) => {
-            println!("{}", env!("CARGO_PKG_VERSION"));
-            Ok(())
-        }
+        Some(Command::Version) => unreachable!("version command is handled before service setup"),
         Some(Command::Scan(args)) => cli::scan(args, service),
         Some(Command::Report(args)) => cli::report(args, service).await,
         Some(Command::Run(args)) => cli::run(args, service).await,
@@ -79,6 +94,7 @@ fn run_gui(service: Service) -> Result<()> {
             api::upload_json,
             api::get_i18n,
             api::export_report,
+            api::export_backup,
         ])
         .run(tauri::generate_context!())?;
     Ok(())
