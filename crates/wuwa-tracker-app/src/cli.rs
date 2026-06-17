@@ -190,12 +190,7 @@ pub fn merge(args: MergeArgs, service: Service) -> Result<()> {
 }
 
 pub fn db(args: DbArgs, service: Service) -> Result<()> {
-    match args.command.unwrap_or(DbCommand::Players) {
-        DbCommand::Players => {
-            for player in service.list_players() {
-                println!("{player}");
-            }
-        }
+    match args.command.unwrap_or(DbCommand::Stats) {
         DbCommand::Stats => {
             let stats = service.store_stats()?;
             println!("DB Stats");
@@ -209,6 +204,11 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
             println!("Players: {}", stats.players);
             println!("Banners: {}", stats.banners);
             println!("Records: {}", stats.records);
+        }
+        DbCommand::Players => {
+            for player in service.list_players() {
+                println!("{player}");
+            }
         }
         DbCommand::Records { player_id } => {
             let counts = service.banner_record_counts(player_id)?;
