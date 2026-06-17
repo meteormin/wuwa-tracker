@@ -1,7 +1,6 @@
 use crate::{
     config::Config,
     error::AppError,
-    logger::AppLogger,
     reporter, scanner,
     stats::StatsCalculator,
     store::JsonStore,
@@ -10,19 +9,18 @@ use crate::{
         FetchResult, GachaType, LocaleData, ReportData, ReportFormat, ScanResponse, StatsResponse,
     },
 };
-use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
     fs,
     path::Path,
     sync::{Arc, RwLock},
 };
+use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct Service {
     config: Arc<Config>,
     store: Arc<JsonStore>,
-    logger: Arc<AppLogger>,
     calc: StatsCalculator,
     tracker: TrackerClient,
     locale: Arc<RwLock<Option<LocaleData>>>,
@@ -40,28 +38,18 @@ impl Service {
     pub fn new(config: Config) -> Result<Self, AppError> {
         let calc = StatsCalculator::new(&config);
         let store = Arc::new(JsonStore::new(config.db_path.clone())?);
-        let logger = Arc::new(AppLogger::new(config.log_path.clone()));
         let tracker = TrackerClient::new(config.resources_url.clone(), config.tracking_url.clone());
         let service = Self {
             config: Arc::new(config),
             store,
-            logger,
             calc,
             tracker,
             locale: Arc::new(RwLock::new(None)),
         };
-        service.log_info(
-            "service_initialized",
-            &[
-                (
-                    "db_path",
-                    json!(service.config.db_path.display().to_string()),
-                ),
-                (
-                    "log_path",
-                    json!(service.config.log_path.display().to_string()),
-                ),
-            ],
+        info!(
+            event = "service_initialized",
+            db_path = %service.config.db_path.display(),
+            log_path = %service.config.log_path.display(),
         );
         Ok(service)
     }
@@ -70,29 +58,23 @@ impl Service {
         &self.config
     }
 
-    pub fn log_event(&self, level: &str, event: &str, fields: &[(&str, Value)]) {
-        let _ = self.logger.log(level, event, fields);
-    }
-
     pub fn list_players(&self) -> Vec<String> {
         let players = self.store.list_players();
-        self.log_info("players_listed", &[("players", json!(players.len()))]);
+        info!(event = "players_listed", players = players.len());
         players
     }
 
     pub fn store_stats(&self) -> Result<crate::store::StoreStats, AppError> {
         let result = self.store.stats();
         match &result {
-            Ok(stats) => self.log_info(
-                "store_stats_loaded",
-                &[
-                    ("players", json!(stats.players)),
-                    ("banners", json!(stats.banners)),
-                    ("records", json!(stats.records)),
-                    ("size_bytes", json!(stats.size_bytes)),
-                ],
+            Ok(stats) => info!(
+                event = "store_stats_loaded",
+                players = stats.players,
+                banners = stats.banners,
+                records = stats.records,
+                size_bytes = stats.size_bytes,
             ),
-            Err(error) => self.log_error("store_stats_failed", error),
+            Err(error) => error!(event = "store_stats_failed", error = %error),
         }
         result
     }
@@ -125,17 +107,15 @@ impl Service {
             })
             .collect();
         match &result {
-            Ok(counts) => self.log_info(
-                "banner_record_counts_loaded",
-                &[
-                    ("player_id", json!(player_id)),
-                    ("banners", json!(counts.len())),
-                ],
+            Ok(counts) => info!(
+                event = "banner_record_counts_loaded",
+                player_id = %player_id,
+                banners = counts.len(),
             ),
-            Err(error) => self.log_error_with_fields(
-                "banner_record_counts_failed",
-                error,
-                &[("player_id", json!(player_id))],
+            Err(error) => error!(
+                event = "banner_record_counts_failed",
+                error = %error,
+                player_id = %player_id,
             ),
         }
         result
@@ -150,14 +130,14 @@ impl Service {
         )
         .map(|url| ScanResponse { success: true, url });
         match &result {
-            Ok(_) => self.log_info(
-                "scan_completed",
-                &[("path", json!(path.display().to_string()))],
+            Ok(_) => info!(
+                event = "scan_completed",
+                path = %path.display(),
             ),
-            Err(error) => self.log_error_with_fields(
-                "scan_failed",
-                error,
-                &[("path", json!(path.display().to_string()))],
+            Err(error) => error!(
+                event = "scan_failed",
+                error = %error,
+                path = %path.display(),
             ),
         }
         result
@@ -179,12 +159,12 @@ impl Service {
         match locale {
             Ok(locale) => {
                 *self.locale.write().expect("locale lock poisoned") = Some(locale);
-                self.log_info("locale_prepared", &[("lang", json!(lang))]);
+                info!(event = "locale_prepared", lang = %lang);
             }
-            Err(error) => self.log_error_with_fields(
-                "locale_prepare_failed",
-                &error,
-                &[("lang", json!(lang))],
+            Err(error) => error!(
+                event = "locale_prepare_failed",
+                error = %error,
+                lang = %lang,
             ),
         }
     }
@@ -196,20 +176,16 @@ impl Service {
             .save_fetch_result(fetch_result)
             .and_then(|_| self.get_stats(&player_id));
         match &result {
-            Ok(_) => self.log_info(
-                "upload_completed",
-                &[
-                    ("player_id", json!(player_id)),
-                    ("records", json!(total_records)),
-                ],
+            Ok(_) => info!(
+                event = "upload_completed",
+                player_id = %player_id,
+                records = total_records,
             ),
-            Err(error) => self.log_error_with_fields(
-                "upload_failed",
-                error,
-                &[
-                    ("player_id", json!(player_id)),
-                    ("records", json!(total_records)),
-                ],
+            Err(error) => error!(
+                event = "upload_failed",
+                error = %error,
+                player_id = %player_id,
+                records = total_records,
             ),
         }
         result
@@ -233,12 +209,10 @@ impl Service {
             self.store
                 .save_gacha_records(player_id, &gacha_type.key, &records)?;
         }
-        self.log_info(
-            "fetch_result_saved",
-            &[
-                ("player_id", json!(player_id)),
-                ("records", json!(count_records(&fetch_result.records))),
-            ],
+        info!(
+            event = "fetch_result_saved",
+            player_id = %player_id,
+            records = count_records(&fetch_result.records),
         );
         Ok(())
     }
@@ -261,12 +235,10 @@ impl Service {
             player_id: player_id.to_string(),
             stats,
         };
-        self.log_info(
-            "stats_loaded",
-            &[
-                ("player_id", json!(player_id)),
-                ("banners", json!(response.stats.len())),
-            ],
+        info!(
+            event = "stats_loaded",
+            player_id = %player_id,
+            banners = response.stats.len(),
         );
         Ok(response)
     }
@@ -277,26 +249,26 @@ impl Service {
             Err(error) => Err(error),
         };
         match &result {
-            Ok(response) => self.log_info(
-                "track_url_completed",
-                &[("player_id", json!(response.player_id))],
+            Ok(response) => info!(
+                event = "track_url_completed",
+                player_id = %response.player_id,
             ),
-            Err(error) => self.log_error("track_url_failed", error),
+            Err(error) => error!(event = "track_url_failed", error = %error),
         }
         result
     }
 
     pub async fn fetch_and_save(&self, target_url: &str) -> Result<FetchResult, AppError> {
-        self.log_info("fetch_started", &[]);
+        info!(event = "fetch_started");
         let target_url = target_url.trim().replace('\\', "");
         if target_url.is_empty() {
-            self.log_error("fetch_failed", &AppError::MissingUrl);
+            error!(event = "fetch_failed", error = %AppError::MissingUrl);
             return Err(AppError::MissingUrl);
         }
         let payload = match self.tracker.parse_payload_from_url(&target_url) {
             Ok(payload) => payload,
             Err(error) => {
-                self.log_error("fetch_failed", &error);
+                error!(event = "fetch_failed", error = %error);
                 return Err(error);
             }
         };
@@ -310,24 +282,22 @@ impl Service {
         {
             Ok(fetch_result) => fetch_result,
             Err(error) => {
-                self.log_error("fetch_failed", &error);
+                error!(event = "fetch_failed", error = %error);
                 return Err(error);
             }
         };
         if fetch_result.records.is_empty() {
-            self.log_error("fetch_empty", &AppError::InvalidGachaUrl);
+            error!(event = "fetch_empty", error = %AppError::InvalidGachaUrl);
             return Err(AppError::InvalidGachaUrl);
         }
         if let Err(error) = self.save_fetch_result(fetch_result.clone()) {
-            self.log_error("fetch_failed", &error);
+            error!(event = "fetch_failed", error = %error);
             return Err(error);
         }
-        self.log_info(
-            "fetch_completed",
-            &[
-                ("player_id", json!(fetch_result.payload.player_id)),
-                ("records", json!(count_records(&fetch_result.records))),
-            ],
+        info!(
+            event = "fetch_completed",
+            player_id = %fetch_result.payload.player_id,
+            records = count_records(&fetch_result.records),
         );
         Ok(fetch_result)
     }
@@ -352,21 +322,17 @@ impl Service {
             lang,
         );
         match &result {
-            Ok(content) => self.log_info(
-                "report_exported",
-                &[
-                    ("player_id", json!(player_id)),
-                    ("format", json!(format.extension())),
-                    ("bytes", json!(content.len())),
-                ],
+            Ok(content) => info!(
+                event = "report_exported",
+                player_id = %player_id,
+                format = %format.extension(),
+                bytes = content.len(),
             ),
-            Err(error) => self.log_error_with_fields(
-                "report_export_failed",
-                error,
-                &[
-                    ("player_id", json!(player_id)),
-                    ("format", json!(format.extension())),
-                ],
+            Err(error) => error!(
+                event = "report_export_failed",
+                error = %error,
+                player_id = %player_id,
+                format = %format.extension(),
             ),
         }
         result
@@ -375,8 +341,8 @@ impl Service {
     pub fn export_backup(&self) -> Result<Vec<u8>, AppError> {
         let result = self.store.export_backup();
         match &result {
-            Ok(content) => self.log_info("backup_exported", &[("bytes", json!(content.len()))]),
-            Err(error) => self.log_error("backup_export_failed", error),
+            Ok(content) => info!(event = "backup_exported", bytes = content.len()),
+            Err(error) => error!(event = "backup_export_failed", error = %error),
         }
         result
     }
@@ -385,14 +351,14 @@ impl Service {
         let input = input.as_ref();
         let result = self.store.merge_backup(input);
         match &result {
-            Ok(_) => self.log_info(
-                "backup_merged",
-                &[("path", json!(input.display().to_string()))],
+            Ok(_) => info!(
+                event = "backup_merged",
+                path = %input.display(),
             ),
-            Err(error) => self.log_error_with_fields(
-                "backup_merge_failed",
-                error,
-                &[("path", json!(input.display().to_string()))],
+            Err(error) => error!(
+                event = "backup_merge_failed",
+                error = %error,
+                path = %input.display(),
             ),
         }
         result
@@ -403,12 +369,10 @@ impl Service {
         let bytes = fs::read(path)?;
         if let Ok(fetch_result) = serde_json::from_slice::<FetchResult>(&bytes) {
             if !fetch_result.records.is_empty() {
-                self.log_info(
-                    "fetch_result_file_loaded",
-                    &[
-                        ("path", json!(path.display().to_string())),
-                        ("records", json!(count_records(&fetch_result.records))),
-                    ],
+                info!(
+                    event = "fetch_result_file_loaded",
+                    path = %path.display(),
+                    records = count_records(&fetch_result.records),
                 );
                 return Ok(fetch_result);
             }
@@ -434,12 +398,10 @@ impl Service {
             },
             records,
         };
-        self.log_info(
-            "legacy_fetch_result_file_loaded",
-            &[
-                ("path", json!(path.display().to_string())),
-                ("records", json!(count_records(&fetch_result.records))),
-            ],
+        info!(
+            event = "legacy_fetch_result_file_loaded",
+            path = %path.display(),
+            records = count_records(&fetch_result.records),
         );
         Ok(fetch_result)
     }
@@ -463,26 +425,6 @@ impl Service {
             }
         }
         item
-    }
-
-    fn log_info(&self, event: &str, fields: &[(&str, Value)]) {
-        self.log_event("info", event, fields);
-    }
-
-    fn log_error(&self, event: &str, error: &dyn std::error::Error) {
-        self.log_error_with_fields(event, error, &[]);
-    }
-
-    fn log_error_with_fields(
-        &self,
-        event: &str,
-        error: &dyn std::error::Error,
-        fields: &[(&str, Value)],
-    ) {
-        let mut values = Vec::with_capacity(fields.len() + 1);
-        values.push(("error", json!(error.to_string())));
-        values.extend_from_slice(fields);
-        self.log_event("error", event, &values);
     }
 }
 
