@@ -129,7 +129,7 @@ cargo run -p wuwa-tracker -- db players
 
 지원 리포트 포맷은 `html`, `json`, `csv`입니다.
 
-## WebUI API
+## API Spec
 
 | Method | Path | 설명 |
 | --- | --- | --- |
