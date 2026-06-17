@@ -80,6 +80,10 @@ Offline upload/report flow:
 
 `backup`과 `merge`는 이 JSON store 포맷을 대상으로 동작합니다.
 
+### Logging
+
+기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`이며 `WUWA_TRACKER_LOG_PATH` 또는 CLI `--logpath`로 변경할 수 있습니다. Core `Service`는 주요 use case event를 JSON Lines 형식으로 기록하고, `serve` mode는 Axum middleware로 HTTP method, path, status, duration, user agent를 같은 log file에 기록합니다. Log file은 10 MiB 기준으로 rotation되며 최대 10개까지 보관합니다.
+
 ### Reporting
 
 - HTML: `askama` template인 `crates/wuwa-tracker-core/templates/report.html`을 컴파일 타임에 검증하고 렌더링합니다.

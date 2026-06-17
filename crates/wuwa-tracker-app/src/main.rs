@@ -18,6 +18,13 @@ struct Cli {
         help = "Local JSON store path"
     )]
     db_path: Option<PathBuf>,
+    #[arg(
+        long = "logpath",
+        env = "WUWA_TRACKER_LOG_PATH",
+        global = true,
+        help = "Application log file path"
+    )]
+    log_path: Option<PathBuf>,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -48,6 +55,9 @@ async fn main() -> Result<()> {
     let mut config = Config::default();
     if let Some(db_path) = cli.db_path {
         config.db_path = db_path;
+    }
+    if let Some(log_path) = cli.log_path {
+        config.log_path = log_path;
     }
     let service = Service::new(config)?;
 

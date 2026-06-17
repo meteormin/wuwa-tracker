@@ -1,5 +1,6 @@
 pub mod config;
 pub mod error;
+pub mod logger;
 pub mod merge;
 pub mod reporter;
 pub mod scanner;

@@ -1,14 +1,16 @@
 use anyhow::Result;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, Query, Request, State},
     http::{header, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use clap::Args;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use serde_json::json;
+use std::{str::FromStr, time::Instant};
 use tower_http::cors::CorsLayer;
 use wuwa_tracker_core::{
     translations,
@@ -79,12 +81,40 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         .route("/api/i18n", get(get_i18n))
         .route("/api/export/{player_id}", get(export_report))
         .route("/api/backup", get(export_backup))
+        .layer(middleware::from_fn_with_state(service.clone(), access_log))
         .layer(CorsLayer::permissive())
         .with_state(service);
 
     let listener = tokio::net::TcpListener::bind((args.host.as_str(), args.port)).await?;
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+async fn access_log(State(service): State<Service>, request: Request, next: Next) -> Response {
+    let started = Instant::now();
+    let method = request.method().to_string();
+    let path = request.uri().path().to_string();
+    let user_agent = request
+        .headers()
+        .get(header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+
+    let response = next.run(request).await;
+    let status = response.status();
+    service.log_event(
+        "info",
+        "http_access",
+        &[
+            ("method", json!(method)),
+            ("path", json!(path)),
+            ("status", json!(status.as_u16())),
+            ("duration_ms", json!(started.elapsed().as_millis())),
+            ("user_agent", json!(user_agent)),
+        ],
+    );
+    response
 }
 
 async fn get_config(State(service): State<Service>) -> Json<ConfigResponse> {
