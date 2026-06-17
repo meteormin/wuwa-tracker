@@ -315,7 +315,7 @@ impl Service {
             }
         };
         if fetch_result.records.is_empty() {
-            self.log_error("fetch_failed", &AppError::InvalidGachaUrl);
+            self.log_error("fetch_empty", &AppError::InvalidGachaUrl);
             return Err(AppError::InvalidGachaUrl);
         }
         if let Err(error) = self.save_fetch_result(fetch_result.clone()) {

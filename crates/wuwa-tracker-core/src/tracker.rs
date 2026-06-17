@@ -66,13 +66,22 @@ impl TrackerClient {
         gacha_types: &[GachaType],
     ) -> Result<FetchResult, AppError> {
         let mut records = BTreeMap::new();
+        let mut last_error = None;
         for gacha_type in gacha_types {
             payload.card_pool_type = gacha_type.id;
-            if let Ok(items) = self.fetch_records(&payload).await {
-                records.insert(gacha_type.key.clone(), items);
+            match self.fetch_records(&payload).await {
+                Ok(items) => {
+                    records.insert(gacha_type.key.clone(), items);
+                }
+                Err(error) => {
+                    last_error = Some(error);
+                }
             }
         }
 
+        if records.is_empty() {
+            return Err(last_error.unwrap_or(AppError::InvalidGachaUrl));
+        }
         Ok(FetchResult { payload, records })
     }
 
@@ -95,7 +104,10 @@ impl TrackerClient {
             .await?;
 
         if response.code != 0 {
-            return Err(AppError::InvalidGachaUrl);
+            return Err(AppError::TrackerRejected {
+                code: response.code,
+                message: response.message,
+            });
         }
         Ok(response.data)
     }
@@ -136,4 +148,22 @@ pub fn load_local_gacha_locale(lang: &str) -> Result<LocaleData, AppError> {
     let _ = lang;
     let source = include_str!("../../../locales/ko.json");
     Ok(serde_json::from_str(source)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tracker_rejected_error_includes_api_code_and_message() {
+        let error = AppError::TrackerRejected {
+            code: -1,
+            message: "request failed".to_string(),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "tracker API rejected request: code=-1, message=request failed"
+        );
+    }
 }

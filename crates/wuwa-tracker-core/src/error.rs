@@ -18,6 +18,8 @@ pub enum AppError {
     RemoteTrackingUnsupported,
     #[error("invalid gacha url or unsupported domain")]
     InvalidGachaUrl,
+    #[error("tracker API rejected request: code={code}, message={message}")]
+    TrackerRejected { code: i32, message: String },
     #[error("missing url")]
     MissingUrl,
     #[error("unsupported report format: {0}")]
