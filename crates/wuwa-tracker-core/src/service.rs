@@ -222,6 +222,9 @@ impl Service {
         if player_id.is_empty() {
             return Err(AppError::MissingPlayerId);
         }
+        if !self.store.has_player(player_id) {
+            return Err(AppError::PlayerNotFound);
+        }
 
         let mut stats = Vec::with_capacity(self.config.gacha_types.len());
         for gacha_type in &self.config.gacha_types {

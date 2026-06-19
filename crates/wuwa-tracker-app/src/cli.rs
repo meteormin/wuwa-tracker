@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
+use serde::Serialize;
 use std::{
     fs,
     io::Write,
@@ -10,7 +11,7 @@ use std::{
 };
 use unicode_width::UnicodeWidthStr;
 use wuwa_tracker_core::{
-    types::{FetchResult, ReportFormat, StatsResponse},
+    types::{FetchResult, FiveStarRecord, ReportFormat, Stats, StatsResponse},
     Service,
 };
 
@@ -107,8 +108,11 @@ pub struct DbArgs {
 pub enum DbCommand {
     #[command(about = "List player IDs stored locally")]
     Players,
-    #[command(about = "Inspect local JSON store size and record counts")]
-    Stats,
+    #[command(about = "Show store status or summarized statistics for a player")]
+    Stats {
+        #[arg(help = "Player ID to inspect; omit to show store status")]
+        player_id: Option<String>,
+    },
     #[command(about = "Show per-banner record counts for a player")]
     Records {
         #[arg(help = "Player ID to inspect")]
@@ -190,20 +194,28 @@ pub fn merge(args: MergeArgs, service: Service) -> Result<()> {
 }
 
 pub fn db(args: DbArgs, service: Service) -> Result<()> {
-    match args.command.unwrap_or(DbCommand::Stats) {
-        DbCommand::Stats => {
-            let stats = service.store_stats()?;
-            println!("DB Stats");
-            println!("Path: {}", stats.path.display());
-            println!("Exists: {}", stats.exists);
-            println!(
-                "Size: {} ({} bytes)",
-                format_bytes(stats.size_bytes),
-                stats.size_bytes
-            );
-            println!("Players: {}", stats.players);
-            println!("Banners: {}", stats.banners);
-            println!("Records: {}", stats.records);
+    match args.command.unwrap_or(DbCommand::Stats { player_id: None }) {
+        DbCommand::Stats { player_id } => {
+            if let Some(player_id) = player_id {
+                let stats = service.get_stats(player_id)?;
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&StatsSummary::from(&stats))?
+                );
+            } else {
+                let stats = service.store_stats()?;
+                println!("DB Stats");
+                println!("Path: {}", stats.path.display());
+                println!("Exists: {}", stats.exists);
+                println!(
+                    "Size: {} ({} bytes)",
+                    format_bytes(stats.size_bytes),
+                    stats.size_bytes
+                );
+                println!("Players: {}", stats.players);
+                println!("Banners: {}", stats.banners);
+                println!("Records: {}", stats.records);
+            }
         }
         DbCommand::Players => {
             for player in service.list_players() {
@@ -224,6 +236,66 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StatsSummary<'a> {
+    success: bool,
+    player_id: &'a str,
+    stats: Vec<BannerStatsSummary<'a>>,
+}
+
+impl<'a> From<&'a StatsResponse> for StatsSummary<'a> {
+    fn from(response: &'a StatsResponse) -> Self {
+        Self {
+            success: response.success,
+            player_id: &response.player_id,
+            stats: response
+                .stats
+                .iter()
+                .map(BannerStatsSummary::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BannerStatsSummary<'a> {
+    gacha_type: i32,
+    gacha_name: &'a str,
+    total_pulls: usize,
+    total_astrite: usize,
+    current_pity5: i32,
+    current_pity4: i32,
+    base_rate: f64,
+    expected_pulls: i32,
+    five_stars: &'a [FiveStarRecord],
+    avg_pulls: f64,
+    actual_rate: f64,
+    luck_score: f64,
+    has_five_star: bool,
+}
+
+impl<'a> From<&'a Stats> for BannerStatsSummary<'a> {
+    fn from(stats: &'a Stats) -> Self {
+        Self {
+            gacha_type: stats.gacha_type,
+            gacha_name: &stats.gacha_name,
+            total_pulls: stats.total_pulls,
+            total_astrite: stats.total_astrite,
+            current_pity5: stats.current_pity5,
+            current_pity4: stats.current_pity4,
+            base_rate: stats.base_rate,
+            expected_pulls: stats.expected_pulls,
+            five_stars: &stats.five_stars,
+            avg_pulls: stats.avg_pulls,
+            actual_rate: stats.actual_rate,
+            luck_score: stats.luck_score,
+            has_five_star: stats.has_five_star,
+        }
+    }
 }
 
 fn print_db_records_row(id: &str, key: &str, name: &str, records: &str) {
@@ -344,4 +416,39 @@ fn command_exists(name: &str) -> bool {
         .status()
         .map(|status| status.success())
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stats_summary_omits_raw_records() {
+        let response = StatsResponse {
+            success: true,
+            player_id: "123456789".to_string(),
+            stats: vec![Stats {
+                gacha_type: 1,
+                gacha_name: "Featured Resonator Convene".to_string(),
+                total_pulls: 10,
+                total_astrite: 1_600,
+                current_pity5: 10,
+                current_pity4: 0,
+                base_rate: 0.008,
+                expected_pulls: 80,
+                five_stars: Vec::new(),
+                records: Vec::new(),
+                avg_pulls: 0.0,
+                actual_rate: 0.0,
+                luck_score: 0.0,
+                has_five_star: false,
+            }],
+        };
+
+        let value = serde_json::to_value(StatsSummary::from(&response)).unwrap();
+
+        assert_eq!(value["playerId"], "123456789");
+        assert_eq!(value["stats"][0]["totalPulls"], 10);
+        assert!(value["stats"][0].get("records").is_none());
+    }
 }

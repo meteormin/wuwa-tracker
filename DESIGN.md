@@ -49,7 +49,10 @@ flowchart TD
 - `run`
 - `backup`
 - `merge`
+- `db stats`
 - `db players`
+- `db stats <player-id>`
+- `db records <player-id>`
 - `serve`
 
 ### Data Flow
@@ -82,7 +85,7 @@ Offline upload/report flow:
 
 ### Logging
 
-기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`이며 `WUWA_TRACKER_LOG_PATH` 또는 CLI `--logpath`로 변경할 수 있습니다. Core `Service`와 app layer는 `tracing` event를 발생시키고, app binary가 콘솔 subscriber와 rotating JSON Lines file subscriber를 초기화합니다. `serve` mode는 Axum middleware로 HTTP method, path, status, duration, user agent를 기록합니다. Log file은 10 MiB 기준으로 rotation되며 최대 10개까지 보관합니다.
+기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`이며 `WUWA_TRACKER_LOG_PATH` 또는 CLI `--logpath`로 변경할 수 있습니다. Core `Service`와 app layer는 `tracing` event를 발생시키고, app binary가 콘솔 subscriber와 rotating JSON Lines file subscriber를 초기화합니다. 기본 filter는 일반 CLI 콘솔에서 ERROR, `serve` 콘솔과 파일 및 GUI runtime에서 INFO입니다. `RUST_LOG`와 `WUWA_TRACKER_LOG_LEVEL`은 `EnvFilter` directive로 runtime filter를 재정의하며, 둘 다 존재하면 `RUST_LOG`가 우선합니다. `serve` mode는 Axum middleware로 HTTP method, path, status, duration, user agent를 기록합니다. Log file은 10 MiB 기준으로 rotation되며 최대 10개까지 보관합니다.
 
 ### Reporting
 
