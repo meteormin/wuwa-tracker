@@ -65,8 +65,12 @@ async fn main() -> Result<()> {
     if let Some(log_path) = cli.log_path {
         config.log_path = log_path;
     }
-    let console_logs = cli.command.is_some();
-    logging::init(&config.log_path, console_logs)?;
+    let console_level = match &cli.command {
+        Some(Command::Serve(_)) => Some("info"),
+        Some(_) => Some("error"),
+        None => None,
+    };
+    logging::init(&config.log_path, console_level)?;
     let service = Service::new(config)?;
 
     match cli.command {

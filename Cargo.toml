@@ -27,6 +27,6 @@ thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 tower-http = { version = "0.6", features = ["cors"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "registry"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "registry"] }
 unicode-width = "0.2"
 url = "2"
