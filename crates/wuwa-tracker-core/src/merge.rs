@@ -1,5 +1,5 @@
-use crate::types::Record;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use wuwa_tracker_types::Record;
 
 pub fn merge_records(db_records: &[Record], new_records: &[Record]) -> Vec<Record> {
     if db_records.is_empty() {

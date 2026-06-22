@@ -45,7 +45,7 @@ pub struct Record {
     pub time: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiveStarRecord {
     pub name: String,
@@ -54,7 +54,7 @@ pub struct FiveStarRecord {
     pub is_pick_up: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GachaType {
     pub id: i32,
@@ -65,7 +65,7 @@ pub struct GachaType {
     pub expected_pulls: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
     pub gacha_type: i32,
@@ -84,29 +84,36 @@ pub struct Stats {
     pub has_five_star: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LuckScoreThreshold {
     pub min_score: f64,
     pub state: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StatsResponse {
     pub success: bool,
+    #[serde(default)]
     pub player_id: String,
+    #[serde(default)]
     pub stats: Vec<Stats>,
+    pub error: Option<String>,
+    pub error_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanResponse {
     pub success: bool,
+    #[serde(default)]
     pub url: String,
+    pub error: Option<String>,
+    pub error_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub success: bool,
@@ -114,49 +121,34 @@ pub struct ErrorResponse {
     pub error_key: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigResponse {
+    pub success: bool,
+    #[serde(default)]
+    pub luck_score_thresholds: Vec<LuckScoreThreshold>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayersResponse {
+    pub success: bool,
+    #[serde(default)]
+    pub players: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResponse {
+    pub success: bool,
+    pub filename: String,
+    pub content_type: String,
+    pub content: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportData {
     pub player_id: String,
     pub stats: Vec<Stats>,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum ReportFormat {
-    Html,
-    Json,
-    Csv,
-}
-
-impl ReportFormat {
-    pub fn extension(self) -> &'static str {
-        match self {
-            Self::Html => "html",
-            Self::Json => "json",
-            Self::Csv => "csv",
-        }
-    }
-
-    pub fn content_type(self) -> &'static str {
-        match self {
-            Self::Html => "text/html; charset=utf-8",
-            Self::Json => "application/json; charset=utf-8",
-            Self::Csv => "text/csv; charset=utf-8",
-        }
-    }
-}
-
-impl std::str::FromStr for ReportFormat {
-    type Err = crate::error::AppError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.to_ascii_lowercase().as_str() {
-            "html" => Ok(Self::Html),
-            "json" => Ok(Self::Json),
-            "csv" => Ok(Self::Csv),
-            other => Err(crate::error::AppError::UnsupportedReportFormat(
-                other.to_string(),
-            )),
-        }
-    }
 }

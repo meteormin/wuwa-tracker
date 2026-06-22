@@ -1,6 +1,6 @@
-use crate::types::{GachaType, LuckScoreThreshold};
 use serde::Serialize;
 use std::{env, path::PathBuf};
+use wuwa_tracker_types::{GachaType, LuckScoreThreshold};
 
 const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
 const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";

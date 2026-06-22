@@ -1,35 +1,9 @@
-use serde::Serialize;
 use std::str::FromStr;
 use tauri::State;
-use wuwa_tracker_core::{
-    translations,
-    types::ReportFormat,
-    types::{FetchResult, ScanResponse, StatsResponse},
-    AppError, Service,
+use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError, Service};
+use wuwa_tracker_types::{
+    ConfigResponse, ExportResponse, FetchResult, PlayersResponse, ScanResponse, StatsResponse,
 };
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConfigResponse {
-    success: bool,
-    luck_score_thresholds: Vec<wuwa_tracker_core::types::LuckScoreThreshold>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PlayersResponse {
-    success: bool,
-    players: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExportResponse {
-    success: bool,
-    filename: String,
-    content_type: String,
-    content: Vec<u8>,
-}
 
 #[tauri::command]
 pub fn get_config(service: State<'_, Service>) -> ConfigResponse {
