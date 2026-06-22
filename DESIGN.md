@@ -1,10 +1,10 @@
 # Wuwa Tracker Design
 
-- Updated Date: 2026-06-17
+- Updated Date: 2026-06-22
 
 ## Architecture Overview
 
-Wuwa Tracker는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 WebUI asset을 제공하지 않는 API-only HTTP server를 실행합니다.
+Wuwa Tracker는 Rust workspace와 Leptos CSR WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 WebUI asset을 제공하지 않는 API-only HTTP server를 실행합니다.
 
 ```mermaid
 flowchart TD
@@ -12,7 +12,7 @@ flowchart TD
     User --> GUI["Tauri GUI"]
     User --> Server["wuwa-tracker serve"]
     GUI --> Invoke["Tauri invoke"]
-    WebUI["Svelte WebUI"] --> Invoke
+    WebUI["Leptos WASM WebUI"] --> Invoke
     WebUI --> HTTP["HTTP API"]
     Server --> HTTP
     CLI --> Core["wuwa-tracker-core"]
@@ -32,7 +32,7 @@ flowchart TD
 
 - `crates/wuwa-tracker-core`: 데이터 모델, 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다.
 - `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, API-only Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
-- `webui`: Svelte UI입니다. Tauri runtime에서는 `invoke`를 사용하고, Vite 개발 서버에서는 HTTP API를 사용합니다.
+- `crates/wuwa-tracker-webui`: Leptos CSR UI를 `wasm32-unknown-unknown`으로 컴파일합니다. Tauri runtime에서는 global `invoke` API를 사용하고, Trunk 개발 서버에서는 HTTP API를 사용합니다.
 - `locales`: game locale fallback과 UI locale JSON입니다.
 
 ### Runtime Modes
@@ -110,6 +110,6 @@ GUI mode는 같은 기능을 Tauri command로 호출합니다.
 
 ## Notes
 
-- Svelte `webui`는 Tauri GUI와 Vite 개발 서버에서 사용합니다.
+- Leptos `wuwa-tracker-webui`가 Tauri GUI의 기본 frontend이며, Trunk가 WASM과 loader JavaScript를 생성합니다.
 - CLI `serve`는 API-only 모드이며 루트 또는 비 API 경로에 WebUI를 노출하지 않습니다.
 - HTML 리포트는 Askama template로 렌더링합니다.
