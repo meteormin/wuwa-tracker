@@ -2,6 +2,7 @@
 members = [
     "crates/wuwa-tracker-app",
     "crates/wuwa-tracker-core",
+    "crates/wuwa-tracker-types",
     "crates/wuwa-tracker-webui",
 ]
 resolver = "2"

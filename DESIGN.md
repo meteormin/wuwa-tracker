@@ -15,6 +15,10 @@ flowchart TD
     WebUI["Leptos WASM WebUI"] --> Invoke
     WebUI --> HTTP["HTTP API"]
     Server --> HTTP
+    Core --> Types["wuwa-tracker-types"]
+    Invoke --> Types
+    HTTP --> Types
+    WebUI --> Types
     CLI --> Core["wuwa-tracker-core"]
     Invoke --> Core
     HTTP --> Core
@@ -30,7 +34,8 @@ flowchart TD
 
 ### Workspace
 
-- `crates/wuwa-tracker-core`: 데이터 모델, 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다.
+- `crates/wuwa-tracker-types`: core, app, WebUI가 함께 사용하는 도메인 모델과 Serde 기반 API 응답 계약을 제공합니다. WASM에서도 사용할 수 있도록 Serde 외의 runtime 의존성을 두지 않습니다.
+- `crates/wuwa-tracker-core`: 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다. 리포트 출력 형식인 `ReportFormat`은 `reporter` module이 소유합니다.
 - `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, API-only Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
 - `crates/wuwa-tracker-webui`: Leptos CSR UI를 `wasm32-unknown-unknown`으로 컴파일합니다. Tauri runtime에서는 global `invoke` API를 사용하고, Trunk 개발 서버에서는 HTTP API를 사용합니다.
 - `locales`: game locale fallback과 UI locale JSON입니다.

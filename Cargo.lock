@@ -6026,6 +6026,7 @@ dependencies = [
  "tracing-subscriber",
  "unicode-width",
  "wuwa-tracker-core",
+ "wuwa-tracker-types",
 ]
 
 [[package]]
@@ -6042,6 +6043,14 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "url",
+ "wuwa-tracker-types",
+]
+
+[[package]]
+name = "wuwa-tracker-types"
+version = "1.0.4"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -6057,6 +6066,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "wuwa-tracker-types",
 ]
 
 [[package]]

@@ -10,10 +10,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use unicode_width::UnicodeWidthStr;
-use wuwa_tracker_core::{
-    types::{FetchResult, FiveStarRecord, ReportFormat, Stats, StatsResponse},
-    Service,
-};
+use wuwa_tracker_core::{reporter::ReportFormat, Service};
+use wuwa_tracker_types::{FetchResult, FiveStarRecord, Stats, StatsResponse};
 
 const DB_RECORDS_ID_WIDTH: usize = 4;
 const DB_RECORDS_KEY_WIDTH: usize = 26;
@@ -427,6 +425,8 @@ mod tests {
         let response = StatsResponse {
             success: true,
             player_id: "123456789".to_string(),
+            error: None,
+            error_key: None,
             stats: vec![Stats {
                 gacha_type: 1,
                 gacha_name: "Featured Resonator Convene".to_string(),

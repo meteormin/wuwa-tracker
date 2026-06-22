@@ -1,7 +1,5 @@
-use crate::{
-    config::Config,
-    types::{FiveStarRecord, GachaType, Record, Stats},
-};
+use crate::config::Config;
+use wuwa_tracker_types::{FiveStarRecord, GachaType, Record, Stats};
 
 #[derive(Debug, Clone)]
 pub struct StatsCalculator {

@@ -8,13 +8,12 @@ use axum::{
     Json, Router,
 };
 use clap::Args;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{str::FromStr, time::Instant};
 use tower_http::cors::CorsLayer;
-use wuwa_tracker_core::{
-    translations,
-    types::{ErrorResponse, FetchResult, ReportFormat},
-    AppError, Service,
+use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError, Service};
+use wuwa_tracker_types::{
+    ConfigResponse, ErrorResponse, FetchResult, PlayersResponse, ScanResponse, StatsResponse,
 };
 
 #[derive(Debug, Clone, Args)]
@@ -43,19 +42,6 @@ struct ScanRequest {
 #[derive(Debug, Deserialize)]
 struct TrackRequest {
     url: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ConfigResponse {
-    success: bool,
-    luck_score_thresholds: Vec<wuwa_tracker_core::types::LuckScoreThreshold>,
-}
-
-#[derive(Debug, Serialize)]
-struct PlayersResponse {
-    success: bool,
-    players: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -138,28 +124,28 @@ async fn list_players(State(service): State<Service>) -> Json<PlayersResponse> {
 async fn get_stats(
     Path(player_id): Path<String>,
     State(service): State<Service>,
-) -> Result<Json<wuwa_tracker_core::types::StatsResponse>, ApiError> {
+) -> Result<Json<StatsResponse>, ApiError> {
     Ok(Json(service.get_stats(player_id)?))
 }
 
 async fn scan_url(
     State(service): State<Service>,
     Json(request): Json<ScanRequest>,
-) -> Result<Json<wuwa_tracker_core::types::ScanResponse>, ApiError> {
+) -> Result<Json<ScanResponse>, ApiError> {
     Ok(Json(service.scan(request.path)?))
 }
 
 async fn track_url(
     State(service): State<Service>,
     Json(request): Json<TrackRequest>,
-) -> Result<Json<wuwa_tracker_core::types::StatsResponse>, ApiError> {
+) -> Result<Json<StatsResponse>, ApiError> {
     Ok(Json(service.track_url(request.url).await?))
 }
 
 async fn upload_json(
     State(service): State<Service>,
     Json(fetch_result): Json<FetchResult>,
-) -> Result<Json<wuwa_tracker_core::types::StatsResponse>, ApiError> {
+) -> Result<Json<StatsResponse>, ApiError> {
     Ok(Json(service.upload(fetch_result)?))
 }
 

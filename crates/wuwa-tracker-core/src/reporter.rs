@@ -1,11 +1,45 @@
 use askama::Template;
 
-use crate::{
-    config::Config,
-    error::AppError,
-    translations,
-    types::{ReportData, ReportFormat, Stats},
-};
+use crate::{config::Config, error::AppError, translations};
+use wuwa_tracker_types::{ReportData, Stats};
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ReportFormat {
+    Html,
+    Json,
+    Csv,
+}
+
+impl ReportFormat {
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Html => "html",
+            Self::Json => "json",
+            Self::Csv => "csv",
+        }
+    }
+
+    pub fn content_type(self) -> &'static str {
+        match self {
+            Self::Html => "text/html; charset=utf-8",
+            Self::Json => "application/json; charset=utf-8",
+            Self::Csv => "text/csv; charset=utf-8",
+        }
+    }
+}
+
+impl std::str::FromStr for ReportFormat {
+    type Err = AppError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_ascii_lowercase().as_str() {
+            "html" => Ok(Self::Html),
+            "json" => Ok(Self::Json),
+            "csv" => Ok(Self::Csv),
+            other => Err(AppError::UnsupportedReportFormat(other.to_string())),
+        }
+    }
+}
 
 pub fn export(
     config: &Config,

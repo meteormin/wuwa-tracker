@@ -1,9 +1,7 @@
-use crate::{
-    error::AppError,
-    types::{FetchResult, GachaResponse, GachaType, LocaleData, Payload},
-};
+use crate::error::AppError;
 use std::{collections::BTreeMap, time::Duration};
 use url::Url;
+use wuwa_tracker_types::{FetchResult, GachaResponse, GachaType, LocaleData, Payload, Record};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -85,10 +83,7 @@ impl TrackerClient {
         Ok(FetchResult { payload, records })
     }
 
-    async fn fetch_records(
-        &self,
-        payload: &Payload,
-    ) -> Result<Vec<crate::types::Record>, AppError> {
+    async fn fetch_records(&self, payload: &Payload) -> Result<Vec<Record>, AppError> {
         let endpoint = format!(
             "{}/gacha/record/query",
             self.tracking_url.trim_end_matches('/')
