@@ -3,8 +3,9 @@
 ## Architecture
 
 - crates/wuwa-tracker-core: Rust domain logic, scanner, stats, merge, local store
+- crates/wuwa-tracker-types: Shared domain models and serialized API contracts
 - crates/wuwa-tracker-app: Rust desktop app and optional `serve` command
-- webui: Svelte frontend reused by the desktop app and optional server mode
+- crates/wuwa-tracker-webui: Leptos CSR frontend compiled to WebAssembly
 - locales: embedded JSON locale resources
 
 ## Global Rules
@@ -16,7 +17,7 @@
 ## Build Guide
 
 - Rust workspace는 `cargo`를 사용
-- frontend webui는 `yarn`, `vite`를 사용
+- frontend webui는 `cargo`, `trunk`를 사용
 - 빌드 관련 커맨드는 [Makefile](./Makefile)을 참조
 
 ## Codebase Rules
@@ -25,7 +26,7 @@ Rust 언어에서 권장하는 표준을 준수
 
 - Formatter: rustfmt
 - Build/Test: cargo check, cargo test
-- Frontend Check: yarn run check
+- Frontend Check: cargo check --target wasm32-unknown-unknown
 
 ### Comments
 

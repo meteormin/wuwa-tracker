@@ -1,13 +1,11 @@
 use crate::{
     config::Config,
     error::AppError,
-    reporter, scanner,
+    reporter::{self, ReportFormat},
+    scanner,
     stats::StatsCalculator,
     store::JsonStore,
     tracker::{self, TrackerClient},
-    types::{
-        FetchResult, GachaType, LocaleData, ReportData, ReportFormat, ScanResponse, StatsResponse,
-    },
 };
 use std::{
     collections::BTreeMap,
@@ -16,6 +14,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tracing::{error, info};
+use wuwa_tracker_types::{
+    FetchResult, GachaType, LocaleData, Payload, Record, ReportData, ScanResponse, StatsResponse,
+};
 
 #[derive(Clone)]
 pub struct Service {
@@ -128,7 +129,12 @@ impl Service {
             &self.config.scan_log_paths,
             &self.config.resources_url,
         )
-        .map(|url| ScanResponse { success: true, url });
+        .map(|url| ScanResponse {
+            success: true,
+            url,
+            error: None,
+            error_key: None,
+        });
         match &result {
             Ok(_) => info!(
                 event = "scan_completed",
@@ -222,6 +228,9 @@ impl Service {
         if player_id.is_empty() {
             return Err(AppError::MissingPlayerId);
         }
+        if !self.store.has_player(player_id) {
+            return Err(AppError::PlayerNotFound);
+        }
 
         let mut stats = Vec::with_capacity(self.config.gacha_types.len());
         for gacha_type in &self.config.gacha_types {
@@ -234,6 +243,8 @@ impl Service {
             success: true,
             player_id: player_id.to_string(),
             stats,
+            error: None,
+            error_key: None,
         };
         info!(
             event = "stats_loaded",
@@ -377,8 +388,7 @@ impl Service {
                 return Ok(fetch_result);
             }
         }
-        let records =
-            serde_json::from_slice::<BTreeMap<String, Vec<crate::types::Record>>>(&bytes)?;
+        let records = serde_json::from_slice::<BTreeMap<String, Vec<Record>>>(&bytes)?;
         let player_id = path
             .file_stem()
             .and_then(|name| name.to_str())
@@ -392,7 +402,7 @@ impl Service {
             })
             .to_string();
         let fetch_result = FetchResult {
-            payload: crate::types::Payload {
+            payload: Payload {
                 player_id,
                 ..Default::default()
             },
@@ -428,6 +438,6 @@ impl Service {
     }
 }
 
-fn count_records(records: &BTreeMap<String, Vec<crate::types::Record>>) -> usize {
+fn count_records(records: &BTreeMap<String, Vec<Record>>) -> usize {
     records.values().map(Vec::len).sum()
 }

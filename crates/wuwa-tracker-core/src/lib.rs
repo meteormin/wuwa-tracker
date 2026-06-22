@@ -9,7 +9,6 @@ pub mod stats;
 pub mod store;
 pub mod tracker;
 pub mod translations;
-pub mod types;
 
 pub use config::Config;
 pub use error::AppError;

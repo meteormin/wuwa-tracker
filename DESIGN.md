@@ -1,10 +1,10 @@
 # Wuwa Tracker Design
 
-- Updated Date: 2026-06-17
+- Updated Date: 2026-06-22
 
 ## Architecture Overview
 
-Wuwa Tracker는 Rust workspace와 Svelte WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 WebUI asset을 제공하지 않는 API-only HTTP server를 실행합니다.
+Wuwa Tracker는 Rust workspace와 Leptos CSR WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 WebUI asset을 제공하지 않는 API-only HTTP server를 실행합니다.
 
 ```mermaid
 flowchart TD
@@ -12,9 +12,13 @@ flowchart TD
     User --> GUI["Tauri GUI"]
     User --> Server["wuwa-tracker serve"]
     GUI --> Invoke["Tauri invoke"]
-    WebUI["Svelte WebUI"] --> Invoke
+    WebUI["Leptos WASM WebUI"] --> Invoke
     WebUI --> HTTP["HTTP API"]
     Server --> HTTP
+    Core --> Types["wuwa-tracker-types"]
+    Invoke --> Types
+    HTTP --> Types
+    WebUI --> Types
     CLI --> Core["wuwa-tracker-core"]
     Invoke --> Core
     HTTP --> Core
@@ -30,9 +34,10 @@ flowchart TD
 
 ### Workspace
 
-- `crates/wuwa-tracker-core`: 데이터 모델, 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다.
+- `crates/wuwa-tracker-types`: core, app, WebUI가 함께 사용하는 도메인 모델과 Serde 기반 API 응답 계약을 제공합니다. WASM에서도 사용할 수 있도록 Serde 외의 runtime 의존성을 두지 않습니다.
+- `crates/wuwa-tracker-core`: 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다. 리포트 출력 형식인 `ReportFormat`은 `reporter` module이 소유합니다.
 - `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, API-only Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
-- `webui`: Svelte UI입니다. Tauri runtime에서는 `invoke`를 사용하고, Vite 개발 서버에서는 HTTP API를 사용합니다.
+- `crates/wuwa-tracker-webui`: Leptos CSR UI를 `wasm32-unknown-unknown`으로 컴파일합니다. Tauri runtime에서는 global `invoke` API를 사용하고, Trunk 개발 서버에서는 HTTP API를 사용합니다.
 - `locales`: game locale fallback과 UI locale JSON입니다.
 
 ### Runtime Modes
@@ -49,7 +54,10 @@ flowchart TD
 - `run`
 - `backup`
 - `merge`
+- `db stats`
 - `db players`
+- `db stats <player-id>`
+- `db records <player-id>`
 - `serve`
 
 ### Data Flow
@@ -82,7 +90,7 @@ Offline upload/report flow:
 
 ### Logging
 
-기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`이며 `WUWA_TRACKER_LOG_PATH` 또는 CLI `--logpath`로 변경할 수 있습니다. Core `Service`와 app layer는 `tracing` event를 발생시키고, app binary가 콘솔 subscriber와 rotating JSON Lines file subscriber를 초기화합니다. `serve` mode는 Axum middleware로 HTTP method, path, status, duration, user agent를 기록합니다. Log file은 10 MiB 기준으로 rotation되며 최대 10개까지 보관합니다.
+기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`이며 `WUWA_TRACKER_LOG_PATH` 또는 CLI `--logpath`로 변경할 수 있습니다. Core `Service`와 app layer는 `tracing` event를 발생시키고, app binary가 콘솔 subscriber와 rotating JSON Lines file subscriber를 초기화합니다. 기본 filter는 일반 CLI 콘솔에서 ERROR, `serve` 콘솔과 파일 및 GUI runtime에서 INFO입니다. `RUST_LOG`와 `WUWA_TRACKER_LOG_LEVEL`은 `EnvFilter` directive로 runtime filter를 재정의하며, 둘 다 존재하면 `RUST_LOG`가 우선합니다. `serve` mode는 Axum middleware로 HTTP method, path, status, duration, user agent를 기록합니다. Log file은 10 MiB 기준으로 rotation되며 최대 10개까지 보관합니다.
 
 ### Reporting
 
@@ -107,6 +115,6 @@ GUI mode는 같은 기능을 Tauri command로 호출합니다.
 
 ## Notes
 
-- Svelte `webui`는 Tauri GUI와 Vite 개발 서버에서 사용합니다.
+- Leptos `wuwa-tracker-webui`가 Tauri GUI의 기본 frontend이며, Trunk가 WASM과 loader JavaScript를 생성합니다.
 - CLI `serve`는 API-only 모드이며 루트 또는 비 API 경로에 WebUI를 노출하지 않습니다.
 - HTML 리포트는 Askama template로 렌더링합니다.

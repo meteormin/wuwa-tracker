@@ -1,4 +1,4 @@
-use crate::{error::AppError, merge::merge_records, types::Record};
+use crate::{error::AppError, merge::merge_records};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -6,6 +6,7 @@ use std::{
     path::PathBuf,
     sync::Mutex,
 };
+use wuwa_tracker_types::Record;
 
 #[derive(Debug)]
 pub struct JsonStore {

@@ -1,12 +1,12 @@
 use anyhow::Result;
 use serde_json::{Map, Value};
-use std::{fmt, path::Path};
+use std::{env, ffi::OsStr, fmt, path::Path};
 use tracing::{
     field::{Field, Visit},
     Event, Level, Subscriber,
 };
 use tracing_subscriber::{
-    filter::LevelFilter,
+    filter::EnvFilter,
     fmt::format::FmtSpan,
     layer::{Context, SubscriberExt},
     registry::LookupSpan,
@@ -15,27 +15,43 @@ use tracing_subscriber::{
 };
 use wuwa_tracker_core::logger::AppLogger;
 
-pub fn init(log_path: &Path, console: bool) -> Result<()> {
+const ENV_LOG_LEVEL: &str = "WUWA_TRACKER_LOG_LEVEL";
+
+pub fn init(log_path: &Path, console_level: Option<&str>) -> Result<()> {
     let file_layer = FileLogLayer::new(log_path.to_path_buf());
 
-    if console {
+    if let Some(console_level) = console_level {
         tracing_subscriber::registry()
-            .with(file_layer.with_filter(LevelFilter::INFO))
+            .with(file_layer.with_filter(log_filter("info")))
             .with(
                 tracing_subscriber::fmt::layer()
                     .compact()
                     .with_target(false)
                     .with_span_events(FmtSpan::NONE)
-                    .with_filter(LevelFilter::INFO),
+                    .with_filter(log_filter(console_level)),
             )
             .try_init()?;
     } else {
         tracing_subscriber::registry()
-            .with(file_layer.with_filter(LevelFilter::INFO))
+            .with(file_layer.with_filter(log_filter("info")))
             .try_init()?;
     }
 
     Ok(())
+}
+
+fn log_filter(default: &str) -> EnvFilter {
+    if let Some(value) = env::var_os("RUST_LOG") {
+        return parse_filter(&value, default);
+    }
+    if let Some(value) = env::var_os(ENV_LOG_LEVEL) {
+        return parse_filter(&value, default);
+    }
+    EnvFilter::new(default)
+}
+
+fn parse_filter(value: &OsStr, default: &str) -> EnvFilter {
+    EnvFilter::try_new(value.to_string_lossy()).unwrap_or_else(|_| EnvFilter::new(default))
 }
 
 struct FileLogLayer {
