@@ -28,20 +28,15 @@ jobs:
             wget
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          targets: wasm32-unknown-unknown
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: yarn
-          cache-dependency-path: webui/yarn.lock
-
-      - name: Enable Yarn
-        run: corepack enable
+      - name: Install Trunk
+        run: cargo install trunk --locked --version 0.21.14
 
       - name: Check
         run: make ci

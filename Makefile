@@ -1,21 +1,24 @@
 .PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve version release-dry-run bump-patch bump-minor bump-major clean distclean
 
 APP := wuwa-tracker
-WEBUI_DIR := webui
+WEBUI_DIR := crates/wuwa-tracker-webui
 HOST ?= 127.0.0.1
 PORT ?= 3000
 CARGO ?= cargo
-YARN ?= yarn
-YARN_INSTALL_FLAGS ?= --frozen-lockfile
+TRUNK ?= trunk
+WASM_TOOLCHAIN ?= 1.96.0
+RUSTUP ?= $(shell if test -x /opt/homebrew/opt/rustup/bin/rustup; then echo /opt/homebrew/opt/rustup/bin/rustup; else command -v rustup 2>/dev/null || echo rustup; fi)
+RUSTUP_BIN_DIR := $(dir $(RUSTUP))
+WASM_ENV := PATH="$(RUSTUP_BIN_DIR):$$PATH" RUSTUP_TOOLCHAIN=$(WASM_TOOLCHAIN) NO_COLOR=false
 
 help:
 	@echo "Wuwa Tracker"
 	@echo ""
 	@echo "Development:"
-	@echo "  make setup           Install WebUI dependencies"
+	@echo "  make setup           Prepare the Rust WASM target"
 	@echo "  make run             Build WebUI and run Tauri GUI"
 	@echo "  make serve           Run Axum API server"
-	@echo "  make webui-dev       Run Vite dev server"
+	@echo "  make webui-dev       Run Trunk dev server"
 	@echo ""
 	@echo "Checks:"
 	@echo "  make fmt             Format Rust code"
@@ -38,19 +41,24 @@ help:
 	@echo ""
 	@echo "Options:"
 	@echo "  make serve HOST=127.0.0.1 PORT=3000"
-	@echo "  make setup YARN_INSTALL_FLAGS='--offline'"
+	@echo "  make setup WASM_TOOLCHAIN=1.96.0"
 
-setup webui-install:
-	$(YARN) --cwd $(WEBUI_DIR) install $(YARN_INSTALL_FLAGS)
+setup:
+	$(RUSTUP) toolchain install $(WASM_TOOLCHAIN) --profile minimal --target wasm32-unknown-unknown
+	@command -v $(TRUNK) >/dev/null || { echo "trunk is required: cargo install trunk --locked"; exit 1; }
+
+webui-install:
+	@command -v $(TRUNK) >/dev/null || { echo "trunk is required: run make setup after installing Trunk"; exit 1; }
+	@$(RUSTUP) target list --installed --toolchain $(WASM_TOOLCHAIN) | grep -qx wasm32-unknown-unknown || { echo "wasm32-unknown-unknown is required: run make setup"; exit 1; }
 
 webui-build: webui-install
-	$(YARN) --cwd $(WEBUI_DIR) run build
+	cd $(WEBUI_DIR) && $(WASM_ENV) $(TRUNK) build --release
 
 webui-check: webui-install
-	$(YARN) --cwd $(WEBUI_DIR) run check
+	$(WASM_ENV) $(RUSTUP) run $(WASM_TOOLCHAIN) cargo check -p wuwa-tracker-webui --target wasm32-unknown-unknown
 
 webui-dev: webui-install
-	$(YARN) --cwd $(WEBUI_DIR) run dev
+	cd $(WEBUI_DIR) && $(WASM_ENV) $(TRUNK) serve
 
 fmt:
 	$(CARGO) fmt --all
@@ -101,4 +109,3 @@ clean:
 	rm -rf $(WEBUI_DIR)/dist
 
 distclean: clean
-	rm -rf $(WEBUI_DIR)/node_modules .cache/yarn

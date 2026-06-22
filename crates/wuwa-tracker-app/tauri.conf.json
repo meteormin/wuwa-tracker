@@ -3,9 +3,10 @@
   "productName": "Wuwa Tracker",
   "identifier": "com.meteormin.wuwa-tracker",
   "build": {
-    "frontendDist": "../../webui/dist"
+    "frontendDist": "../../crates/wuwa-tracker-webui/dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Wuwa Tracker",
