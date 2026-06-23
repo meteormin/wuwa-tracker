@@ -1,4 +1,4 @@
-.PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve version release-dry-run bump-patch bump-minor bump-major clean distclean
+.PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve version release-dry-run bump-patch bump-minor bump-major release-tag clean distclean
 
 APP := wuwa-tracker
 WEBUI_DIR := crates/wuwa-tracker-webui
@@ -35,9 +35,10 @@ help:
 	@echo "Versioning:"
 	@echo "  make version         Print Cargo package version"
 	@echo "  make release-dry-run Preview cargo-release changes"
-	@echo "  make bump-patch      Bump patch version and create release commit/tag"
-	@echo "  make bump-minor      Bump minor version and create release commit/tag"
-	@echo "  make bump-major      Bump major version and create release commit/tag"
+	@echo "  make bump-patch      Bump patch version and create release commit"
+	@echo "  make bump-minor      Bump minor version and create release commit"
+	@echo "  make bump-major      Bump major version and create release commit"
+	@echo "  make release-tag     Tag and push the version from synced main"
 	@echo ""
 	@echo "Options:"
 	@echo "  make serve HOST=127.0.0.1 PORT=3000"
@@ -93,16 +94,41 @@ version:
 	@$(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//'
 
 release-dry-run:
-	$(CARGO) release patch --workspace --dry-run
+	$(CARGO) release patch --workspace --no-tag --dry-run
 
 bump-patch:
-	$(CARGO) release patch --workspace --execute
+	$(CARGO) release patch --workspace --no-tag --execute
 
 bump-minor:
-	$(CARGO) release minor --workspace --execute
+	$(CARGO) release minor --workspace --no-tag --execute
 
 bump-major:
-	$(CARGO) release major --workspace --execute
+	$(CARGO) release major --workspace --no-tag --execute
+
+release-tag:
+	@git diff --quiet || { echo "Working tree has unstaged changes."; exit 1; }
+	@git diff --cached --quiet || { echo "Index has staged changes."; exit 1; }
+	@branch="$$(git branch --show-current)"; \
+	if [ "$$branch" != "main" ]; then \
+		echo "release-tag must run on main."; \
+		exit 1; \
+	fi
+	@git fetch origin main --tags
+	@local_head="$$(git rev-parse HEAD)"; \
+	remote_head="$$(git rev-parse origin/main)"; \
+	if [ "$$local_head" != "$$remote_head" ]; then \
+		echo "main is not synced with origin/main. Push or merge the release commit before tagging."; \
+		exit 1; \
+	fi
+	@version="$$($(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//')"; \
+	tag="v$$version"; \
+	if git rev-parse -q --verify "refs/tags/$$tag" >/dev/null; then \
+		echo "Tag $$tag already exists."; \
+		exit 1; \
+	fi; \
+	git tag "$$tag"; \
+	git push origin "$$tag"; \
+	echo "Pushed $$tag."
 
 clean:
 	$(CARGO) clean
