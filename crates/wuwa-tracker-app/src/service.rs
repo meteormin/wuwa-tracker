@@ -1,12 +1,3 @@
-use crate::{
-    config::Config,
-    error::AppError,
-    reporter::{self, ReportFormat},
-    scanner,
-    stats::StatsCalculator,
-    store::JsonStore,
-    tracker::{self, TrackerClient},
-};
 use std::{
     collections::BTreeMap,
     fs,
@@ -14,6 +5,15 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tracing::{error, info};
+use wuwa_tracker_core::{
+    config::Config,
+    error::AppError,
+    reporter::{self, ReportFormat},
+    scanner,
+    stats::StatsCalculator,
+    store::{JsonStore, StoreStats},
+    tracker::{self, TrackerClient},
+};
 use wuwa_tracker_types::{
     FetchResult, GachaType, LocaleData, Payload, Record, ReportData, ScanResponse, StatsResponse,
 };
@@ -65,7 +65,7 @@ impl Service {
         players
     }
 
-    pub fn store_stats(&self) -> Result<crate::store::StoreStats, AppError> {
+    pub fn store_stats(&self) -> Result<StoreStats, AppError> {
         let result = self.store.stats();
         match &result {
             Ok(stats) => info!(
