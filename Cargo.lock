@@ -6011,7 +6011,7 @@ dependencies = [
 
 [[package]]
 name = "wuwa-tracker"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "anyhow",
  "axum",
@@ -6031,7 +6031,7 @@ dependencies = [
 
 [[package]]
 name = "wuwa-tracker-core"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "anyhow",
  "askama",
@@ -6048,14 +6048,14 @@ dependencies = [
 
 [[package]]
 name = "wuwa-tracker-types"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "wuwa-tracker-webui"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "gloo-net",
  "js-sys",
