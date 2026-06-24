@@ -5,26 +5,19 @@ mod logging;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 use wuwa_tracker_core::{Config, Service};
+
+const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
+const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";
 
 #[derive(Debug, Parser)]
 #[command(name = "wuwa-tracker")]
 #[command(about = "Wuwa Tracker")]
 struct Cli {
-    #[arg(
-        long = "dbpath",
-        env = "WUWA_TRACKER_DB_PATH",
-        global = true,
-        help = "Local JSON store path"
-    )]
+    #[arg(long = "dbpath", global = true, help = "Local JSON store path")]
     db_path: Option<PathBuf>,
-    #[arg(
-        long = "logpath",
-        env = "WUWA_TRACKER_LOG_PATH",
-        global = true,
-        help = "Application log file path"
-    )]
+    #[arg(long = "logpath", global = true, help = "Application log file path")]
     log_path: Option<PathBuf>,
     #[command(subcommand)]
     command: Option<Command>,
@@ -58,13 +51,7 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let mut config = Config::default();
-    if let Some(db_path) = cli.db_path {
-        config.db_path = db_path;
-    }
-    if let Some(log_path) = cli.log_path {
-        config.log_path = log_path;
-    }
+    let config = build_config(&cli);
     let console_level = match &cli.command {
         Some(Command::Serve(_)) => Some("info"),
         Some(_) => Some("error"),
@@ -84,6 +71,26 @@ async fn main() -> Result<()> {
         Some(Command::Db(args)) => cli::db(args, service),
         None => run_gui(service),
     }
+}
+
+fn build_config(cli: &Cli) -> Config {
+    let mut builder = Config::builder();
+    if let Some(db_path) = cli.db_path.clone().or_else(|| get_env(ENV_DB_PATH)) {
+        builder = builder.db_path(db_path);
+    }
+    if let Some(log_path) = cli.log_path.clone().or_else(|| get_env(ENV_LOG_PATH)) {
+        builder = builder.log_path(log_path);
+    }
+    builder.build()
+}
+
+// get_env를 Option의 메서드 체이닝으로 단순화
+fn get_env(key: &str) -> Option<PathBuf> {
+    env::var(key)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
 }
 
 fn run_gui(service: Service) -> Result<()> {
