@@ -2,11 +2,14 @@ mod api;
 mod cli;
 mod http;
 mod logging;
+mod service;
+mod webui_assets;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use service::Service;
 use std::{env, path::PathBuf};
-use wuwa_tracker_core::{Config, Service};
+use wuwa_tracker_core::Config;
 
 const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
 const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";

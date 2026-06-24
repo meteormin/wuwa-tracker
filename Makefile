@@ -4,12 +4,14 @@ APP := wuwa-tracker
 WEBUI_DIR := crates/wuwa-tracker-webui
 HOST ?= 127.0.0.1
 PORT ?= 3000
+WEBUI ?= 0
 CARGO ?= cargo
 TRUNK ?= trunk
 WASM_TOOLCHAIN ?= 1.96.0
 RUSTUP ?= $(shell if test -x /opt/homebrew/opt/rustup/bin/rustup; then echo /opt/homebrew/opt/rustup/bin/rustup; else command -v rustup 2>/dev/null || echo rustup; fi)
 RUSTUP_BIN_DIR := $(dir $(RUSTUP))
 WASM_ENV := PATH="$(RUSTUP_BIN_DIR):$$PATH" RUSTUP_TOOLCHAIN=$(WASM_TOOLCHAIN) NO_COLOR=false
+SERVE_WEBUI := $(if $(filter 1 true yes,$(WEBUI)),--webui,)
 
 help:
 	@echo "Wuwa Tracker"
@@ -41,7 +43,7 @@ help:
 	@echo "  make release-tag     Tag and push the version from synced main"
 	@echo ""
 	@echo "Options:"
-	@echo "  make serve HOST=127.0.0.1 PORT=3000"
+	@echo "  make serve HOST=127.0.0.1 PORT=3000 WEBUI=1"
 	@echo "  make setup WASM_TOOLCHAIN=1.96.0"
 
 setup:
@@ -88,7 +90,7 @@ run: webui-build
 	$(CARGO) run -p $(APP)
 
 serve:
-	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT)
+	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT) $(SERVE_WEBUI)
 
 version:
 	@$(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//'

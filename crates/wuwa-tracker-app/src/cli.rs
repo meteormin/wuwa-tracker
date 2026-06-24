@@ -1,3 +1,4 @@
+use crate::service::Service;
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use serde::Serialize;
@@ -10,7 +11,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use unicode_width::UnicodeWidthStr;
-use wuwa_tracker_core::{reporter::ReportFormat, Service};
+use wuwa_tracker_core::reporter::ReportFormat;
 use wuwa_tracker_types::{FetchResult, FiveStarRecord, Stats, StatsResponse};
 
 const DB_RECORDS_ID_WIDTH: usize = 4;

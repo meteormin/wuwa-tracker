@@ -1,7 +1,8 @@
+use crate::{service::Service, webui_assets};
 use anyhow::Result;
 use axum::{
     extract::{Path, Query, Request, State},
-    http::{header, StatusCode},
+    http::{header, StatusCode, Uri},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -11,7 +12,7 @@ use clap::Args;
 use serde::Deserialize;
 use std::{str::FromStr, time::Instant};
 use tower_http::cors::CorsLayer;
-use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError, Service};
+use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError};
 use wuwa_tracker_types::{
     ConfigResponse, ErrorResponse, FetchResult, PlayersResponse, ScanResponse, StatsResponse,
 };
@@ -32,6 +33,8 @@ pub struct ServeArgs {
         help = "TCP port to listen on"
     )]
     pub port: u16,
+    #[arg(long, help = "Serve the built WebUI static assets with the API")]
+    pub webui: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +60,7 @@ struct I18nQuery {
 
 pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
     print_startup_info(&args);
-    let app = Router::new()
+    let mut app = Router::new()
         .route("/api/config", get(get_config))
         .route("/api/players", get(list_players))
         .route("/api/stats/{player_id}", get(get_stats))
@@ -66,7 +69,16 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         .route("/api/upload", post(upload_json))
         .route("/api/i18n", get(get_i18n))
         .route("/api/export/{player_id}", get(export_report))
-        .route("/api/backup", get(export_backup))
+        .route("/api/backup", get(export_backup));
+
+    if args.webui {
+        if !webui_assets::has_assets() {
+            anyhow::bail!("WebUI assets are not embedded. Build them first with `make build`.");
+        }
+        app = app.fallback(get(webui_asset));
+    }
+
+    let app = app
         .layer(middleware::from_fn(access_log))
         .layer(CorsLayer::permissive())
         .with_state(service);
@@ -79,7 +91,11 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
 fn print_startup_info(args: &ServeArgs) {
     let api_url = format!("http://{}:{}", args.host, args.port);
     println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    println!("Server: HTTP API");
+    if args.webui {
+        println!("Server: HTTP API + WebUI");
+    } else {
+        println!("Server: HTTP API");
+    }
     println!("Listening: {api_url}");
 }
 
@@ -105,6 +121,23 @@ async fn access_log(request: Request, next: Next) -> Response {
         user_agent = %user_agent,
     );
     response
+}
+
+async fn webui_asset(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
+    let asset = if path.is_empty() {
+        webui_assets::index()
+    } else {
+        webui_assets::get(path).or_else(webui_assets::index)
+    };
+
+    match asset {
+        Some(asset) => Response::builder()
+            .header(header::CONTENT_TYPE, asset.content_type)
+            .body(asset.bytes.into())
+            .expect("valid embedded webui response"),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 async fn get_config(State(service): State<Service>) -> Json<ConfigResponse> {
