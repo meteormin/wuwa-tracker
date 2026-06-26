@@ -77,14 +77,14 @@ async fn main() -> Result<()> {
 }
 
 fn build_config(cli: &Cli) -> Config {
-    let mut builder = Config::builder();
+    let mut config = Config::default();
     if let Some(db_path) = cli.db_path.clone().or_else(|| get_env(ENV_DB_PATH)) {
-        builder = builder.db_path(db_path);
+        config.db_path = db_path;
     }
     if let Some(log_path) = cli.log_path.clone().or_else(|| get_env(ENV_LOG_PATH)) {
-        builder = builder.log_path(log_path);
+        config.log_path = log_path;
     }
-    builder.build()
+    config
 }
 
 // get_env를 Option의 메서드 체이닝으로 단순화
