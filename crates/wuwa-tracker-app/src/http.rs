@@ -237,7 +237,6 @@ impl IntoResponse for ApiError {
         let status = match self.0 {
             AppError::MissingPlayerId
             | AppError::EmptyUploadData
-            | AppError::InvalidRequest
             | AppError::InvalidGachaUrl
             | AppError::MissingUrl
             | AppError::UnsupportedReportFormat(_)
@@ -246,7 +245,6 @@ impl IntoResponse for ApiError {
                 StatusCode::NOT_FOUND
             }
             AppError::PlayerNotFound => StatusCode::NOT_FOUND,
-            AppError::RemoteTrackingUnsupported => StatusCode::NOT_IMPLEMENTED,
             AppError::NoValidRecords => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Io(_)
             | AppError::Json(_)
@@ -265,7 +263,7 @@ impl IntoResponse for ApiError {
 
 fn error_key(error: &AppError) -> &'static str {
     match error {
-        AppError::InvalidRequest | AppError::Json(_) => "err.invalid_request_body",
+        AppError::Json(_) => "err.invalid_request_body",
         AppError::MissingUrl => "err.missing_url",
         AppError::MissingPlayerId => "err.missing_player_id",
         AppError::EmptyUploadData => "err.empty_upload_data",
@@ -278,8 +276,6 @@ fn error_key(error: &AppError) -> &'static str {
         AppError::UnsupportedReportFormat(_) => "err.unsupported_report_format",
         AppError::NoValidRecords | AppError::Template(_) => "err.report_generation_failed",
         AppError::PlayerNotFound => "err.database_query_failed",
-        AppError::RemoteTrackingUnsupported | AppError::Http(_) | AppError::Io(_) => {
-            "app.network_error"
-        }
+        AppError::Http(_) | AppError::Io(_) => "app.network_error",
     }
 }
