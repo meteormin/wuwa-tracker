@@ -4,7 +4,7 @@ use js_sys::{Array, Reflect, Uint8Array};
 use serde::{de::DeserializeOwned, Serialize};
 use wasm_bindgen::{prelude::*, JsCast};
 
-const API_HOST: &str = "http://localhost:3000";
+const DEV_API_HOST: &str = "http://localhost:3000";
 
 #[wasm_bindgen]
 extern "C" {
@@ -88,9 +88,9 @@ pub async fn export_report(player_id: &str, format: &str, lang: &str) -> Result<
             &response.filename,
         )
     } else {
-        let response = Request::get(&format!(
-            "{API_HOST}/api/export/{player_id}?format={format}&lang={lang}"
-        ))
+        let response = Request::get(&api_url(&format!(
+            "/api/export/{player_id}?format={format}&lang={lang}"
+        )))
         .send()
         .await
         .map_err(display_error)?;
@@ -111,7 +111,7 @@ pub async fn export_report(player_id: &str, format: &str, lang: &str) -> Result<
 }
 
 async fn get<T: DeserializeOwned>(path: &str) -> Result<T, String> {
-    let response = Request::get(&format!("{API_HOST}{path}"))
+    let response = Request::get(&api_url(path))
         .send()
         .await
         .map_err(display_error)?;
@@ -123,7 +123,7 @@ async fn post<T: DeserializeOwned, B: Serialize + ?Sized>(
     body: &B,
 ) -> Result<T, String> {
     let body = serde_json::to_string(body).map_err(display_error)?;
-    let response = Request::post(&format!("{API_HOST}{path}"))
+    let response = Request::post(&api_url(path))
         .header("Content-Type", "application/json")
         .body(body)
         .map_err(display_error)?
@@ -151,6 +151,21 @@ fn is_tauri() -> bool {
     )
     .map(|value| value.is_object())
     .unwrap_or(false)
+}
+
+fn api_url(path: &str) -> String {
+    if is_trunk_dev_server() {
+        format!("{DEV_API_HOST}{path}")
+    } else {
+        path.to_string()
+    }
+}
+
+fn is_trunk_dev_server() -> bool {
+    web_sys::window()
+        .and_then(|window| window.location().port().ok())
+        .map(|port| port == "8080" || port == "1420")
+        .unwrap_or(false)
 }
 
 fn download_bytes(content: &[u8], content_type: &str, filename: &str) -> Result<(), String> {

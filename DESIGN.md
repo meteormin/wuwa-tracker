@@ -4,7 +4,7 @@
 
 ## Architecture Overview
 
-Wuwa Tracker는 Rust workspace와 Leptos CSR WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 WebUI asset을 제공하지 않는 API-only HTTP server를 실행합니다.
+Wuwa Tracker는 Rust workspace와 Leptos CSR WebUI로 구성된 local-first 트래커입니다. 기본 실행은 Tauri GUI이며, `serve` subcommand는 기본적으로 API-only HTTP server를 실행합니다. `serve --webui`는 빌드 시 바이너리에 embed된 WebUI asset을 같은 서버에서 함께 제공합니다.
 
 ```mermaid
 flowchart TD
@@ -15,13 +15,14 @@ flowchart TD
     WebUI["Leptos WASM WebUI"] --> Invoke
     WebUI --> HTTP["HTTP API"]
     Server --> HTTP
+    CLI --> AppService["Application Service"]
+    Invoke --> AppService
+    HTTP --> AppService
+    AppService --> Core["wuwa-tracker-core"]
     Core --> Types["wuwa-tracker-types"]
     Invoke --> Types
     HTTP --> Types
     WebUI --> Types
-    CLI --> Core["wuwa-tracker-core"]
-    Invoke --> Core
-    HTTP --> Core
     Core --> Tracker["Kurogame tracker client"]
     Core --> Scanner["Log scanner"]
     Core --> Store["JSON local store"]
@@ -35,8 +36,8 @@ flowchart TD
 ### Workspace
 
 - `crates/wuwa-tracker-types`: core, app, WebUI가 함께 사용하는 도메인 모델과 Serde 기반 API 응답 계약을 제공합니다. WASM에서도 사용할 수 있도록 Serde 외의 runtime 의존성을 두지 않습니다.
-- `crates/wuwa-tracker-core`: 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩을 담당합니다. 리포트 출력 형식인 `ReportFormat`은 `reporter` module이 소유합니다.
-- `crates/wuwa-tracker-app`: `wuwa-tracker` binary를 제공합니다. Tauri GUI, API-only Axum HTTP server, CLI subcommand를 같은 core service 위에서 실행합니다.
+- `crates/wuwa-tracker-core`: 설정, Kurogame API client, 로그 URL 스캐너, 기록 병합, JSON 저장소, 통계 계산, 리포트 export, 번역 로딩 같은 도메인 부품을 담당합니다. 리포트 출력 형식인 `ReportFormat`은 `reporter` module이 소유합니다.
+- `crates/wuwa-tracker-app`: `wuwa-tracker` binary와 application service layer를 제공합니다. Tauri GUI, Axum HTTP server, CLI subcommand를 같은 app service 위에서 실행합니다.
 - `crates/wuwa-tracker-webui`: Leptos CSR UI를 `wasm32-unknown-unknown`으로 컴파일합니다. Tauri runtime에서는 global `invoke` API를 사용하고, Trunk 개발 서버에서는 HTTP API를 사용합니다.
 - `locales`: game locale fallback과 UI locale JSON입니다.
 
@@ -44,6 +45,7 @@ flowchart TD
 
 - GUI: `make run` 또는 `cargo run -p wuwa-tracker`
 - API server: `make serve` 또는 `cargo run -p wuwa-tracker -- serve --host 127.0.0.1 --port 3000`
+- Fullstack server: `make serve WEBUI=1` 또는 `cargo run -p wuwa-tracker -- serve --webui`
 - CLI: `cargo run -p wuwa-tracker -- <command> [args]`
 
 지원 CLI command:
@@ -67,7 +69,7 @@ Online track flow:
 1. GUI/WebUI/CLI가 gacha URL을 입력받습니다.
 2. `tracker::TrackerClient`가 URL query 또는 fragment query에서 payload를 파싱합니다.
 3. 설정된 banner type을 순회하며 Kurogame `/gacha/record/query` API를 호출합니다.
-4. `Service`가 결과를 JSON store에 병합 저장합니다.
+4. App service가 결과를 JSON store에 병합 저장합니다.
 5. `StatsCalculator`가 pity, 5성 이력, Luck Score를 계산합니다.
 
 Offline upload/report flow:
@@ -90,7 +92,7 @@ Offline upload/report flow:
 
 ### Logging
 
-기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`이며 `WUWA_TRACKER_LOG_PATH` 또는 CLI `--logpath`로 변경할 수 있습니다. Core `Service`와 app layer는 `tracing` event를 발생시키고, app binary가 콘솔 subscriber와 rotating JSON Lines file subscriber를 초기화합니다. 기본 filter는 일반 CLI 콘솔에서 ERROR, `serve` 콘솔과 파일 및 GUI runtime에서 INFO입니다. `RUST_LOG`와 `WUWA_TRACKER_LOG_LEVEL`은 `EnvFilter` directive로 runtime filter를 재정의하며, 둘 다 존재하면 `RUST_LOG`가 우선합니다. `serve` mode는 Axum middleware로 HTTP method, path, status, duration, user agent를 기록합니다. Log file은 10 MiB 기준으로 rotation되며 최대 10개까지 보관합니다.
+기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`이며 `WUWA_TRACKER_LOG_PATH` 또는 CLI `--logpath`로 변경할 수 있습니다. App service layer는 `tracing` event를 발생시키고, app binary가 콘솔 subscriber와 rotating JSON Lines file subscriber를 초기화합니다. 기본 filter는 일반 CLI 콘솔에서 ERROR, `serve` 콘솔과 파일 및 GUI runtime에서 INFO입니다. `RUST_LOG`와 `WUWA_TRACKER_LOG_LEVEL`은 `EnvFilter` directive로 runtime filter를 재정의하며, 둘 다 존재하면 `RUST_LOG`가 우선합니다. `serve` mode는 Axum middleware로 HTTP method, path, status, duration, user agent를 기록합니다. Log file은 10 MiB 기준으로 rotation되며 최대 10개까지 보관합니다.
 
 ### Reporting
 
@@ -100,7 +102,7 @@ Offline upload/report flow:
 
 ### HTTP API
 
-`serve` mode는 WebUI static asset을 제공하지 않고 다음 API route만 제공합니다.
+기본 `serve` mode는 WebUI static asset을 제공하지 않고 다음 API route만 제공합니다.
 
 - `POST /api/track`
 - `POST /api/upload`
@@ -111,10 +113,10 @@ Offline upload/report flow:
 - `GET /api/export/{player_id}`
 - `GET /api/backup`
 
-GUI mode는 같은 기능을 Tauri command로 호출합니다.
+`serve --webui`는 `/api/*` route를 유지하면서 나머지 경로에서 바이너리에 embed된 WebUI 정적 파일을 제공합니다. GUI mode는 같은 기능을 Tauri command로 호출합니다.
 
 ## Notes
 
 - Leptos `wuwa-tracker-webui`가 Tauri GUI의 기본 frontend이며, Trunk가 WASM과 loader JavaScript를 생성합니다.
-- CLI `serve`는 API-only 모드이며 루트 또는 비 API 경로에 WebUI를 노출하지 않습니다.
+- CLI `serve`는 기본적으로 API-only 모드이며, `--webui`를 지정한 경우에만 루트 또는 비 API 경로에 WebUI를 노출합니다.
 - HTML 리포트는 Askama template로 렌더링합니다.

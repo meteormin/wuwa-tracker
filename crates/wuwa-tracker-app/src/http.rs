@@ -1,7 +1,8 @@
+use crate::{service::Service, webui_assets};
 use anyhow::Result;
 use axum::{
     extract::{Path, Query, Request, State},
-    http::{header, StatusCode},
+    http::{header, StatusCode, Uri},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -11,27 +12,32 @@ use clap::Args;
 use serde::Deserialize;
 use std::{str::FromStr, time::Instant};
 use tower_http::cors::CorsLayer;
-use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError, Service};
+use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError};
 use wuwa_tracker_types::{
     ConfigResponse, ErrorResponse, FetchResult, PlayersResponse, ScanResponse, StatsResponse,
 };
+
+const ENV_HOST: &str = "WUWA_TRACKER_HOST";
+const ENV_PORT: &str = "WUWA_TRACKER_PORT";
 
 #[derive(Debug, Clone, Args)]
 pub struct ServeArgs {
     #[arg(
         long,
-        env = "WUWA_TRACKER_HOST",
+        env = ENV_HOST,
         default_value = "127.0.0.1",
         help = "Host address to bind"
     )]
     pub host: String,
     #[arg(
         long,
-        env = "WUWA_TRACKER_PORT",
+        env = ENV_PORT,
         default_value = "3000",
         help = "TCP port to listen on"
     )]
     pub port: u16,
+    #[arg(long, help = "Serve the built WebUI static assets with the API")]
+    pub webui: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +63,7 @@ struct I18nQuery {
 
 pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
     print_startup_info(&args);
-    let app = Router::new()
+    let mut app = Router::new()
         .route("/api/config", get(get_config))
         .route("/api/players", get(list_players))
         .route("/api/stats/{player_id}", get(get_stats))
@@ -66,7 +72,16 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         .route("/api/upload", post(upload_json))
         .route("/api/i18n", get(get_i18n))
         .route("/api/export/{player_id}", get(export_report))
-        .route("/api/backup", get(export_backup))
+        .route("/api/backup", get(export_backup));
+
+    if args.webui {
+        if !webui_assets::has_assets() {
+            anyhow::bail!("WebUI assets are not embedded. Build them first with `make build`.");
+        }
+        app = app.fallback(get(webui_asset));
+    }
+
+    let app = app
         .layer(middleware::from_fn(access_log))
         .layer(CorsLayer::permissive())
         .with_state(service);
@@ -79,7 +94,11 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
 fn print_startup_info(args: &ServeArgs) {
     let api_url = format!("http://{}:{}", args.host, args.port);
     println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    println!("Server: HTTP API");
+    if args.webui {
+        println!("Server: HTTP API + WebUI");
+    } else {
+        println!("Server: HTTP API");
+    }
     println!("Listening: {api_url}");
 }
 
@@ -105,6 +124,23 @@ async fn access_log(request: Request, next: Next) -> Response {
         user_agent = %user_agent,
     );
     response
+}
+
+async fn webui_asset(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
+    let asset = if path.is_empty() {
+        webui_assets::index()
+    } else {
+        webui_assets::get(path).or_else(webui_assets::index)
+    };
+
+    match asset {
+        Some(asset) => Response::builder()
+            .header(header::CONTENT_TYPE, asset.content_type)
+            .body(asset.bytes.into())
+            .expect("valid embedded webui response"),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 async fn get_config(State(service): State<Service>) -> Json<ConfigResponse> {
@@ -204,7 +240,6 @@ impl IntoResponse for ApiError {
         let status = match self.0 {
             AppError::MissingPlayerId
             | AppError::EmptyUploadData
-            | AppError::InvalidRequest
             | AppError::InvalidGachaUrl
             | AppError::MissingUrl
             | AppError::UnsupportedReportFormat(_)
@@ -213,7 +248,6 @@ impl IntoResponse for ApiError {
                 StatusCode::NOT_FOUND
             }
             AppError::PlayerNotFound => StatusCode::NOT_FOUND,
-            AppError::RemoteTrackingUnsupported => StatusCode::NOT_IMPLEMENTED,
             AppError::NoValidRecords => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Io(_)
             | AppError::Json(_)
@@ -232,7 +266,7 @@ impl IntoResponse for ApiError {
 
 fn error_key(error: &AppError) -> &'static str {
     match error {
-        AppError::InvalidRequest | AppError::Json(_) => "err.invalid_request_body",
+        AppError::Json(_) => "err.invalid_request_body",
         AppError::MissingUrl => "err.missing_url",
         AppError::MissingPlayerId => "err.missing_player_id",
         AppError::EmptyUploadData => "err.empty_upload_data",
@@ -245,8 +279,6 @@ fn error_key(error: &AppError) -> &'static str {
         AppError::UnsupportedReportFormat(_) => "err.unsupported_report_format",
         AppError::NoValidRecords | AppError::Template(_) => "err.report_generation_failed",
         AppError::PlayerNotFound => "err.database_query_failed",
-        AppError::RemoteTrackingUnsupported | AppError::Http(_) | AppError::Io(_) => {
-            "app.network_error"
-        }
+        AppError::Http(_) | AppError::Io(_) => "app.network_error",
     }
 }

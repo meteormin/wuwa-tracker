@@ -21,6 +21,7 @@ struct AppState {
     active_player: RwSignal<String>,
     players: RwSignal<Vec<String>>,
     stats: RwSignal<Vec<Stats>>,
+    stats_revision: RwSignal<u64>,
     thresholds: RwSignal<Vec<LuckScoreThreshold>>,
 }
 
@@ -41,6 +42,7 @@ impl AppState {
             active_player: RwSignal::new(String::new()),
             players: RwSignal::new(Vec::new()),
             stats: RwSignal::new(Vec::new()),
+            stats_revision: RwSignal::new(0),
             thresholds: RwSignal::new(Vec::new()),
         }
     }
@@ -57,6 +59,12 @@ impl AppState {
             .map(|key| self.i18n.text(key))
             .or_else(|| response.error.clone())
             .unwrap_or_else(|| self.i18n.text(fallback))
+    }
+
+    fn replace_stats(self, stats: Vec<Stats>) {
+        self.stats.set(stats);
+        self.stats_revision
+            .update(|revision| *revision = revision.wrapping_add(1));
     }
 
     async fn initialize(self) {
@@ -84,11 +92,16 @@ impl AppState {
         self.clear_messages();
         self.active_player.set(player_id.clone());
         match api::fetch_stats(&player_id).await {
-            Ok(response) if response.success => self.stats.set(response.stats),
-            Ok(response) => self
-                .error
-                .set(self.translated_error(&response, "app.failed_stats")),
-            Err(_) => self.error.set(self.i18n.text("app.network_error")),
+            Ok(response) if response.success => self.replace_stats(response.stats),
+            Ok(response) => {
+                self.replace_stats(Vec::new());
+                self.error
+                    .set(self.translated_error(&response, "app.failed_stats"));
+            }
+            Err(_) => {
+                self.replace_stats(Vec::new());
+                self.error.set(self.i18n.text("app.network_error"));
+            }
         }
         self.loading.set(false);
     }
@@ -142,7 +155,7 @@ impl AppState {
             Ok(response) if response.success => {
                 let player_id = response.player_id;
                 self.active_player.set(player_id.clone());
-                self.stats.set(response.stats);
+                self.replace_stats(response.stats);
                 self.success.set(
                     self.i18n
                         .format("app.track_success", &[("playerId", player_id.clone())]),
@@ -176,7 +189,7 @@ impl AppState {
             Ok(response) if response.success => {
                 let player_id = response.player_id;
                 self.active_player.set(player_id.clone());
-                self.stats.set(response.stats);
+                self.replace_stats(response.stats);
                 self.success.set(self.i18n.format(
                     "app.upload_success",
                     &[("fileName", filename), ("playerId", player_id)],
@@ -233,10 +246,11 @@ pub fn App() -> impl IntoView {
                     <For
                         each=move || {
                             let locale = state.i18n.locale();
-                            state.stats.get().into_iter().map(|stat| (locale, stat)).collect::<Vec<_>>()
+                            let revision = state.stats_revision.get();
+                            state.stats.get().into_iter().map(|stat| (locale, revision, stat)).collect::<Vec<_>>()
                         }
-                        key=|(locale, stat)| (*locale, stat.gacha_type)
-                        children=move |(_, stat)| view! { <GachaReport stat state /> }
+                        key=|(locale, revision, stat)| (*locale, *revision, stat.gacha_type)
+                        children=move |(_, _, stat)| view! { <GachaReport stat state /> }
                     />
                 </div>
             </Show>

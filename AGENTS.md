@@ -2,9 +2,9 @@
 
 ## Architecture
 
-- crates/wuwa-tracker-core: Rust domain logic, scanner, stats, merge, local store
+- crates/wuwa-tracker-core: Rust domain logic building blocks, scanner, stats, merge, local store
 - crates/wuwa-tracker-types: Shared domain models and serialized API contracts
-- crates/wuwa-tracker-app: Rust desktop app and optional `serve` command
+- crates/wuwa-tracker-app: Rust desktop app, application service layer, and optional `serve` command
 - crates/wuwa-tracker-webui: Leptos CSR frontend compiled to WebAssembly
 - locales: embedded JSON locale resources
 

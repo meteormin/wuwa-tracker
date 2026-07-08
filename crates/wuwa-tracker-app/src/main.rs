@@ -2,29 +2,26 @@ mod api;
 mod cli;
 mod http;
 mod logging;
+mod service;
+mod settings;
+mod webui_assets;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
-use wuwa_tracker_core::{Config, Service};
+use service::Service;
+use std::{env, path::PathBuf};
+use wuwa_tracker_core::Config;
+
+const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
+const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";
 
 #[derive(Debug, Parser)]
 #[command(name = "wuwa-tracker")]
 #[command(about = "Wuwa Tracker")]
 struct Cli {
-    #[arg(
-        long = "dbpath",
-        env = "WUWA_TRACKER_DB_PATH",
-        global = true,
-        help = "Local JSON store path"
-    )]
+    #[arg(long = "dbpath", global = true, help = "Local JSON store path")]
     db_path: Option<PathBuf>,
-    #[arg(
-        long = "logpath",
-        env = "WUWA_TRACKER_LOG_PATH",
-        global = true,
-        help = "Application log file path"
-    )]
+    #[arg(long = "logpath", global = true, help = "Application log file path")]
     log_path: Option<PathBuf>,
     #[command(subcommand)]
     command: Option<Command>,
@@ -42,6 +39,10 @@ enum Command {
     Report(cli::ReportArgs),
     #[command(about = "Scan or fetch gacha records and generate a report")]
     Run(cli::RunArgs),
+    #[command(about = "Periodically scan logs and run when the tracking URL changes")]
+    Autorun(cli::AutorunArgs),
+    #[command(about = "Manage saved CLI defaults")]
+    Config(cli::ConfigArgs),
     #[command(about = "Export the local store to a backup JSON file")]
     Backup(cli::BackupArgs),
     #[command(about = "Merge a backup JSON file into the local store")]
@@ -58,13 +59,11 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let mut config = Config::default();
-    if let Some(db_path) = cli.db_path {
-        config.db_path = db_path;
+    let config = build_config(&cli);
+    if let Some(Command::Config(args)) = &cli.command {
+        return cli::config(args.clone(), &config);
     }
-    if let Some(log_path) = cli.log_path {
-        config.log_path = log_path;
-    }
+
     let console_level = match &cli.command {
         Some(Command::Serve(_)) => Some("info"),
         Some(_) => Some("error"),
@@ -79,11 +78,33 @@ async fn main() -> Result<()> {
         Some(Command::Scan(args)) => cli::scan(args, service),
         Some(Command::Report(args)) => cli::report(args, service).await,
         Some(Command::Run(args)) => cli::run(args, service).await,
+        Some(Command::Autorun(args)) => cli::autorun(args, service).await,
+        Some(Command::Config(_)) => unreachable!("config command is handled before service setup"),
         Some(Command::Backup(args)) => cli::backup(args, service),
         Some(Command::Merge(args)) => cli::merge(args, service),
         Some(Command::Db(args)) => cli::db(args, service),
         None => run_gui(service),
     }
+}
+
+fn build_config(cli: &Cli) -> Config {
+    let mut config = Config::default();
+    if let Some(db_path) = cli.db_path.clone().or_else(|| get_env(ENV_DB_PATH)) {
+        config.db_path = db_path;
+    }
+    if let Some(log_path) = cli.log_path.clone().or_else(|| get_env(ENV_LOG_PATH)) {
+        config.log_path = log_path;
+    }
+    config
+}
+
+// get_env를 Option의 메서드 체이닝으로 단순화
+fn get_env(key: &str) -> Option<PathBuf> {
+    env::var(key)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
 }
 
 fn run_gui(service: Service) -> Result<()> {

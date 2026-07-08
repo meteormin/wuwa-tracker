@@ -1,6 +1,7 @@
+use crate::service::Service;
 use std::str::FromStr;
 use tauri::State;
-use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError, Service};
+use wuwa_tracker_core::{reporter::ReportFormat, translations, AppError};
 use wuwa_tracker_types::{
     ConfigResponse, ExportResponse, FetchResult, PlayersResponse, ScanResponse, StatsResponse,
 };

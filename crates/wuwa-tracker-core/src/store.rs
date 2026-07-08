@@ -1,11 +1,6 @@
 use crate::{error::AppError, merge::merge_records};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    fs,
-    path::PathBuf,
-    sync::Mutex,
-};
+use std::{collections::BTreeMap, fs, path::PathBuf, sync::Mutex};
 use wuwa_tracker_types::Record;
 
 #[derive(Debug)]
@@ -73,12 +68,7 @@ impl JsonStore {
 
     pub fn list_players(&self) -> Vec<String> {
         let data = self.data.lock().expect("store lock poisoned");
-        data.players
-            .keys()
-            .cloned()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect()
+        data.players.keys().cloned().collect()
     }
 
     pub fn has_player(&self, player_id: &str) -> bool {

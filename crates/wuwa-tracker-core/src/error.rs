@@ -2,8 +2,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
-    #[error("invalid request body")]
-    InvalidRequest,
     #[error("missing player id")]
     MissingPlayerId,
     #[error("empty upload data")]
@@ -14,8 +12,6 @@ pub enum AppError {
     LogFileNotFound,
     #[error("url not found")]
     UrlNotFound,
-    #[error("remote tracking is not implemented yet")]
-    RemoteTrackingUnsupported,
     #[error("invalid gacha url or unsupported domain")]
     InvalidGachaUrl,
     #[error("tracker API rejected request: code={code}, message={message}")]

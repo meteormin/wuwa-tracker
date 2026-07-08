@@ -1,9 +1,6 @@
 use serde::Serialize;
-use std::{env, path::PathBuf};
+use std::path::PathBuf;
 use wuwa_tracker_types::{GachaType, LuckScoreThreshold};
-
-const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
-const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,13 +14,14 @@ pub struct Config {
     pub scan_log_paths: Vec<PathBuf>,
     pub db_path: PathBuf,
     pub log_path: PathBuf,
-    pub report_format: String,
-    pub report_output: String,
+    pub settings_path: PathBuf,
+    pub autorun_interval_secs: u64,
     pub language: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
+        let app_dir = default_app_dir();
         Self {
             resources_url: "https://aki-gm-resources-oversea.aki-game.net".to_string(),
             tracking_url: "https://gmserver-api.aki-game2.net".to_string(),
@@ -55,10 +53,10 @@ impl Default for Config {
                 PathBuf::from("Client/Client.log"),
                 PathBuf::from("Client.log"),
             ],
-            db_path: default_db_path(),
-            log_path: default_log_path(),
-            report_format: "html".to_string(),
-            report_output: "report".to_string(),
+            db_path: app_dir.join("store.json"),
+            log_path: app_dir.join("wuwa-tracker.log"),
+            settings_path: app_dir.join("settings.json"),
+            autorun_interval_secs: 60,
             language: "ko".to_string(),
         }
     }
@@ -82,15 +80,6 @@ fn threshold(min_score: f64, state: &str) -> LuckScoreThreshold {
     }
 }
 
-// get_env를 Option의 메서드 체이닝으로 단순화
-fn get_env(key: &str) -> Option<PathBuf> {
-    env::var(key)
-        .ok()
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .map(PathBuf::from)
-}
-
 // 기본 베이스가 되는 앱 폴더 경로 구하기 (~/.wuwa-tracker)
 fn default_app_dir() -> PathBuf {
     dirs::home_dir()
@@ -98,47 +87,17 @@ fn default_app_dir() -> PathBuf {
         .join(".wuwa-tracker")
 }
 
-fn default_db_path() -> PathBuf {
-    get_env(ENV_DB_PATH).unwrap_or_else(|| default_app_dir().join("store.json"))
-}
-
-fn default_log_path() -> PathBuf {
-    get_env(ENV_LOG_PATH).unwrap_or_else(|| default_app_dir().join("wuwa-tracker.log"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn default_config_uses_db_path_env() {
-        let previous = env::var(ENV_DB_PATH).ok();
-        let expected = PathBuf::from("custom-store.json");
-        env::set_var(ENV_DB_PATH, &expected);
-
+    fn default_config_sets_runtime_paths() {
         let config = Config::default();
 
-        assert_eq!(config.db_path, expected);
-        if let Some(value) = previous {
-            env::set_var(ENV_DB_PATH, value);
-        } else {
-            env::remove_var(ENV_DB_PATH);
-        }
-    }
-
-    #[test]
-    fn default_config_uses_log_path_env() {
-        let previous = env::var(ENV_LOG_PATH).ok();
-        let expected = PathBuf::from("custom-app.log");
-        env::set_var(ENV_LOG_PATH, &expected);
-
-        let config = Config::default();
-
-        assert_eq!(config.log_path, expected);
-        if let Some(value) = previous {
-            env::set_var(ENV_LOG_PATH, value);
-        } else {
-            env::remove_var(ENV_LOG_PATH);
-        }
+        assert!(config.db_path.ends_with("store.json"));
+        assert!(config.log_path.ends_with("wuwa-tracker.log"));
+        assert!(config.settings_path.ends_with("settings.json"));
+        assert_eq!(config.autorun_interval_secs, 60);
     }
 }

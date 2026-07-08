@@ -1,17 +1,17 @@
+use crate::{service::Service, settings};
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
-use serde::Serialize;
 use std::{
     fs,
     io::Write,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use unicode_width::UnicodeWidthStr;
-use wuwa_tracker_core::{reporter::ReportFormat, Service};
-use wuwa_tracker_types::{FetchResult, FiveStarRecord, Stats, StatsResponse};
+use wuwa_tracker_core::reporter::ReportFormat;
+use wuwa_tracker_types::{FetchResult, StatsResponse};
 
 const DB_RECORDS_ID_WIDTH: usize = 4;
 const DB_RECORDS_KEY_WIDTH: usize = 26;
@@ -20,7 +20,7 @@ const DB_RECORDS_NAME_WIDTH: usize = 28;
 #[derive(Debug, Clone, Args)]
 pub struct ScanArgs {
     #[arg(short, long, help = "Game root directory or log file path to scan")]
-    pub path: PathBuf,
+    pub path: Option<PathBuf>,
     #[arg(long, help = "Copy the scanned URL to the system clipboard")]
     pub clipboard: bool,
 }
@@ -35,21 +35,12 @@ pub struct ReportArgs {
         help = "FetchResult or legacy JSON file to import before reporting"
     )]
     pub file: Option<PathBuf>,
-    #[arg(
-        long,
-        default_value = "html",
-        help = "Report format: html, json, or csv"
-    )]
-    pub format: String,
-    #[arg(
-        short = 'o',
-        long = "output",
-        default_value = "report",
-        help = "Output file path or basename"
-    )]
-    pub output: PathBuf,
-    #[arg(long, default_value = "ko", help = "Report language code")]
-    pub lang: String,
+    #[arg(long, help = "Report format: html, json, or csv")]
+    pub format: Option<String>,
+    #[arg(short = 'o', long = "output", help = "Output file path or basename")]
+    pub output: Option<PathBuf>,
+    #[arg(long, help = "Report language code")]
+    pub lang: Option<String>,
     #[arg(short = 'v', long, help = "Print progress messages")]
     pub verbose: bool,
 }
@@ -60,21 +51,32 @@ pub struct RunArgs {
     pub url: Option<String>,
     #[arg(short, long, help = "Game root directory or log file path to scan")]
     pub path: Option<PathBuf>,
+    #[arg(long, help = "Report format: html, json, or csv")]
+    pub format: Option<String>,
+    #[arg(short = 'o', long = "output", help = "Output file path or basename")]
+    pub output: Option<PathBuf>,
+    #[arg(long, help = "Report language code")]
+    pub lang: Option<String>,
+    #[arg(short = 'v', long, help = "Print progress messages")]
+    pub verbose: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct AutorunArgs {
+    #[arg(short, long, help = "Game root directory or log file path to scan")]
+    pub path: Option<PathBuf>,
     #[arg(
         long,
-        default_value = "html",
-        help = "Report format: html, json, or csv"
+        visible_alias = "interval",
+        help = "Polling interval in seconds; defaults to config"
     )]
-    pub format: String,
-    #[arg(
-        short = 'o',
-        long = "output",
-        default_value = "report",
-        help = "Output file path or basename"
-    )]
-    pub output: PathBuf,
-    #[arg(long, default_value = "ko", help = "Report language code")]
-    pub lang: String,
+    pub interval_secs: Option<u64>,
+    #[arg(long, help = "Report format: html, json, or csv")]
+    pub format: Option<String>,
+    #[arg(short = 'o', long = "output", help = "Output file path or basename")]
+    pub output: Option<PathBuf>,
+    #[arg(long, help = "Report language code")]
+    pub lang: Option<String>,
     #[arg(short = 'v', long, help = "Print progress messages")]
     pub verbose: bool,
 }
@@ -102,6 +104,33 @@ pub struct DbArgs {
     pub command: Option<DbCommand>,
 }
 
+#[derive(Debug, Clone, Args)]
+pub struct ConfigArgs {
+    #[command(subcommand)]
+    pub command: Option<ConfigCommand>,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum ConfigCommand {
+    #[command(about = "Show resolved CLI defaults")]
+    Show,
+    #[command(about = "Save CLI defaults")]
+    Set {
+        #[arg(short, long, help = "Game root directory or log file path to scan")]
+        path: Option<PathBuf>,
+        #[arg(long, help = "Report format: html, json, or csv")]
+        format: Option<String>,
+        #[arg(short = 'o', long = "output", help = "Output file path or basename")]
+        output: Option<PathBuf>,
+        #[arg(long, help = "Report language code")]
+        lang: Option<String>,
+        #[arg(long, visible_alias = "interval", help = "Polling interval in seconds")]
+        interval_secs: Option<u64>,
+    },
+    #[command(about = "Clear saved CLI defaults")]
+    Clear,
+}
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum DbCommand {
     #[command(about = "List player IDs stored locally")]
@@ -119,7 +148,9 @@ pub enum DbCommand {
 }
 
 pub fn scan(args: ScanArgs, service: Service) -> Result<()> {
-    let response = service.scan(args.path)?;
+    let saved = settings::load(&service.config().settings_path)?;
+    let path = resolve_path(args.path, &saved)?;
+    let response = service.scan(&path)?;
     println!("{}", response.url);
     if args.clipboard {
         copy_to_clipboard(&response.url)?;
@@ -132,6 +163,10 @@ pub async fn report(args: ReportArgs, service: Service) -> Result<()> {
     if args.url.is_some() == args.file.is_some() {
         anyhow::bail!("provide exactly one of --url or --file");
     }
+    let saved = settings::load(&service.config().settings_path)?;
+    let format = resolve_format(args.format, &saved);
+    let output = resolve_output(args.output, &saved);
+    let lang = resolve_lang(args.lang, &saved);
 
     let stats = if let Some(file) = args.file {
         let fetch_result = service.load_fetch_result_file(&file)?;
@@ -143,7 +178,7 @@ pub async fn report(args: ReportArgs, service: Service) -> Result<()> {
         if args.verbose {
             println!("Fetching gacha data. Please wait...");
         }
-        service.prepare_locale(&args.lang).await;
+        service.prepare_locale(&lang).await;
         let fetch_result = service.fetch_and_save(&url).await?;
         if args.verbose {
             save_fetch_result_log(&fetch_result)?;
@@ -151,29 +186,194 @@ pub async fn report(args: ReportArgs, service: Service) -> Result<()> {
         service.get_stats(fetch_result.payload.player_id)?
     };
 
-    write_report(&service, &stats, &args.format, &args.output, &args.lang)?;
+    write_report(&service, &stats, &format, &output, &lang)?;
     Ok(())
 }
 
 pub async fn run(args: RunArgs, service: Service) -> Result<()> {
+    let saved = settings::load(&service.config().settings_path)?;
     let url = match args.url {
         Some(url) => url,
         None => {
-            let path = args
-                .path
-                .as_ref()
-                .context("provide --url or --path for run")?;
-            service.scan(path)?.url
+            let path = resolve_path(args.path, &saved)?;
+            service.scan(&path)?.url
         }
     };
-    service.prepare_locale(&args.lang).await;
-    let fetch_result = service.fetch_and_save(&url).await?;
-    if args.verbose {
-        save_fetch_result_log(&fetch_result)?;
-    }
-    let stats = service.get_stats(fetch_result.payload.player_id)?;
-    write_report(&service, &stats, &args.format, &args.output, &args.lang)?;
+    fetch_and_write_report(
+        &service,
+        &url,
+        &resolve_format(args.format, &saved),
+        &resolve_output(args.output, &saved),
+        &resolve_lang(args.lang, &saved),
+        args.verbose,
+    )
+    .await?;
     Ok(())
+}
+
+pub async fn autorun(args: AutorunArgs, service: Service) -> Result<()> {
+    let saved = settings::load(&service.config().settings_path)?;
+    let interval = Duration::from_secs(
+        args.interval_secs
+            .or(saved.interval_secs)
+            .unwrap_or(service.config().autorun_interval_secs)
+            .max(1),
+    );
+    let mut last_url = String::new();
+    let path = resolve_path(args.path, &saved)?;
+    let format = resolve_format(args.format, &saved);
+    let output = resolve_output(args.output, &saved);
+    let lang = resolve_lang(args.lang, &saved);
+
+    loop {
+        match service.scan(&path) {
+            Ok(response) if response.url != last_url => {
+                if args.verbose {
+                    println!("New URL detected. Running report.");
+                }
+                match fetch_and_write_report(
+                    &service,
+                    &response.url,
+                    &format,
+                    &output,
+                    &lang,
+                    args.verbose,
+                )
+                .await
+                {
+                    Ok(()) => last_url = response.url,
+                    Err(error) => eprintln!("Autorun failed: {error}"),
+                }
+            }
+            Ok(_) => {
+                if args.verbose {
+                    println!("URL unchanged. Waiting.");
+                }
+            }
+            Err(error) => {
+                if args.verbose {
+                    eprintln!("Scan failed: {error}");
+                }
+            }
+        }
+
+        tokio::select! {
+            _ = tokio::time::sleep(interval) => {}
+            _ = tokio::signal::ctrl_c() => return Ok(()),
+        }
+    }
+}
+
+pub fn config(args: ConfigArgs, config: &wuwa_tracker_core::Config) -> Result<()> {
+    match args.command.unwrap_or(ConfigCommand::Show) {
+        ConfigCommand::Show => show_config(config),
+        ConfigCommand::Clear => {
+            settings::clear(&config.settings_path)?;
+            println!("Settings cleared: {}", config.settings_path.display());
+            Ok(())
+        }
+        ConfigCommand::Set {
+            path,
+            format,
+            output,
+            lang,
+            interval_secs,
+        } => {
+            if let Some(format) = format.as_deref() {
+                ReportFormat::from_str(format)?;
+            }
+            let mut saved = settings::load(&config.settings_path)?;
+            if path.is_some() {
+                saved.path = path;
+            }
+            if format.is_some() {
+                saved.format = format;
+            }
+            if output.is_some() {
+                saved.output = output;
+            }
+            if lang.is_some() {
+                saved.lang = lang;
+            }
+            if interval_secs.is_some() {
+                saved.interval_secs = interval_secs;
+            }
+            settings::save(&config.settings_path, &saved)?;
+            println!("Settings saved: {}", config.settings_path.display());
+            Ok(())
+        }
+    }
+}
+
+fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
+    let saved = settings::load(&config.settings_path)?;
+    println!("Settings: {}", config.settings_path.display());
+    print_setting(
+        "path",
+        saved
+            .path
+            .as_ref()
+            .map(|path| (path.display().to_string(), "saved"))
+            .unwrap_or_else(|| ("(unset)".to_string(), "default")),
+    );
+    print_setting(
+        "format",
+        saved
+            .format
+            .clone()
+            .map(|value| (value, "saved"))
+            .unwrap_or_else(|| (settings::DEFAULT_FORMAT.to_string(), "default")),
+    );
+    print_setting(
+        "output",
+        saved
+            .output
+            .as_ref()
+            .map(|path| (path.display().to_string(), "saved"))
+            .unwrap_or_else(|| (settings::DEFAULT_OUTPUT.to_string(), "default")),
+    );
+    print_setting(
+        "lang",
+        saved
+            .lang
+            .clone()
+            .map(|value| (value, "saved"))
+            .unwrap_or_else(|| (settings::DEFAULT_LANG.to_string(), "default")),
+    );
+    print_setting(
+        "interval",
+        saved
+            .interval_secs
+            .map(|value| (value.to_string(), "saved"))
+            .unwrap_or_else(|| (config.autorun_interval_secs.to_string(), "default")),
+    );
+    Ok(())
+}
+
+fn print_setting(name: &str, value: (String, &str)) {
+    println!("{}: {} ({})", name, value.0, value.1);
+}
+
+fn resolve_path(path: Option<PathBuf>, saved: &settings::Settings) -> Result<PathBuf> {
+    path.or_else(|| saved.path.clone())
+        .context("provide --path or save one with `wuwa-tracker config set --path <PATH>`")
+}
+
+fn resolve_format(format: Option<String>, saved: &settings::Settings) -> String {
+    format
+        .or_else(|| saved.format.clone())
+        .unwrap_or_else(|| settings::DEFAULT_FORMAT.to_string())
+}
+
+fn resolve_output(output: Option<PathBuf>, saved: &settings::Settings) -> PathBuf {
+    output
+        .or_else(|| saved.output.clone())
+        .unwrap_or_else(|| PathBuf::from(settings::DEFAULT_OUTPUT))
+}
+
+fn resolve_lang(lang: Option<String>, saved: &settings::Settings) -> String {
+    lang.or_else(|| saved.lang.clone())
+        .unwrap_or_else(|| settings::DEFAULT_LANG.to_string())
 }
 
 pub fn backup(args: BackupArgs, service: Service) -> Result<()> {
@@ -196,10 +396,7 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
         DbCommand::Stats { player_id } => {
             if let Some(player_id) = player_id {
                 let stats = service.get_stats(player_id)?;
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&StatsSummary::from(&stats))?
-                );
+                println!("{}", serde_json::to_string_pretty(&stats_summary(&stats)?)?);
             } else {
                 let stats = service.store_stats()?;
                 println!("DB Stats");
@@ -236,64 +433,36 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
     Ok(())
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct StatsSummary<'a> {
-    success: bool,
-    player_id: &'a str,
-    stats: Vec<BannerStatsSummary<'a>>,
+async fn fetch_and_write_report(
+    service: &Service,
+    url: &str,
+    format: &str,
+    output: &Path,
+    lang: &str,
+    verbose: bool,
+) -> Result<()> {
+    service.prepare_locale(lang).await;
+    let fetch_result = service.fetch_and_save(url).await?;
+    if verbose {
+        save_fetch_result_log(&fetch_result)?;
+    }
+    let stats = service.get_stats(fetch_result.payload.player_id)?;
+    write_report(service, &stats, format, output, lang)
 }
 
-impl<'a> From<&'a StatsResponse> for StatsSummary<'a> {
-    fn from(response: &'a StatsResponse) -> Self {
-        Self {
-            success: response.success,
-            player_id: &response.player_id,
-            stats: response
-                .stats
-                .iter()
-                .map(BannerStatsSummary::from)
-                .collect(),
+fn stats_summary(stats: &StatsResponse) -> Result<serde_json::Value> {
+    let mut value = serde_json::to_value(stats)?;
+    if let Some(items) = value
+        .get_mut("stats")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for item in items {
+            if let Some(object) = item.as_object_mut() {
+                object.remove("records");
+            }
         }
     }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BannerStatsSummary<'a> {
-    gacha_type: i32,
-    gacha_name: &'a str,
-    total_pulls: usize,
-    total_astrite: usize,
-    current_pity5: i32,
-    current_pity4: i32,
-    base_rate: f64,
-    expected_pulls: i32,
-    five_stars: &'a [FiveStarRecord],
-    avg_pulls: f64,
-    actual_rate: f64,
-    luck_score: f64,
-    has_five_star: bool,
-}
-
-impl<'a> From<&'a Stats> for BannerStatsSummary<'a> {
-    fn from(stats: &'a Stats) -> Self {
-        Self {
-            gacha_type: stats.gacha_type,
-            gacha_name: &stats.gacha_name,
-            total_pulls: stats.total_pulls,
-            total_astrite: stats.total_astrite,
-            current_pity5: stats.current_pity5,
-            current_pity4: stats.current_pity4,
-            base_rate: stats.base_rate,
-            expected_pulls: stats.expected_pulls,
-            five_stars: &stats.five_stars,
-            avg_pulls: stats.avg_pulls,
-            actual_rate: stats.actual_rate,
-            luck_score: stats.luck_score,
-            has_five_star: stats.has_five_star,
-        }
-    }
+    Ok(value)
 }
 
 fn print_db_records_row(id: &str, key: &str, name: &str, records: &str) {
@@ -419,6 +588,7 @@ fn command_exists(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wuwa_tracker_types::Stats;
 
     #[test]
     fn stats_summary_omits_raw_records() {
@@ -445,7 +615,7 @@ mod tests {
             }],
         };
 
-        let value = serde_json::to_value(StatsSummary::from(&response)).unwrap();
+        let value = stats_summary(&response).unwrap();
 
         assert_eq!(value["playerId"], "123456789");
         assert_eq!(value["stats"][0]["totalPulls"], 10);
