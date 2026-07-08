@@ -17,18 +17,21 @@ use wuwa_tracker_types::{
     ConfigResponse, ErrorResponse, FetchResult, PlayersResponse, ScanResponse, StatsResponse,
 };
 
+const ENV_HOST: &str = "WUWA_TRACKER_HOST";
+const ENV_PORT: &str = "WUWA_TRACKER_PORT";
+
 #[derive(Debug, Clone, Args)]
 pub struct ServeArgs {
     #[arg(
         long,
-        env = "WUWA_TRACKER_HOST",
+        env = ENV_HOST,
         default_value = "127.0.0.1",
         help = "Host address to bind"
     )]
     pub host: String,
     #[arg(
         long,
-        env = "WUWA_TRACKER_PORT",
+        env = ENV_PORT,
         default_value = "3000",
         help = "TCP port to listen on"
     )]
