@@ -83,7 +83,11 @@ pub struct RunArgs {
 pub struct AutorunArgs {
     #[arg(short, long, help = "Game root directory or log file path to scan")]
     pub path: PathBuf,
-    #[arg(long, help = "Polling interval in seconds; defaults to config")]
+    #[arg(
+        long,
+        visible_alias = "interval",
+        help = "Polling interval in seconds; defaults to config"
+    )]
     pub interval_secs: Option<u64>,
     #[arg(
         long,
