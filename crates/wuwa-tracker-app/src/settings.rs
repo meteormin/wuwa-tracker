@@ -8,11 +8,6 @@ use std::{
 pub const DEFAULT_FORMAT: &str = "html";
 pub const DEFAULT_OUTPUT: &str = "report";
 pub const DEFAULT_LANG: &str = "ko";
-pub const ENV_SCAN_PATH: &str = "WUWA_TRACKER_SCAN_PATH";
-pub const ENV_REPORT_FORMAT: &str = "WUWA_TRACKER_REPORT_FORMAT";
-pub const ENV_REPORT_OUTPUT: &str = "WUWA_TRACKER_REPORT_OUTPUT";
-pub const ENV_REPORT_LANG: &str = "WUWA_TRACKER_REPORT_LANG";
-pub const ENV_AUTORUN_INTERVAL_SECS: &str = "WUWA_TRACKER_AUTORUN_INTERVAL_SECS";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

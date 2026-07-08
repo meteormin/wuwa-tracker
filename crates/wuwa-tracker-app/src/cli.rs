@@ -2,7 +2,7 @@ use crate::{service::Service, settings};
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use std::{
-    env, fs,
+    fs,
     io::Write,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -215,6 +215,7 @@ pub async fn autorun(args: AutorunArgs, service: Service) -> Result<()> {
     let saved = settings::load(&service.config().settings_path)?;
     let interval = Duration::from_secs(
         args.interval_secs
+            .or(saved.interval_secs)
             .unwrap_or(service.config().autorun_interval_secs)
             .max(1),
     );
@@ -313,7 +314,6 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
             .path
             .as_ref()
             .map(|path| (path.display().to_string(), "saved"))
-            .or_else(|| env_path(settings::ENV_SCAN_PATH).map(|path| (path, "env")))
             .unwrap_or_else(|| ("(unset)".to_string(), "default")),
     );
     print_setting(
@@ -322,7 +322,6 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
             .format
             .clone()
             .map(|value| (value, "saved"))
-            .or_else(|| env_string(settings::ENV_REPORT_FORMAT).map(|value| (value, "env")))
             .unwrap_or_else(|| (settings::DEFAULT_FORMAT.to_string(), "default")),
     );
     print_setting(
@@ -331,7 +330,6 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
             .output
             .as_ref()
             .map(|path| (path.display().to_string(), "saved"))
-            .or_else(|| env_path(settings::ENV_REPORT_OUTPUT).map(|path| (path, "env")))
             .unwrap_or_else(|| (settings::DEFAULT_OUTPUT.to_string(), "default")),
     );
     print_setting(
@@ -340,7 +338,6 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
             .lang
             .clone()
             .map(|value| (value, "saved"))
-            .or_else(|| env_string(settings::ENV_REPORT_LANG).map(|value| (value, "env")))
             .unwrap_or_else(|| (settings::DEFAULT_LANG.to_string(), "default")),
     );
     print_setting(
@@ -348,7 +345,6 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
         saved
             .interval_secs
             .map(|value| (value.to_string(), "saved"))
-            .or_else(|| env_u64(settings::ENV_AUTORUN_INTERVAL_SECS).map(|value| (value, "env")))
             .unwrap_or_else(|| (config.autorun_interval_secs.to_string(), "default")),
     );
     Ok(())
@@ -360,48 +356,24 @@ fn print_setting(name: &str, value: (String, &str)) {
 
 fn resolve_path(path: Option<PathBuf>, saved: &settings::Settings) -> Result<PathBuf> {
     path.or_else(|| saved.path.clone())
-        .or_else(|| env_path(settings::ENV_SCAN_PATH).map(PathBuf::from))
         .context("provide --path or save one with `wuwa-tracker config set --path <PATH>`")
 }
 
 fn resolve_format(format: Option<String>, saved: &settings::Settings) -> String {
     format
         .or_else(|| saved.format.clone())
-        .or_else(|| env_string(settings::ENV_REPORT_FORMAT))
         .unwrap_or_else(|| settings::DEFAULT_FORMAT.to_string())
 }
 
 fn resolve_output(output: Option<PathBuf>, saved: &settings::Settings) -> PathBuf {
     output
         .or_else(|| saved.output.clone())
-        .or_else(|| env_path(settings::ENV_REPORT_OUTPUT).map(PathBuf::from))
         .unwrap_or_else(|| PathBuf::from(settings::DEFAULT_OUTPUT))
 }
 
 fn resolve_lang(lang: Option<String>, saved: &settings::Settings) -> String {
     lang.or_else(|| saved.lang.clone())
-        .or_else(|| env_string(settings::ENV_REPORT_LANG))
         .unwrap_or_else(|| settings::DEFAULT_LANG.to_string())
-}
-
-fn env_string(key: &str) -> Option<String> {
-    env::var(key)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-}
-
-fn env_path(key: &str) -> Option<String> {
-    env_string(key)
-}
-
-fn env_u64(key: &str) -> Option<String> {
-    env::var(key)
-        .ok()?
-        .trim()
-        .parse::<u64>()
-        .ok()
-        .map(|value| value.to_string())
 }
 
 pub fn backup(args: BackupArgs, service: Service) -> Result<()> {
