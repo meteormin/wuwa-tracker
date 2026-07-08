@@ -14,6 +14,7 @@ pub struct Config {
     pub scan_log_paths: Vec<PathBuf>,
     pub db_path: PathBuf,
     pub log_path: PathBuf,
+    pub autorun_interval_secs: u64,
     pub language: String,
 }
 
@@ -53,6 +54,7 @@ impl Default for Config {
             ],
             db_path: app_dir.join("store.json"),
             log_path: app_dir.join("wuwa-tracker.log"),
+            autorun_interval_secs: 60,
             language: "ko".to_string(),
         }
     }
@@ -93,5 +95,6 @@ mod tests {
 
         assert!(config.db_path.ends_with("store.json"));
         assert!(config.log_path.ends_with("wuwa-tracker.log"));
+        assert_eq!(config.autorun_interval_secs, 60);
     }
 }

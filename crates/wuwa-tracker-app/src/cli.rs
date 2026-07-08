@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
     str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use unicode_width::UnicodeWidthStr;
 use wuwa_tracker_core::reporter::ReportFormat;
@@ -60,6 +60,31 @@ pub struct RunArgs {
     pub url: Option<String>,
     #[arg(short, long, help = "Game root directory or log file path to scan")]
     pub path: Option<PathBuf>,
+    #[arg(
+        long,
+        default_value = "html",
+        help = "Report format: html, json, or csv"
+    )]
+    pub format: String,
+    #[arg(
+        short = 'o',
+        long = "output",
+        default_value = "report",
+        help = "Output file path or basename"
+    )]
+    pub output: PathBuf,
+    #[arg(long, default_value = "ko", help = "Report language code")]
+    pub lang: String,
+    #[arg(short = 'v', long, help = "Print progress messages")]
+    pub verbose: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct AutorunArgs {
+    #[arg(short, long, help = "Game root directory or log file path to scan")]
+    pub path: PathBuf,
+    #[arg(long, help = "Polling interval in seconds; defaults to config")]
+    pub interval_secs: Option<u64>,
     #[arg(
         long,
         default_value = "html",
@@ -166,14 +191,63 @@ pub async fn run(args: RunArgs, service: Service) -> Result<()> {
             service.scan(path)?.url
         }
     };
-    service.prepare_locale(&args.lang).await;
-    let fetch_result = service.fetch_and_save(&url).await?;
-    if args.verbose {
-        save_fetch_result_log(&fetch_result)?;
-    }
-    let stats = service.get_stats(fetch_result.payload.player_id)?;
-    write_report(&service, &stats, &args.format, &args.output, &args.lang)?;
+    fetch_and_write_report(
+        &service,
+        &url,
+        &args.format,
+        &args.output,
+        &args.lang,
+        args.verbose,
+    )
+    .await?;
     Ok(())
+}
+
+pub async fn autorun(args: AutorunArgs, service: Service) -> Result<()> {
+    let interval = Duration::from_secs(
+        args.interval_secs
+            .unwrap_or(service.config().autorun_interval_secs)
+            .max(1),
+    );
+    let mut last_url = String::new();
+
+    loop {
+        match service.scan(&args.path) {
+            Ok(response) if response.url != last_url => {
+                if args.verbose {
+                    println!("New URL detected. Running report.");
+                }
+                match fetch_and_write_report(
+                    &service,
+                    &response.url,
+                    &args.format,
+                    &args.output,
+                    &args.lang,
+                    args.verbose,
+                )
+                .await
+                {
+                    Ok(()) => last_url = response.url,
+                    Err(error) => eprintln!("Autorun failed: {error}"),
+                }
+            }
+            Ok(_) => {
+                if args.verbose {
+                    println!("URL unchanged. Waiting.");
+                }
+            }
+            Err(error) => {
+                if args.verbose {
+                    eprintln!("Scan failed: {error}");
+                }
+            }
+        }
+
+        tokio::select! {
+            _ = tokio::time::sleep(interval) => {}
+            _ = tokio::signal::ctrl_c() => return Ok(()),
+        }
+    }
 }
 
 pub fn backup(args: BackupArgs, service: Service) -> Result<()> {
@@ -231,6 +305,23 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
         }
     }
     Ok(())
+}
+
+async fn fetch_and_write_report(
+    service: &Service,
+    url: &str,
+    format: &str,
+    output: &Path,
+    lang: &str,
+    verbose: bool,
+) -> Result<()> {
+    service.prepare_locale(lang).await;
+    let fetch_result = service.fetch_and_save(url).await?;
+    if verbose {
+        save_fetch_result_log(&fetch_result)?;
+    }
+    let stats = service.get_stats(fetch_result.payload.player_id)?;
+    write_report(service, &stats, format, output, lang)
 }
 
 fn stats_summary(stats: &StatsResponse) -> Result<serde_json::Value> {
