@@ -3,6 +3,7 @@ mod cli;
 mod http;
 mod logging;
 mod service;
+mod settings;
 mod webui_assets;
 
 use anyhow::Result;
@@ -13,7 +14,6 @@ use wuwa_tracker_core::Config;
 
 const ENV_DB_PATH: &str = "WUWA_TRACKER_DB_PATH";
 const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";
-const ENV_AUTORUN_INTERVAL_SECS: &str = "WUWA_TRACKER_AUTORUN_INTERVAL_SECS";
 
 #[derive(Debug, Parser)]
 #[command(name = "wuwa-tracker")]
@@ -41,6 +41,8 @@ enum Command {
     Run(cli::RunArgs),
     #[command(about = "Periodically scan logs and run when the tracking URL changes")]
     Autorun(cli::AutorunArgs),
+    #[command(about = "Manage saved CLI defaults")]
+    Config(cli::ConfigArgs),
     #[command(about = "Export the local store to a backup JSON file")]
     Backup(cli::BackupArgs),
     #[command(about = "Merge a backup JSON file into the local store")]
@@ -58,6 +60,10 @@ async fn main() -> Result<()> {
     }
 
     let config = build_config(&cli);
+    if let Some(Command::Config(args)) = &cli.command {
+        return cli::config(args.clone(), &config);
+    }
+
     let console_level = match &cli.command {
         Some(Command::Serve(_)) => Some("info"),
         Some(_) => Some("error"),
@@ -73,6 +79,7 @@ async fn main() -> Result<()> {
         Some(Command::Report(args)) => cli::report(args, service).await,
         Some(Command::Run(args)) => cli::run(args, service).await,
         Some(Command::Autorun(args)) => cli::autorun(args, service).await,
+        Some(Command::Config(_)) => unreachable!("config command is handled before service setup"),
         Some(Command::Backup(args)) => cli::backup(args, service),
         Some(Command::Merge(args)) => cli::merge(args, service),
         Some(Command::Db(args)) => cli::db(args, service),
@@ -88,7 +95,13 @@ fn build_config(cli: &Cli) -> Config {
     if let Some(log_path) = cli.log_path.clone().or_else(|| get_env(ENV_LOG_PATH)) {
         config.log_path = log_path;
     }
-    if let Some(interval_secs) = get_env_u64(ENV_AUTORUN_INTERVAL_SECS) {
+    if let Some(interval_secs) = get_env_u64(settings::ENV_AUTORUN_INTERVAL_SECS) {
+        config.autorun_interval_secs = interval_secs;
+    }
+    if let Some(interval_secs) = settings::load(&config.settings_path)
+        .ok()
+        .and_then(|settings| settings.interval_secs)
+    {
         config.autorun_interval_secs = interval_secs;
     }
     config
