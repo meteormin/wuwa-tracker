@@ -78,7 +78,10 @@ clippy: webui-build
 test: webui-build
 	$(CARGO) test --workspace
 
-ci: fmt-check check clippy test
+ci: fmt-check webui-check webui-build
+	$(CARGO) check --workspace
+	$(CARGO) clippy --workspace --all-targets -- -D warnings
+	$(CARGO) test --workspace
 
 build: webui-build
 	$(CARGO) build --workspace
