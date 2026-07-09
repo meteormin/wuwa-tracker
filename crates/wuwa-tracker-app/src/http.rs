@@ -17,18 +17,21 @@ use wuwa_tracker_types::{
     ConfigResponse, ErrorResponse, FetchResult, PlayersResponse, ScanResponse, StatsResponse,
 };
 
+const ENV_HOST: &str = "WUWA_TRACKER_HOST";
+const ENV_PORT: &str = "WUWA_TRACKER_PORT";
+
 #[derive(Debug, Clone, Args)]
 pub struct ServeArgs {
     #[arg(
         long,
-        env = "WUWA_TRACKER_HOST",
+        env = ENV_HOST,
         default_value = "127.0.0.1",
         help = "Host address to bind"
     )]
     pub host: String,
     #[arg(
         long,
-        env = "WUWA_TRACKER_PORT",
+        env = ENV_PORT,
         default_value = "3000",
         help = "TCP port to listen on"
     )]
@@ -144,6 +147,7 @@ async fn get_config(State(service): State<Service>) -> Json<ConfigResponse> {
     Json(ConfigResponse {
         success: true,
         luck_score_thresholds: service.config().luck_score_thresholds.clone(),
+        resource_types: service.resource_types(),
     })
 }
 

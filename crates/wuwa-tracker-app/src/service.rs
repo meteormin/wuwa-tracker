@@ -15,7 +15,8 @@ use wuwa_tracker_core::{
     tracker::{self, TrackerClient},
 };
 use wuwa_tracker_types::{
-    FetchResult, GachaType, LocaleData, Payload, Record, ReportData, ScanResponse, StatsResponse,
+    character_summaries, CharacterSummary, FetchResult, GachaType, LocaleData, Payload, Record,
+    ReportData, ResourceTypes, ScanResponse, StatsResponse,
 };
 
 #[derive(Clone)]
@@ -57,6 +58,21 @@ impl Service {
 
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    pub fn resource_types(&self) -> ResourceTypes {
+        let locale = self
+            .locale
+            .read()
+            .expect("locale lock poisoned")
+            .clone()
+            .or_else(|| tracker::load_local_gacha_locale(&self.config.language).ok())
+            .unwrap_or_default();
+        ResourceTypes {
+            character: locale.character,
+            weapon: locale.weapon,
+            item: locale.item,
+        }
     }
 
     pub fn list_players(&self) -> Vec<String> {
@@ -120,6 +136,18 @@ impl Service {
             ),
         }
         result
+    }
+
+    pub fn character_summaries(
+        &self,
+        player_id: impl AsRef<str>,
+    ) -> Result<Vec<CharacterSummary>, AppError> {
+        let stats = self.get_stats(player_id)?;
+        Ok(character_summaries(
+            &stats.stats,
+            &self.resource_types().character,
+            self.config.astrite_per_pull,
+        ))
     }
 
     pub fn scan(&self, path: impl AsRef<Path>) -> Result<ScanResponse, AppError> {

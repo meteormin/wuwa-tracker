@@ -135,7 +135,8 @@ cargo run -p wuwa-tracker -- merge --file wuwa-tracker.backup.json
 cargo run -p wuwa-tracker -- db stats
 cargo run -p wuwa-tracker -- db players
 cargo run -p wuwa-tracker -- db stats "<player-id>"
-cargo run -p wuwa-tracker -- db records "<player-id>"
+cargo run -p wuwa-tracker -- db banners "<player-id>"
+cargo run -p wuwa-tracker -- db characters "<player-id>"
 ```
 
 지원 리포트 포맷은 `html`, `json`, `csv`입니다.

@@ -140,8 +140,11 @@ pub fn extract_lang(input: &str) -> Option<String> {
 }
 
 pub fn load_local_gacha_locale(lang: &str) -> Result<LocaleData, AppError> {
-    let _ = lang;
-    let source = include_str!("../../../locales/ko.json");
+    let source = if lang == "en" {
+        include_str!("../../../locales/en.json")
+    } else {
+        include_str!("../../../locales/ko.json")
+    };
     Ok(serde_json::from_str(source)?)
 }
 

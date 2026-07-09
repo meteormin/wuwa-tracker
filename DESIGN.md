@@ -59,7 +59,8 @@ flowchart TD
 - `db stats`
 - `db players`
 - `db stats <player-id>`
-- `db records <player-id>`
+- `db banners <player-id>`
+- `db characters <player-id>`
 - `serve`
 
 ### Data Flow
