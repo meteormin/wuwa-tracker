@@ -102,6 +102,7 @@ jobs:
           mkdir -p "dist/${TARGET}"
           cp README.md "dist/${TARGET}/"
           cp target/release/wuwa-tracker "dist/${TARGET}/wuwa-tracker"
+          cp target/release/wuwa-tracker-cli "dist/${TARGET}/wuwa-tracker-cli"
           tar -czf "dist/${TARGET}.tar.gz" -C dist "${TARGET}"
 
       - name: Package Windows
@@ -113,6 +114,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "dist/$Target" | Out-Null
           Copy-Item README.md "dist/$Target/"
           Copy-Item target/release/wuwa-tracker.exe "dist/$Target/wuwa-tracker.exe"
+          Copy-Item target/release/wuwa-tracker-cli.exe "dist/$Target/wuwa-tracker-cli.exe"
           Compress-Archive -Path "dist/$Target" -DestinationPath "dist/$Target.zip" -Force
 
       - name: Upload artifact

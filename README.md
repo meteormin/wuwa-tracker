@@ -121,22 +121,24 @@ GitHub release workflow는 tag push에서만 실행되며, `cargo pkgid -p wuwa-
 
 ## CLI
 
+릴리즈 산출물에는 GUI fallback을 유지하는 `wuwa-tracker`와 CLI/serve 전용 `wuwa-tracker-cli`가 함께 포함됩니다. Headless/server 환경에서는 `wuwa-tracker-cli`를 사용합니다.
+
 직접 실행 예시는 다음과 같습니다.
 
 ```bash
-cargo run -p wuwa-tracker -- --help
-cargo run -p wuwa-tracker -- version
-cargo run -p wuwa-tracker -- scan --path "<game-root-or-log-path>"
-cargo run -p wuwa-tracker -- report --url "<gacha-url>" --format html --output report --lang ko
-cargo run -p wuwa-tracker -- report --file logs/history.json --format json --output out/history
-cargo run -p wuwa-tracker -- run --path "<game-root-or-log-path>" --format html --output report
-cargo run -p wuwa-tracker -- backup --output wuwa-tracker.backup.json
-cargo run -p wuwa-tracker -- merge --file wuwa-tracker.backup.json
-cargo run -p wuwa-tracker -- db stats
-cargo run -p wuwa-tracker -- db players
-cargo run -p wuwa-tracker -- db stats "<player-id>"
-cargo run -p wuwa-tracker -- db banners "<player-id>"
-cargo run -p wuwa-tracker -- db characters "<player-id>"
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- --help
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- version
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- scan --path "<game-root-or-log-path>"
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- report --url "<gacha-url>" --format html --output report --lang ko
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- report --file logs/history.json --format json --output out/history
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- run --path "<game-root-or-log-path>" --format html --output report
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- backup --output wuwa-tracker.backup.json
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- merge --file wuwa-tracker.backup.json
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- db stats
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- db players
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- db stats "<player-id>"
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- db banners "<player-id>"
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- db characters "<player-id>"
 ```
 
 지원 리포트 포맷은 `html`, `json`, `csv`입니다.
@@ -144,7 +146,7 @@ cargo run -p wuwa-tracker -- db characters "<player-id>"
 전역 옵션으로 local store와 application log 경로를 바꿀 수 있습니다. 같은 값은 `WUWA_TRACKER_DB_PATH`, `WUWA_TRACKER_LOG_PATH` 환경 변수로도 지정할 수 있습니다.
 
 ```bash
-cargo run -p wuwa-tracker -- --dbpath ./store.json --logpath ./wuwa-tracker.log serve
+cargo run -p wuwa-tracker --bin wuwa-tracker-cli -- --dbpath ./store.json --logpath ./wuwa-tracker.log serve
 ```
 
 ## API Spec
