@@ -15,8 +15,8 @@ use wuwa_tracker_core::{
     tracker::{self, TrackerClient},
 };
 use wuwa_tracker_types::{
-    FetchResult, GachaType, LocaleData, Payload, Record, ReportData, ResourceTypes, ScanResponse,
-    StatsResponse,
+    character_summaries, CharacterSummary, FetchResult, GachaType, LocaleData, Payload, Record,
+    ReportData, ResourceTypes, ScanResponse, StatsResponse,
 };
 
 #[derive(Clone)]
@@ -136,6 +136,18 @@ impl Service {
             ),
         }
         result
+    }
+
+    pub fn character_summaries(
+        &self,
+        player_id: impl AsRef<str>,
+    ) -> Result<Vec<CharacterSummary>, AppError> {
+        let stats = self.get_stats(player_id)?;
+        Ok(character_summaries(
+            &stats.stats,
+            &self.resource_types().character,
+            self.config.astrite_per_pull,
+        ))
     }
 
     pub fn scan(&self, path: impl AsRef<Path>) -> Result<ScanResponse, AppError> {

@@ -1,41 +1,23 @@
 use crate::{
     api,
     i18n::{I18n, Locale},
-    types::{FiveStarRecord, LuckScoreThreshold, Record, Stats, StatsResponse},
+    types::{
+        character_summaries, CharacterSummary, FiveStarRecord, LuckScoreThreshold, Record, Stats,
+        StatsResponse,
+    },
 };
 use leptos::prelude::*;
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{Event, HtmlInputElement};
 
 const ASTRITE_PER_PULL: usize = 160;
-const CHARACTER_BANNER_TYPES: [i32; 6] = [1, 3, 5, 6, 8, 10];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Page {
     Dashboard,
     Characters,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct CharacterSummary {
-    resource_id: i32,
-    name: String,
-    quality_level: i32,
-    resource_type: String,
-    copies: usize,
-    breakthrough: usize,
-    spent_astrite: usize,
-    banner_count: usize,
-    last_time: String,
-}
-
-#[derive(Default)]
-struct CharacterTotal {
-    summary: CharacterSummary,
-    banners: BTreeSet<i32>,
 }
 
 #[derive(Clone, Copy)]
@@ -534,7 +516,11 @@ fn ExportButton(
 fn CharactersPage(state: AppState) -> impl IntoView {
     view! {
         {move || {
-            let summaries = character_summaries(&state.stats.get(), &state.character_resource_type.get());
+            let summaries = character_summaries(
+                &state.stats.get(),
+                &state.character_resource_type.get(),
+                ASTRITE_PER_PULL,
+            );
             match state.selected_character_id.get() {
                 Some(resource_id) => summaries
                     .iter()
@@ -863,58 +849,6 @@ fn TableHead(text: String, #[prop(default = false)] compact: bool) -> impl IntoV
     }
 }
 
-fn character_summaries(stats: &[Stats], character_resource_type: &str) -> Vec<CharacterSummary> {
-    if character_resource_type.is_empty() {
-        return Vec::new();
-    }
-
-    let mut totals: BTreeMap<i32, CharacterTotal> = BTreeMap::new();
-    for stat in stats {
-        if !CHARACTER_BANNER_TYPES.contains(&stat.gacha_type) {
-            continue;
-        }
-
-        let mut pity = 0usize;
-        for record in stat.records.iter().rev() {
-            pity += 1;
-            if record.quality_level != 5 {
-                continue;
-            }
-
-            if record.resource_type == character_resource_type {
-                let total = totals.entry(record.resource_id).or_default();
-                total.summary.resource_id = record.resource_id;
-                total.summary.name = record.name.clone();
-                total.summary.quality_level = record.quality_level;
-                total.summary.resource_type = record.resource_type.clone();
-                total.summary.copies += 1;
-                total.summary.spent_astrite += pity * ASTRITE_PER_PULL;
-                total.summary.last_time = record.time.clone();
-                total.banners.insert(stat.gacha_type);
-            }
-            pity = 0;
-        }
-    }
-
-    let mut summaries: Vec<_> = totals
-        .into_values()
-        .map(|mut total| {
-            total.summary.breakthrough = total.summary.copies.saturating_sub(1);
-            total.summary.banner_count = total.banners.len();
-            total.summary
-        })
-        .collect();
-    summaries.sort_by(|left, right| {
-        right
-            .quality_level
-            .cmp(&left.quality_level)
-            .then(right.copies.cmp(&left.copies))
-            .then(right.last_time.cmp(&left.last_time))
-            .then(left.name.cmp(&right.name))
-    });
-    summaries
-}
-
 fn luck_state(score: f64, thresholds: &[LuckScoreThreshold]) -> String {
     thresholds
         .iter()
@@ -1005,61 +939,5 @@ mod tests {
     #[test]
     fn format_number_groups_thousands() {
         assert_eq!(format_number(1_234_567), "1,234,567");
-    }
-
-    #[test]
-    fn character_summaries_count_breakthrough_and_astrite() {
-        let stats = vec![Stats {
-            gacha_type: 1,
-            records: vec![
-                record(100, 5, "Resonator", "Jiyan", "2026-01-04"),
-                record(1, 3, "Weapon", "Sword", "2026-01-03"),
-                record(2, 3, "Weapon", "Sword", "2026-01-02"),
-                record(100, 5, "Resonator", "Jiyan", "2026-01-01"),
-            ],
-            ..Default::default()
-        }];
-
-        let summaries = character_summaries(&stats, "Resonator");
-
-        assert_eq!(summaries.len(), 1);
-        assert_eq!(summaries[0].copies, 2);
-        assert_eq!(summaries[0].breakthrough, 1);
-        assert_eq!(summaries[0].spent_astrite, 640);
-    }
-
-    #[test]
-    fn character_summaries_ignore_weapons_and_weapon_banners() {
-        let stats = vec![
-            Stats {
-                gacha_type: 1,
-                records: vec![record(200, 5, "Weapon", "Sword", "2026-01-01")],
-                ..Default::default()
-            },
-            Stats {
-                gacha_type: 2,
-                records: vec![record(100, 5, "Resonator", "Jiyan", "2026-01-01")],
-                ..Default::default()
-            },
-        ];
-
-        assert!(character_summaries(&stats, "Resonator").is_empty());
-    }
-
-    fn record(
-        resource_id: i32,
-        quality_level: i32,
-        resource_type: &str,
-        name: &str,
-        time: &str,
-    ) -> Record {
-        Record {
-            resource_id,
-            quality_level,
-            resource_type: resource_type.to_string(),
-            name: name.to_string(),
-            time: time.to_string(),
-            ..Default::default()
-        }
     }
 }

@@ -23,6 +23,7 @@
 - 캐릭터 이미지, 속성, 무기 타입 같은 외부 메타데이터 추가
 - 전용 백엔드 API, store JSON 구조, export 포맷 변경
 - 상세 획득 히스토리 테이블 재구현
+- CLI에서 WebUI 수준의 상세 화면 제공
 
 ## Current Evidence
 
@@ -53,6 +54,7 @@ struct CharacterSummary {
     breakthrough: usize,
     spent_astrite: usize,
     banner_count: usize,
+    banners: Vec<String>,
     last_time: String,
 }
 ```
@@ -118,6 +120,7 @@ flowchart LR
 - 캐릭터/무기 구분은 `Record.resource_type`과 game locale의 `character` 값을 비교한다. 한국어는 `공명자`, 영어는 `Resonator`를 사용한다.
 - 돌파 표기는 게임 내 관례처럼 duplicate 수를 기준으로 한다. 구현은 `copies.saturating_sub(1)`이다.
 - 캐릭터 풀과 상세 통계는 5성 캐릭터만 대상으로 한다.
+- CLI는 `db characters <player-id>`로 요약 테이블만 제공하고, 배너별 기록 수는 `db banners <player-id>`로 제공한다.
 
 ## Acceptance Criteria
 

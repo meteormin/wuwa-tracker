@@ -1,8 +1,8 @@
 use serde::Serialize;
 
 pub use wuwa_tracker_types::{
-    ConfigResponse, ExportResponse, FiveStarRecord, LuckScoreThreshold, PlayersResponse, Record,
-    ScanResponse, Stats, StatsResponse,
+    character_summaries, CharacterSummary, ConfigResponse, ExportResponse, FiveStarRecord,
+    LuckScoreThreshold, PlayersResponse, Record, ScanResponse, Stats, StatsResponse,
 };
 
 #[derive(Serialize)]
