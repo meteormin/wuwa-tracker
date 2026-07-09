@@ -550,13 +550,13 @@ fn CharacterList(state: AppState, summaries: Vec<CharacterSummary>) -> impl Into
     }
 
     view! {
-        <section class="space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <section class="space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
                     <h2 class="text-2xl font-extrabold text-slate-100">{state.i18n.text("characters.title")}</h2>
                     <p class="text-xs text-slate-500 mt-1">{state.i18n.text("characters.subtitle")}</p>
                 </div>
-                <span class="text-xs font-semibold text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+                <span class="text-xs font-semibold text-slate-400 bg-slate-900/60 px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap">
                     {state.i18n.format("characters.count", &[("count", summaries.len().to_string())])}
                 </span>
             </div>
