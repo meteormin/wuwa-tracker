@@ -556,7 +556,7 @@ fn CharacterList(state: AppState, summaries: Vec<CharacterSummary>) -> impl Into
                     <h2 class="text-2xl font-extrabold text-slate-100">{state.i18n.text("characters.title")}</h2>
                     <p class="text-xs text-slate-500 mt-1">{state.i18n.text("characters.subtitle")}</p>
                 </div>
-                <span class="text-xs font-semibold text-slate-400 bg-slate-900/60 px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap">
+                <span class="inline-flex h-6 items-center text-xs font-semibold text-slate-400 bg-slate-900/60 px-2.5 rounded-md border border-slate-800 whitespace-nowrap">
                     {state.i18n.format("characters.count", &[("count", summaries.len().to_string())])}
                 </span>
             </div>
