@@ -147,6 +147,7 @@ async fn get_config(State(service): State<Service>) -> Json<ConfigResponse> {
     Json(ConfigResponse {
         success: true,
         luck_score_thresholds: service.config().luck_score_thresholds.clone(),
+        resource_types: service.resource_types(),
     })
 }
 

@@ -1,7 +1,10 @@
 use crate::{
     api,
     i18n::{I18n, Locale},
-    types::{FiveStarRecord, LuckScoreThreshold, Record, Stats, StatsResponse},
+    types::{
+        character_summaries, CharacterSummary, FiveStarRecord, LuckScoreThreshold, Record, Stats,
+        StatsResponse,
+    },
 };
 use leptos::prelude::*;
 use serde_json::Value;
@@ -9,9 +12,19 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{Event, HtmlInputElement};
 
+const ASTRITE_PER_PULL: usize = 160;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Page {
+    Dashboard,
+    Characters,
+}
+
 #[derive(Clone, Copy)]
 struct AppState {
     i18n: I18n,
+    page: RwSignal<Page>,
+    selected_character_id: RwSignal<Option<i32>>,
     scan_path: RwSignal<String>,
     url: RwSignal<String>,
     loading: RwSignal<bool>,
@@ -23,6 +36,7 @@ struct AppState {
     stats: RwSignal<Vec<Stats>>,
     stats_revision: RwSignal<u64>,
     thresholds: RwSignal<Vec<LuckScoreThreshold>>,
+    character_resource_type: RwSignal<String>,
 }
 
 impl AppState {
@@ -33,6 +47,8 @@ impl AppState {
             .unwrap_or_default();
         Self {
             i18n: I18n::new(),
+            page: RwSignal::new(Page::Dashboard),
+            selected_character_id: RwSignal::new(None),
             scan_path: RwSignal::new(scan_path),
             url: RwSignal::new(String::new()),
             loading: RwSignal::new(false),
@@ -44,6 +60,7 @@ impl AppState {
             stats: RwSignal::new(Vec::new()),
             stats_revision: RwSignal::new(0),
             thresholds: RwSignal::new(Vec::new()),
+            character_resource_type: RwSignal::new(String::new()),
         }
     }
 
@@ -71,6 +88,8 @@ impl AppState {
         if let Ok(config) = api::fetch_config().await {
             if config.success {
                 self.thresholds.set(config.luck_score_thresholds);
+                self.character_resource_type
+                    .set(config.resource_types.character);
             }
         }
         self.load_players().await;
@@ -91,6 +110,7 @@ impl AppState {
         self.loading.set(true);
         self.clear_messages();
         self.active_player.set(player_id.clone());
+        self.selected_character_id.set(None);
         match api::fetch_stats(&player_id).await {
             Ok(response) if response.success => self.replace_stats(response.stats),
             Ok(response) => {
@@ -228,6 +248,7 @@ pub fn App() -> impl IntoView {
         <main class="max-w-7xl mx-auto px-6 md:px-12 py-10 md:py-16">
             <Header state />
             <ControlPanel state />
+            <PageTabs state />
             <Show
                 when=move || !state.stats.get().is_empty()
                 fallback=move || view! {
@@ -242,19 +263,47 @@ pub fn App() -> impl IntoView {
                     </Show>
                 }
             >
-                <div class="space-y-16">
-                    <For
-                        each=move || {
-                            let locale = state.i18n.locale();
-                            let revision = state.stats_revision.get();
-                            state.stats.get().into_iter().map(|stat| (locale, revision, stat)).collect::<Vec<_>>()
-                        }
-                        key=|(locale, revision, stat)| (*locale, *revision, stat.gacha_type)
-                        children=move |(_, _, stat)| view! { <GachaReport stat state /> }
-                    />
-                </div>
+                {move || match state.page.get() {
+                    Page::Dashboard => view! {
+                        <div class="space-y-16">
+                            <For
+                                each=move || {
+                                    let locale = state.i18n.locale();
+                                    let revision = state.stats_revision.get();
+                                    state.stats.get().into_iter().map(|stat| (locale, revision, stat)).collect::<Vec<_>>()
+                                }
+                                key=|(locale, revision, stat)| (*locale, *revision, stat.gacha_type)
+                                children=move |(_, _, stat)| view! { <GachaReport stat state /> }
+                            />
+                        </div>
+                    }.into_any(),
+                    Page::Characters => view! { <CharactersPage state /> }.into_any(),
+                }}
             </Show>
         </main>
+    }
+}
+
+#[component]
+fn PageTabs(state: AppState) -> impl IntoView {
+    view! {
+        <nav class="flex gap-2 mb-10">
+            <button
+                class=move || page_tab_class(state.page.get() == Page::Dashboard)
+                on:click=move |_| state.page.set(Page::Dashboard)
+            >
+                {move || state.i18n.text("nav.dashboard")}
+            </button>
+            <button
+                class=move || page_tab_class(state.page.get() == Page::Characters)
+                on:click=move |_| {
+                    state.page.set(Page::Characters);
+                    state.selected_character_id.set(None);
+                }
+            >
+                {move || state.i18n.text("nav.characters")}
+            </button>
+        </nav>
     }
 }
 
@@ -460,6 +509,129 @@ fn ExportButton(
         <button class=class on:click=move |_| spawn_local(async move { state.export(format).await })>
             {label}
         </button>
+    }
+}
+
+#[component]
+fn CharactersPage(state: AppState) -> impl IntoView {
+    view! {
+        {move || {
+            let summaries = character_summaries(
+                &state.stats.get(),
+                &state.character_resource_type.get(),
+                ASTRITE_PER_PULL,
+            );
+            match state.selected_character_id.get() {
+                Some(resource_id) => summaries
+                    .iter()
+                    .find(|summary| summary.resource_id == resource_id)
+                    .cloned()
+                    .map(|summary| view! { <CharacterDetail state summary /> }.into_any())
+                    .unwrap_or_else(|| view! { <CharacterList state summaries /> }.into_any()),
+                None => view! { <CharacterList state summaries /> }.into_any(),
+            }
+        }}
+    }
+}
+
+#[component]
+fn CharacterList(state: AppState, summaries: Vec<CharacterSummary>) -> impl IntoView {
+    if summaries.is_empty() {
+        return view! {
+            <section class="glass-card p-12 text-center text-slate-500 border-dashed">
+                <span class="text-4xl block mb-3">"◇"</span>
+                <p class="text-base font-bold text-slate-300 mb-1">
+                    {state.i18n.text("characters.empty")}
+                </p>
+                <p class="text-xs">{state.i18n.text("characters.empty_desc")}</p>
+            </section>
+        }
+        .into_any();
+    }
+
+    view! {
+        <section class="space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-100">{state.i18n.text("characters.title")}</h2>
+                    <p class="text-xs text-slate-500 mt-1">{state.i18n.text("characters.subtitle")}</p>
+                </div>
+                <span class="text-xs font-semibold text-slate-400 bg-slate-900/60 px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap">
+                    {state.i18n.format("characters.count", &[("count", summaries.len().to_string())])}
+                </span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <For
+                    each=move || summaries.clone()
+                    key=|summary| summary.resource_id
+                    children=move |summary| {
+                        let resource_id = summary.resource_id;
+                        view! {
+                            <button
+                                class="text-left bg-slate-950/45 hover:bg-slate-900/70 border border-slate-800/80 rounded-xl p-5 transition-colors active:scale-[0.99]"
+                                on:click=move |_| state.selected_character_id.set(Some(resource_id))
+                            >
+                                <div class="flex items-start justify-between gap-3 mb-4">
+                                    <div>
+                                        <p class="text-lg font-extrabold text-amber-400">{summary.name}</p>
+                                        <p class="text-xs text-slate-500 mt-1">{summary.resource_type}</p>
+                                    </div>
+                                    <span class="px-2 py-0.5 text-xs rounded border bg-amber-500/10 text-amber-400 border-amber-500/20">
+                                        {format!("{}★", summary.quality_level)}
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <CharacterMetric label=state.i18n.text("characters.breakthrough") value=state.i18n.format("characters.breakthrough_value", &[("count", summary.breakthrough.to_string())]) />
+                                    <CharacterMetric label=state.i18n.text("characters.copies") value=summary.copies.to_string() />
+                                    <CharacterMetric label=state.i18n.text("characters.spent_astrite") value=format_number(summary.spent_astrite) />
+                                    <CharacterMetric label=state.i18n.text("characters.banner_count") value=summary.banner_count.to_string() />
+                                </div>
+                            </button>
+                        }
+                    }
+                />
+            </div>
+        </section>
+    }
+    .into_any()
+}
+
+#[component]
+fn CharacterDetail(state: AppState, summary: CharacterSummary) -> impl IntoView {
+    view! {
+        <section class="glass-card p-8 md:p-10">
+            <button
+                class="mb-6 text-xs px-3 py-1.5 font-bold rounded-lg border bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700"
+                on:click=move |_| state.selected_character_id.set(None)
+            >
+                {state.i18n.text("characters.back")}
+            </button>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-slate-800/60 pb-5">
+                <div>
+                    <h2 class="text-3xl font-extrabold text-amber-400">{summary.name.clone()}</h2>
+                    <p class="text-xs text-slate-500 mt-1">{summary.resource_type.clone()}</p>
+                </div>
+                <span class="px-3 py-1 text-sm rounded border bg-amber-500/10 text-amber-400 border-amber-500/20">
+                    {format!("{}★", summary.quality_level)}
+                </span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Metric label=state.i18n.text("characters.breakthrough") value=state.i18n.format("characters.breakthrough_value", &[("count", summary.breakthrough.to_string())]) class="text-amber-400" />
+                <Metric label=state.i18n.text("characters.copies") value=summary.copies.to_string() class="text-slate-100" />
+                <Metric label=state.i18n.text("characters.spent_astrite") value=format_number(summary.spent_astrite) class="text-sky-300" />
+                <Metric label=state.i18n.text("characters.banner_count") value=summary.banner_count.to_string() class="text-emerald-400" />
+            </div>
+        </section>
+    }
+}
+
+#[component]
+fn CharacterMetric(label: String, value: String) -> impl IntoView {
+    view! {
+        <div>
+            <p class="text-[11px] text-slate-500 mb-1">{label}</p>
+            <p class="text-sm font-extrabold text-slate-200">{value}</p>
+        </div>
     }
 }
 
@@ -701,6 +873,14 @@ fn luck_panel_class(state: &str) -> &'static str {
         "good" => "bg-emerald-500/5 border-emerald-500/20",
         "best" => "bg-emerald-500/10 border-emerald-500/30",
         _ => "bg-slate-900/40 border-slate-800/50",
+    }
+}
+
+fn page_tab_class(active: bool) -> &'static str {
+    if active {
+        "px-4 py-2 text-sm font-bold rounded-lg border bg-blue-600/20 text-blue-400 border-blue-500"
+    } else {
+        "px-4 py-2 text-sm font-bold rounded-lg border bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700"
     }
 }
 

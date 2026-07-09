@@ -13,9 +13,11 @@ use unicode_width::UnicodeWidthStr;
 use wuwa_tracker_core::reporter::ReportFormat;
 use wuwa_tracker_types::{FetchResult, StatsResponse};
 
-const DB_RECORDS_ID_WIDTH: usize = 4;
-const DB_RECORDS_KEY_WIDTH: usize = 26;
-const DB_RECORDS_NAME_WIDTH: usize = 28;
+const DB_BANNERS_ID_WIDTH: usize = 4;
+const DB_BANNERS_KEY_WIDTH: usize = 26;
+const DB_BANNERS_NAME_WIDTH: usize = 28;
+const DB_CHARACTERS_ID_WIDTH: usize = 6;
+const DB_CHARACTERS_NAME_WIDTH: usize = 24;
 
 #[derive(Debug, Clone, Args)]
 pub struct ScanArgs {
@@ -141,7 +143,12 @@ pub enum DbCommand {
         player_id: Option<String>,
     },
     #[command(about = "Show per-banner record counts for a player")]
-    Records {
+    Banners {
+        #[arg(help = "Player ID to inspect")]
+        player_id: String,
+    },
+    #[command(about = "Show 5-star character summaries for a player")]
+    Characters {
         #[arg(help = "Player ID to inspect")]
         player_id: String,
     },
@@ -417,15 +424,38 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
                 println!("{player}");
             }
         }
-        DbCommand::Records { player_id } => {
+        DbCommand::Banners { player_id } => {
             let counts = service.banner_record_counts(player_id)?;
-            print_db_records_row("ID", "Key", "Name", "Records");
+            print_db_banners_row("ID", "Key", "Name", "Count");
             for count in counts {
-                print_db_records_row(
+                print_db_banners_row(
                     &count.id.to_string(),
                     &count.key,
                     &count.name,
                     &count.records.to_string(),
+                );
+            }
+        }
+        DbCommand::Characters { player_id } => {
+            let summaries = service.character_summaries(player_id)?;
+            print_db_characters_row(
+                "ID",
+                "Name",
+                "Count",
+                "Breakthrough",
+                "Astrite",
+                "Last",
+                "Banners",
+            );
+            for summary in summaries {
+                print_db_characters_row(
+                    &summary.resource_id.to_string(),
+                    &summary.name,
+                    &summary.copies.to_string(),
+                    &summary.breakthrough.to_string(),
+                    &format_number(summary.spent_astrite),
+                    &summary.last_time,
+                    &summary.banners.join(", "),
                 );
             }
         }
@@ -465,13 +495,34 @@ fn stats_summary(stats: &StatsResponse) -> Result<serde_json::Value> {
     Ok(value)
 }
 
-fn print_db_records_row(id: &str, key: &str, name: &str, records: &str) {
+fn print_db_banners_row(id: &str, key: &str, name: &str, count: &str) {
     println!(
         "{} {} {} {}",
-        pad_display(id, DB_RECORDS_ID_WIDTH),
-        pad_display(key, DB_RECORDS_KEY_WIDTH),
-        pad_display(name, DB_RECORDS_NAME_WIDTH),
-        records
+        pad_display(id, DB_BANNERS_ID_WIDTH),
+        pad_display(key, DB_BANNERS_KEY_WIDTH),
+        pad_display(name, DB_BANNERS_NAME_WIDTH),
+        count
+    );
+}
+
+fn print_db_characters_row(
+    id: &str,
+    name: &str,
+    copies: &str,
+    breakthrough: &str,
+    astrite: &str,
+    last: &str,
+    banners: &str,
+) {
+    println!(
+        "{} {} {} {} {} {} {}",
+        pad_display(id, DB_CHARACTERS_ID_WIDTH),
+        pad_display(name, DB_CHARACTERS_NAME_WIDTH),
+        pad_display(copies, 6),
+        pad_display(breakthrough, 12),
+        pad_display(astrite, 10),
+        pad_display(last, 20),
+        banners
     );
 }
 
@@ -537,6 +588,18 @@ fn trim_float(value: f64, suffix: &str) -> String {
         "{} {suffix}",
         value.trim_end_matches('0').trim_end_matches('.')
     )
+}
+
+fn format_number(value: usize) -> String {
+    let digits = value.to_string();
+    let mut formatted = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, character) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            formatted.push(',');
+        }
+        formatted.push(character);
+    }
+    formatted
 }
 
 fn copy_to_clipboard(text: &str) -> Result<()> {

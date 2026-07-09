@@ -1,0 +1,41 @@
+{
+  "conveneDetails": "Convene Details",
+  "noDetailsRecord": "No Records",
+  "queryingDetails": "Loading records, please wait...",
+  "conveneDetailsHeader": "Wuthering Waves Convene Details",
+  "empty": "No Records",
+  "title": "Convene Records",
+  "selectTitle": "Convene Type",
+  "anniversaryCharacter1": "Anniversary Resonator Convene Phase I",
+  "anniversaryCharacter2": "Anniversary Resonator Convene Phase II",
+  "anniversaryWeapon1": "Anniversary Weapon Convene Phase I",
+  "anniversaryWeapon2": "Anniversary Weapon Convene Phase II",
+  "tip": "There is a 30-minute delay for record updates. If no data is shown on this page, please try again later. Convene records are valid for six months and displayed in Beijing Time (UTC+8).",
+  "tipGlobal": "There is a 30-minute delay for records to be updated. Please try again later if records are not up-to-date on this page.\nConvene records are valid for six months. Displayed Convene times vary by server region: America (UTC-5), Europe (UTC+1), and Asia, HMT, SEA (UTC+8).",
+  "character": "Resonator",
+  "weapon": "Weapon",
+  "item": "Item",
+  "timeout": "No Convene Records for this type, please try again later.",
+  "loading": "Loading records, please wait...",
+  "header": "Wuthering Waves Convene Records",
+  "selectList": {
+    "characterEvent": "Featured Resonator Convene",
+    "weaponEvent": "Featured Weapon Convene",
+    "characterPermanent": "Standard Resonator Convene",
+    "weaponPermanent": "Standard Weapon Convene",
+    "beginner": "Beginner Convene",
+    "beginnerSelect": "Beginner's Choice Convene",
+    "characterNovice": "New Voyage Resonator Convene",
+    "weaponNovice": "New Voyage Weapon Convene",
+    "characterCollaboration": "Collab Resonator Convene",
+    "weaponCollaboration": "Collab Weapon Convene",
+    "characterMemory": "Reverb Resonator Convene",
+    "weaponMemory": "Reverb Weapon Convene"
+  },
+  "headerInfo": {
+    "type": "Type",
+    "name": "Name",
+    "count": "Amount",
+    "time": "Convene Time"
+  }
+}
