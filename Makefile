@@ -1,6 +1,7 @@
 .PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve version release-dry-run bump-patch bump-minor bump-major release-tag clean distclean
 
 APP := wuwa-tracker
+CLI_BIN := wuwa-tracker-cli
 WEBUI_DIR := crates/wuwa-tracker-webui
 HOST ?= 127.0.0.1
 PORT ?= 3000
@@ -28,7 +29,7 @@ help:
 	@echo "  make check           cargo check + WebUI type check"
 	@echo "  make clippy          cargo clippy"
 	@echo "  make test            cargo test"
-	@echo "  make ci              fmt-check + check + clippy + test"
+	@echo "  make ci              fmt-check + WebUI + CLI-only check + clippy + test"
 	@echo ""
 	@echo "Build:"
 	@echo "  make build           Build WebUI and debug Rust workspace"
@@ -79,6 +80,7 @@ test: webui-build
 	$(CARGO) test --workspace
 
 ci: fmt-check webui-check webui-build
+	$(CARGO) check -p $(APP) --no-default-features --bin $(CLI_BIN)
 	$(CARGO) check --workspace
 	$(CARGO) clippy --workspace --all-targets -- -D warnings
 	$(CARGO) test --workspace
@@ -87,13 +89,13 @@ build: webui-build
 	$(CARGO) build --workspace
 
 release: webui-build
-	$(CARGO) build --release -p $(APP)
+	$(CARGO) build --release -p $(APP) --bins
 
 run: webui-build
 	$(CARGO) run -p $(APP)
 
 serve:
-	$(CARGO) run -p $(APP) -- serve --host $(HOST) --port $(PORT) $(SERVE_WEBUI)
+	$(CARGO) run -p $(APP) --bin $(CLI_BIN) -- serve --host $(HOST) --port $(PORT) $(SERVE_WEBUI)
 
 version:
 	@$(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//'
