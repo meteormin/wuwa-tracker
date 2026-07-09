@@ -11,6 +11,7 @@ pub fn get_config(service: State<'_, Service>) -> ConfigResponse {
     ConfigResponse {
         success: true,
         luck_score_thresholds: service.config().luck_score_thresholds.clone(),
+        resource_types: service.resource_types(),
     }
 }
 

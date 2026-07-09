@@ -30,6 +30,12 @@ pub struct GachaResponse {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocaleData {
+    #[serde(default)]
+    pub character: String,
+    #[serde(default)]
+    pub weapon: String,
+    #[serde(default)]
+    pub item: String,
     pub select_list: BTreeMap<String, String>,
 }
 
@@ -127,6 +133,19 @@ pub struct ConfigResponse {
     pub success: bool,
     #[serde(default)]
     pub luck_score_thresholds: Vec<LuckScoreThreshold>,
+    #[serde(default)]
+    pub resource_types: ResourceTypes,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceTypes {
+    #[serde(default)]
+    pub character: String,
+    #[serde(default)]
+    pub weapon: String,
+    #[serde(default)]
+    pub item: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
