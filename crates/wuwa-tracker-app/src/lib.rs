@@ -8,7 +8,7 @@ pub mod settings;
 pub mod webui_assets;
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use service::Service;
 use std::{env, path::PathBuf};
 use wuwa_tracker_core::Config;
@@ -52,24 +52,16 @@ enum Command {
     Db(cli::DbArgs),
 }
 
-pub async fn run_with_gui(gui: fn(Service) -> Result<()>) -> Result<()> {
-    run(Some(gui)).await
-}
-
-pub async fn run_cli_only() -> Result<()> {
-    run(None).await
-}
-
-async fn run(gui: Option<fn(Service) -> Result<()>>) -> Result<()> {
+pub async fn run_cli() -> Result<()> {
     let cli = Cli::parse();
     if matches!(&cli.command, Some(Command::Version)) {
         println!("{}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
 
-    let config = build_config(&cli);
+    let cfg = build_config(cli.db_path.clone(), cli.log_path.clone());
     if let Some(Command::Config(args)) = &cli.command {
-        return cli::config(args.clone(), &config);
+        return cli::config(args.clone(), &cfg);
     }
 
     let console_level = match &cli.command {
@@ -77,8 +69,8 @@ async fn run(gui: Option<fn(Service) -> Result<()>>) -> Result<()> {
         Some(_) => Some("error"),
         None => None,
     };
-    logging::init(&config.log_path, console_level)?;
-    let service = Service::new(config)?;
+    logging::init(&cfg.log_path, console_level)?;
+    let service = Service::new(cfg)?;
 
     match cli.command {
         Some(Command::Serve(args)) => http::serve(args, service).await,
@@ -91,23 +83,28 @@ async fn run(gui: Option<fn(Service) -> Result<()>>) -> Result<()> {
         Some(Command::Backup(args)) => cli::backup(args, service),
         Some(Command::Merge(args)) => cli::merge(args, service),
         Some(Command::Db(args)) => cli::db(args, service),
-        None => match gui {
-            Some(gui) => gui(service),
-            None => {
-                Cli::command().name("wuwa-tracker-cli").print_help()?;
-                println!();
-                Ok(())
-            }
-        },
+        None => {
+            <Cli as clap::CommandFactory>::command()
+                .name("wuwa-tracker-cli")
+                .print_help()?;
+            println!();
+            Ok(())
+        }
     }
 }
 
-fn build_config(cli: &Cli) -> Config {
+pub fn run_gui(gui: fn(Service) -> Result<()>) -> Result<()> {
+    let cfg = build_config(None, None);
+    logging::init(&cfg.log_path, None)?;
+    gui(Service::new(cfg)?)
+}
+
+pub fn build_config(db_path: Option<PathBuf>, log_path: Option<PathBuf>) -> Config {
     let mut config = Config::default();
-    if let Some(db_path) = cli.db_path.clone().or_else(|| get_env(ENV_DB_PATH)) {
+    if let Some(db_path) = db_path.or_else(|| get_env(ENV_DB_PATH)) {
         config.db_path = db_path;
     }
-    if let Some(log_path) = cli.log_path.clone().or_else(|| get_env(ENV_LOG_PATH)) {
+    if let Some(log_path) = log_path.or_else(|| get_env(ENV_LOG_PATH)) {
         config.log_path = log_path;
     }
     config
