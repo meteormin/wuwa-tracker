@@ -2,6 +2,7 @@ use std::path::Path;
 
 fn main() {
     embed_webui_assets();
+    #[cfg(feature = "gui")]
     tauri_build::build();
 }
 
