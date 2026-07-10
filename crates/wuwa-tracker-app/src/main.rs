@@ -3,7 +3,7 @@ use wuwa_tracker::service::Service;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    wuwa_tracker::run_with_gui(run_gui).await
+    wuwa_tracker::run_gui(run_gui)
 }
 
 fn run_gui(service: Service) -> Result<()> {

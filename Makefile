@@ -32,8 +32,8 @@ help:
 	@echo "  make ci              fmt-check + WebUI + CLI-only check + clippy + test"
 	@echo ""
 	@echo "Build:"
-	@echo "  make build           Build WebUI and debug Rust workspace"
-	@echo "  make release         Build WebUI and release Rust binary"
+	@echo "  make build           Build WebUI and debug Rust binaries"
+	@echo "  make release         Build WebUI and release Rust binaries"
 	@echo ""
 	@echo "Versioning:"
 	@echo "  make version         Print Cargo package version"
@@ -87,15 +87,17 @@ ci: fmt-check webui-check webui-build
 
 build: webui-build
 	$(CARGO) build --workspace
+	$(CARGO) build -p $(APP) --no-default-features --bin $(CLI_BIN)
 
 release: webui-build
-	$(CARGO) build --release -p $(APP) --bins
+	$(CARGO) build --release -p $(APP) --bin $(APP)
+	$(CARGO) build --release -p $(APP) --no-default-features --bin $(CLI_BIN)
 
 run: webui-build
 	$(CARGO) run -p $(APP)
 
 serve:
-	$(CARGO) run -p $(APP) --bin $(CLI_BIN) -- serve --host $(HOST) --port $(PORT) $(SERVE_WEBUI)
+	$(CARGO) run -p $(APP) --no-default-features --bin $(CLI_BIN) -- serve --host $(HOST) --port $(PORT) $(SERVE_WEBUI)
 
 version:
 	@$(CARGO) pkgid -p $(APP) | sed 's/.*#//; s/.*@//'
