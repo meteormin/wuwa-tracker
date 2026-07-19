@@ -100,7 +100,6 @@ pub struct CharacterSummary {
     pub quality_level: i32,
     pub resource_type: String,
     pub copies: usize,
-    pub breakthrough: usize,
     pub spent_astrite: usize,
     pub banner_count: usize,
     pub banners: Vec<String>,
@@ -160,7 +159,6 @@ pub fn character_summaries(
     let mut summaries: Vec<_> = totals
         .into_values()
         .map(|mut total| {
-            total.summary.breakthrough = total.summary.copies.saturating_sub(1);
             total.summary.banner_count = total.banners.len();
             total.summary.banners = total.banners.into_values().collect();
             total.summary
@@ -264,7 +262,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn character_summaries_count_breakthrough_and_astrite() {
+    fn character_summaries_count_copies_and_astrite() {
         let stats = vec![Stats {
             gacha_type: 1,
             gacha_name: "Featured Resonator Convene".to_string(),
@@ -281,7 +279,6 @@ mod tests {
 
         assert_eq!(summaries.len(), 1);
         assert_eq!(summaries[0].copies, 2);
-        assert_eq!(summaries[0].breakthrough, 1);
         assert_eq!(summaries[0].spent_astrite, 640);
         assert_eq!(
             summaries[0].banners,
