@@ -13,7 +13,7 @@
 ## Goals
 
 - 뽑기 히스토리에 등장한 캐릭터 목록을 별도 화면에서 제공한다.
-- 캐릭터를 선택하면 해당 캐릭터의 획득 횟수, 돌파 표기, 총 소모 별의소리를 보여준다.
+- 캐릭터를 선택하면 해당 캐릭터의 획득 횟수와 총 소모 별의소리를 보여준다.
 - 기존 대시보드와 섞지 않고 WebUI 안에 새 페이지 흐름을 추가한다.
 - 현재 player 선택, scan, track, upload로 갱신되는 `StatsResponse`를 그대로 사용한다.
 
@@ -37,7 +37,6 @@
 ## Terms
 
 - 캐릭터: `Record.resource_type`이 현재 game locale의 `character` 값과 같은 기록. 한국어는 `공명자`, 영어는 `Resonator`가 된다.
-- 돌파: 게임 내 관례를 따른 duplicate 수. 같은 캐릭터를 3번 뽑았으면 `2돌파`로 표시한다.
 - 총 소모 별의소리: 해당 캐릭터를 얻기까지 누적된 뽑기 횟수에 160을 곱한 값.
 
 ## Data Model
@@ -51,7 +50,6 @@ struct CharacterSummary {
     quality_level: i32,
     resource_type: String,
     copies: usize,
-    breakthrough: usize,
     spent_astrite: usize,
     banner_count: usize,
     banners: Vec<String>,
@@ -69,7 +67,6 @@ struct CharacterSummary {
 4. 배너마다 pity counter를 0부터 증가시킨다.
 5. `Record.quality_level == 5`이고 `Record.resource_type`이 현재 game locale의 `character` 값과 같은 기록을 만나면 해당 캐릭터의 `copies`를 1 증가시키고, 이번 획득 비용으로 `pity * 160`을 더한다.
 6. 5성 기록을 만난 뒤 pity counter를 0으로 초기화한다.
-7. `breakthrough`는 `copies.saturating_sub(1)`로 계산한다.
 
 이 방식은 기존 5성 히스토리 계산과 같은 관점이다. 저장된 기록 이전에 이미 pity가 쌓여 있던 경우 첫 획득 비용은 저장된 히스토리 기준으로만 계산된다.
 
@@ -94,13 +91,13 @@ flowchart LR
 
 - 뽑기 히스토리 기준 5성 캐릭터 목록을 보여준다.
 - 기본 정렬은 5성 캐릭터, 획득 횟수 많은 순, 최근 획득 순으로 한다.
-- 각 행 또는 카드에는 이름, rarity, 돌파 수, 총 소모 별의소리를 표시한다.
+- 각 행 또는 카드에는 이름, rarity, 획득 횟수, 총 소모 별의소리를 표시한다.
 - 검색/필터는 1차 구현에서 제외한다.
 
 ### Character Detail
 
 - 상단에 캐릭터 이름과 rarity를 표시한다.
-- 핵심 지표는 `돌파`, `총 소모 별의소리`, `획득 횟수`, `등장 배너 수`로 제한한다.
+- 핵심 지표는 `총 소모 별의소리`, `획득 횟수`, `등장 배너 수`로 제한한다.
 - 상세 획득 기록은 기존 대시보드가 이미 제공하므로 1차 구현에서는 생략한다.
 - 목록으로 돌아가는 버튼을 제공한다.
 

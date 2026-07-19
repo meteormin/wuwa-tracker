@@ -69,8 +69,6 @@
     "characters.count": "{count} total",
     "characters.empty": "No 5-star character records found.",
     "characters.empty_desc": "Track Resonator banner records to show character stats.",
-    "characters.breakthrough": "Breakthrough",
-    "characters.breakthrough_value": "S{count}",
     "characters.copies": "Copies",
     "characters.spent_astrite": "Astrite Spent",
     "characters.banner_count": "Banner Count",

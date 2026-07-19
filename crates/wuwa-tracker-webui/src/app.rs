@@ -581,7 +581,6 @@ fn CharacterList(state: AppState, summaries: Vec<CharacterSummary>) -> impl Into
                                     </span>
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
-                                    <CharacterMetric label=state.i18n.text("characters.breakthrough") value=state.i18n.format("characters.breakthrough_value", &[("count", summary.breakthrough.to_string())]) />
                                     <CharacterMetric label=state.i18n.text("characters.copies") value=summary.copies.to_string() />
                                     <CharacterMetric label=state.i18n.text("characters.spent_astrite") value=format_number(summary.spent_astrite) />
                                     <CharacterMetric label=state.i18n.text("characters.banner_count") value=summary.banner_count.to_string() />
@@ -615,8 +614,7 @@ fn CharacterDetail(state: AppState, summary: CharacterSummary) -> impl IntoView 
                     {format!("{}★", summary.quality_level)}
                 </span>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Metric label=state.i18n.text("characters.breakthrough") value=state.i18n.format("characters.breakthrough_value", &[("count", summary.breakthrough.to_string())]) class="text-amber-400" />
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Metric label=state.i18n.text("characters.copies") value=summary.copies.to_string() class="text-slate-100" />
                 <Metric label=state.i18n.text("characters.spent_astrite") value=format_number(summary.spent_astrite) class="text-sky-300" />
                 <Metric label=state.i18n.text("characters.banner_count") value=summary.banner_count.to_string() class="text-emerald-400" />

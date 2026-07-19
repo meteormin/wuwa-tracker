@@ -438,21 +438,12 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
         }
         DbCommand::Characters { player_id } => {
             let summaries = service.character_summaries(player_id)?;
-            print_db_characters_row(
-                "ID",
-                "Name",
-                "Count",
-                "Breakthrough",
-                "Astrite",
-                "Last",
-                "Banners",
-            );
+            print_db_characters_row("ID", "Name", "Count", "Astrite", "Last", "Banners");
             for summary in summaries {
                 print_db_characters_row(
                     &summary.resource_id.to_string(),
                     &summary.name,
                     &summary.copies.to_string(),
-                    &summary.breakthrough.to_string(),
                     &format_number(summary.spent_astrite),
                     &summary.last_time,
                     &summary.banners.join(", "),
@@ -509,17 +500,15 @@ fn print_db_characters_row(
     id: &str,
     name: &str,
     copies: &str,
-    breakthrough: &str,
     astrite: &str,
     last: &str,
     banners: &str,
 ) {
     println!(
-        "{} {} {} {} {} {} {}",
+        "{} {} {} {} {} {}",
         pad_display(id, DB_CHARACTERS_ID_WIDTH),
         pad_display(name, DB_CHARACTERS_NAME_WIDTH),
         pad_display(copies, 6),
-        pad_display(breakthrough, 12),
         pad_display(astrite, 10),
         pad_display(last, 20),
         banners
