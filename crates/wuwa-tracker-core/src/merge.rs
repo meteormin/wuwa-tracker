@@ -1,6 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use wuwa_tracker_types::Record;
 
+/// 최신순으로 정렬된 기존 기록과 새 기록을 중복 없이 병합합니다.
+///
+/// API가 반환하는 연속 구간은 `(resource_id, time)`이 일치하는 경계를 기준으로 이어 붙입니다.
+/// 경계를 찾을 수 없으면 같은 시각과 자원의 최대 등장 횟수를 보존하여 양쪽 기록의 합집합을
+/// 구성합니다.
 pub fn merge_records(db_records: &[Record], new_records: &[Record]) -> Vec<Record> {
     if db_records.is_empty() {
         return new_records.to_vec();
@@ -114,6 +119,7 @@ fn union_merge(db_records: &[Record], new_records: &[Record]) -> Vec<Record> {
             .collect();
         let mut merged_items = Vec::new();
         for resource_id in resource_ids {
+            // 초 단위 시각만으로 개별 뽑기를 식별할 수 없어 양쪽의 최대 등장 횟수를 보존합니다.
             let count = db_freq
                 .get(&resource_id)
                 .copied()

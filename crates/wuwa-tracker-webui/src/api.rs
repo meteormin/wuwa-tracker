@@ -1,3 +1,5 @@
+//! 실행 환경에 따라 Tauri IPC 또는 HTTP API를 선택하는 transport 계층입니다.
+
 use crate::types::*;
 use gloo_net::http::Request;
 use js_sys::{Array, Reflect, Uint8Array};
@@ -154,6 +156,7 @@ fn is_tauri() -> bool {
 }
 
 fn api_url(path: &str) -> String {
+    // Trunk 개발 서버에서는 정적 파일과 API가 서로 다른 origin에서 실행됩니다.
     if is_trunk_dev_server() {
         format!("{DEV_API_HOST}{path}")
     } else {

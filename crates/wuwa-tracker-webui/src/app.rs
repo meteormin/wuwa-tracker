@@ -34,6 +34,7 @@ struct AppState {
     active_player: RwSignal<String>,
     players: RwSignal<Vec<String>>,
     stats: RwSignal<Vec<Stats>>,
+    // 같은 배너의 새 데이터도 `<For>` child를 다시 생성하도록 명시적인 revision을 key에 포함합니다.
     stats_revision: RwSignal<u64>,
     thresholds: RwSignal<Vec<LuckScoreThreshold>>,
     character_resource_type: RwSignal<String>,
@@ -848,6 +849,7 @@ fn TableHead(text: String, #[prop(default = false)] compact: bool) -> impl IntoV
 }
 
 fn luck_state(score: f64, thresholds: &[LuckScoreThreshold]) -> String {
+    // 구간은 min_score 오름차순이라는 config 계약을 사용해 가장 높은 일치 항목을 선택합니다.
     thresholds
         .iter()
         .rfind(|threshold| score >= threshold.min_score)

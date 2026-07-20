@@ -4,6 +4,7 @@ use crate::{config::Config, error::AppError, translations};
 use wuwa_tracker_types::{ReportData, Stats};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+/// 생성 가능한 리포트 직렬화 형식입니다.
 pub enum ReportFormat {
     Html,
     Json,
@@ -41,6 +42,11 @@ impl std::str::FromStr for ReportFormat {
     }
 }
 
+/// 통계 데이터를 요청한 형식의 바이트로 직렬화합니다.
+///
+/// # Errors
+///
+/// JSON 직렬화, HTML 템플릿 렌더링 또는 번역 로드에 실패하면 [`AppError`]를 반환합니다.
 pub fn export(
     config: &Config,
     data: &ReportData,

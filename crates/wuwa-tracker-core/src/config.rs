@@ -4,17 +4,24 @@ use wuwa_tracker_types::{GachaType, LuckScoreThreshold};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+/// 애플리케이션 계층과 core 기능이 공유하는 런타임 설정입니다.
 pub struct Config {
     pub resources_url: String,
     pub tracking_url: String,
+    /// 상시 캐릭터 목록입니다. 픽업 배너의 빗나감 여부를 판별할 때 사용합니다.
     pub standard_five_star_resources: Vec<i32>,
+    /// API 조회와 통계 계산에 사용할 배너 정의입니다.
     pub gacha_types: Vec<GachaType>,
+    /// 낮은 점수부터 오름차순으로 적용되는 운 점수 구간입니다.
     pub luck_score_thresholds: Vec<LuckScoreThreshold>,
+    /// 뽑기 1회에 필요한 별의 소리입니다.
     pub astrite_per_pull: usize,
+    /// 게임 루트를 기준으로 탐색할 로그 파일의 상대 경로입니다.
     pub scan_log_paths: Vec<PathBuf>,
     pub db_path: PathBuf,
     pub log_path: PathBuf,
     pub settings_path: PathBuf,
+    /// 자동 스캔 주기이며 단위는 초입니다.
     pub autorun_interval_secs: u64,
     pub language: String,
 }
@@ -80,8 +87,8 @@ fn threshold(min_score: f64, state: &str) -> LuckScoreThreshold {
     }
 }
 
-// 기본 베이스가 되는 앱 폴더 경로 구하기 (~/.wuwa-tracker)
 fn default_app_dir() -> PathBuf {
+    // 홈 디렉터리를 제공하지 않는 실행 환경에서도 상대 경로로 동작할 수 있어야 합니다.
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".wuwa-tracker")

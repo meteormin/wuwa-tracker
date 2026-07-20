@@ -1,3 +1,5 @@
+//! CLI, Tauri와 HTTP 진입점을 공통 애플리케이션 서비스에 연결합니다.
+
 #[cfg(feature = "gui")]
 pub mod api;
 pub mod cli;
@@ -99,6 +101,9 @@ pub fn run_gui(gui: fn(Service) -> Result<()>) -> Result<()> {
     gui(Service::new(cfg)?)
 }
 
+/// CLI 설정과 환경변수 override를 반영한 런타임 설정을 생성합니다.
+///
+/// 함수 인자가 환경변수보다 우선하며 빈 환경변수는 설정되지 않은 값으로 처리합니다.
 pub fn build_config(db_path: Option<PathBuf>, log_path: Option<PathBuf>) -> Config {
     let mut config = Config::default();
     if let Some(db_path) = db_path.or_else(|| get_env(ENV_DB_PATH)) {
@@ -110,7 +115,6 @@ pub fn build_config(db_path: Option<PathBuf>, log_path: Option<PathBuf>) -> Conf
     config
 }
 
-// get_env를 Option의 메서드 체이닝으로 단순화
 fn get_env(key: &str) -> Option<PathBuf> {
     env::var(key)
         .ok()
