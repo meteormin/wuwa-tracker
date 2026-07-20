@@ -4,7 +4,7 @@ use std::{
     path::Path,
     sync::{Arc, RwLock},
 };
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 use wuwa_tracker_core::{
     config::Config,
     error::AppError,
@@ -76,9 +76,7 @@ impl Service {
     }
 
     pub fn list_players(&self) -> Vec<String> {
-        let players = self.store.list_players();
-        info!(event = "players_listed", players = players.len());
-        players
+        self.store.list_players()
     }
 
     pub fn store_stats(&self) -> Result<StoreStats, AppError> {
@@ -142,12 +140,27 @@ impl Service {
         &self,
         player_id: impl AsRef<str>,
     ) -> Result<Vec<CharacterSummary>, AppError> {
-        let stats = self.get_stats(player_id)?;
-        Ok(character_summaries(
-            &stats.stats,
-            &self.resource_types().character,
-            self.config.astrite_per_pull,
-        ))
+        let player_id = player_id.as_ref();
+        let result = self.get_stats_inner(player_id).map(|stats| {
+            character_summaries(
+                &stats.stats,
+                &self.resource_types().character,
+                self.config.astrite_per_pull,
+            )
+        });
+        match &result {
+            Ok(summaries) => info!(
+                event = "character_summaries_loaded",
+                player_id = %player_id,
+                characters = summaries.len(),
+            ),
+            Err(error) => error!(
+                event = "character_summaries_failed",
+                player_id = %player_id,
+                error = %error,
+            ),
+        }
+        result
     }
 
     pub fn scan(&self, path: impl AsRef<Path>) -> Result<ScanResponse, AppError> {
@@ -183,19 +196,20 @@ impl Service {
         } else {
             lang.trim()
         };
-        let locale = self
-            .tracker
-            .fetch_gacha_locale(lang)
-            .await
-            .or_else(|_| tracker::load_local_gacha_locale(lang))
-            .or_else(|_| tracker::load_local_gacha_locale("ko"));
+        let locale = match self.tracker.fetch_gacha_locale(lang).await {
+            Ok(locale) => Ok(locale),
+            Err(error) => {
+                debug!(event = "locale_remote_fallback", lang = %lang, error = %error);
+                tracker::load_local_gacha_locale(lang)
+                    .or_else(|_| tracker::load_local_gacha_locale("ko"))
+            }
+        };
 
         match locale {
             Ok(locale) => {
                 *self.locale.write().expect("locale lock poisoned") = Some(locale);
-                info!(event = "locale_prepared", lang = %lang);
             }
-            Err(error) => error!(
+            Err(error) => warn!(
                 event = "locale_prepare_failed",
                 error = %error,
                 lang = %lang,
@@ -208,7 +222,7 @@ impl Service {
         let total_records = count_records(&fetch_result.records);
         let result = self
             .save_fetch_result(fetch_result)
-            .and_then(|_| self.get_stats(&player_id));
+            .and_then(|_| self.get_stats_inner(&player_id));
         match &result {
             Ok(_) => info!(
                 event = "upload_completed",
@@ -225,7 +239,7 @@ impl Service {
         result
     }
 
-    pub fn save_fetch_result(&self, fetch_result: FetchResult) -> Result<(), AppError> {
+    fn save_fetch_result(&self, fetch_result: FetchResult) -> Result<(), AppError> {
         let player_id = fetch_result.payload.player_id.trim();
         if player_id.is_empty() {
             return Err(AppError::MissingPlayerId);
@@ -243,16 +257,20 @@ impl Service {
             self.store
                 .save_gacha_records(player_id, &gacha_type.key, &records)?;
         }
-        info!(
-            event = "fetch_result_saved",
-            player_id = %player_id,
-            records = count_records(&fetch_result.records),
-        );
         Ok(())
     }
 
     pub fn get_stats(&self, player_id: impl AsRef<str>) -> Result<StatsResponse, AppError> {
-        let player_id = player_id.as_ref().trim();
+        let player_id = player_id.as_ref();
+        let result = self.get_stats_inner(player_id);
+        if let Err(error) = &result {
+            error!(event = "stats_load_failed", player_id = %player_id, error = %error);
+        }
+        result
+    }
+
+    fn get_stats_inner(&self, player_id: &str) -> Result<StatsResponse, AppError> {
+        let player_id = player_id.trim();
         if player_id.is_empty() {
             return Err(AppError::MissingPlayerId);
         }
@@ -274,17 +292,12 @@ impl Service {
             error: None,
             error_key: None,
         };
-        info!(
-            event = "stats_loaded",
-            player_id = %player_id,
-            banners = response.stats.len(),
-        );
         Ok(response)
     }
 
     pub async fn track_url(&self, url: impl AsRef<str>) -> Result<StatsResponse, AppError> {
-        let result = match self.fetch_and_save(url.as_ref()).await {
-            Ok(fetch_result) => self.get_stats(fetch_result.payload.player_id),
+        let result = match self.fetch_and_save_inner(url.as_ref()).await {
+            Ok(fetch_result) => self.get_stats_inner(&fetch_result.payload.player_id),
             Err(error) => Err(error),
         };
         match &result {
@@ -298,46 +311,35 @@ impl Service {
     }
 
     pub async fn fetch_and_save(&self, target_url: &str) -> Result<FetchResult, AppError> {
-        info!(event = "fetch_started");
+        let result = self.fetch_and_save_inner(target_url).await;
+        match &result {
+            Ok(fetch_result) => info!(
+                event = "fetch_completed",
+                player_id = %fetch_result.payload.player_id,
+                records = count_records(&fetch_result.records),
+            ),
+            Err(error) => error!(event = "fetch_failed", error = %error),
+        }
+        result
+    }
+
+    async fn fetch_and_save_inner(&self, target_url: &str) -> Result<FetchResult, AppError> {
         let target_url = target_url.trim().replace('\\', "");
         if target_url.is_empty() {
-            error!(event = "fetch_failed", error = %AppError::MissingUrl);
             return Err(AppError::MissingUrl);
         }
-        let payload = match self.tracker.parse_payload_from_url(&target_url) {
-            Ok(payload) => payload,
-            Err(error) => {
-                error!(event = "fetch_failed", error = %error);
-                return Err(error);
-            }
-        };
+        let payload = self.tracker.parse_payload_from_url(&target_url)?;
         if !payload.language_code.trim().is_empty() {
             self.prepare_locale(&payload.language_code).await;
         }
-        let fetch_result = match self
+        let fetch_result = self
             .tracker
             .fetch_all_records(payload, &self.config.gacha_types)
-            .await
-        {
-            Ok(fetch_result) => fetch_result,
-            Err(error) => {
-                error!(event = "fetch_failed", error = %error);
-                return Err(error);
-            }
-        };
+            .await?;
         if fetch_result.records.is_empty() {
-            error!(event = "fetch_empty", error = %AppError::InvalidGachaUrl);
             return Err(AppError::InvalidGachaUrl);
         }
-        if let Err(error) = self.save_fetch_result(fetch_result.clone()) {
-            error!(event = "fetch_failed", error = %error);
-            return Err(error);
-        }
-        info!(
-            event = "fetch_completed",
-            player_id = %fetch_result.payload.player_id,
-            records = count_records(&fetch_result.records),
-        );
+        self.save_fetch_result(fetch_result.clone())?;
         Ok(fetch_result)
     }
 
@@ -347,7 +349,7 @@ impl Service {
         format: ReportFormat,
         lang: &str,
     ) -> Result<Vec<u8>, AppError> {
-        let stats = self.get_stats(player_id)?;
+        let stats = self.get_stats_inner(player_id)?;
         if stats.stats.is_empty() {
             return Err(AppError::NoValidRecords);
         }
@@ -405,10 +407,18 @@ impl Service {
 
     pub fn load_fetch_result_file(&self, path: impl AsRef<Path>) -> Result<FetchResult, AppError> {
         let path = path.as_ref();
+        let result = self.load_fetch_result_file_inner(path);
+        if let Err(error) = &result {
+            error!(event = "fetch_result_file_load_failed", path = %path.display(), error = %error);
+        }
+        result
+    }
+
+    fn load_fetch_result_file_inner(&self, path: &Path) -> Result<FetchResult, AppError> {
         let bytes = fs::read(path)?;
         if let Ok(fetch_result) = serde_json::from_slice::<FetchResult>(&bytes) {
             if !fetch_result.records.is_empty() {
-                info!(
+                debug!(
                     event = "fetch_result_file_loaded",
                     path = %path.display(),
                     records = count_records(&fetch_result.records),
@@ -436,7 +446,7 @@ impl Service {
             },
             records,
         };
-        info!(
+        debug!(
             event = "legacy_fetch_result_file_loaded",
             path = %path.display(),
             records = count_records(&fetch_result.records),

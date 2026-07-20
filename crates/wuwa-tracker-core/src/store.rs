@@ -1,6 +1,7 @@
 use crate::{error::AppError, merge::merge_records};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, path::PathBuf, sync::Mutex};
+use tracing::debug;
 use wuwa_tracker_types::Record;
 
 #[derive(Debug)]
@@ -28,8 +29,10 @@ impl JsonStore {
     pub fn new(path: PathBuf) -> Result<Self, AppError> {
         let data = if path.exists() {
             let bytes = fs::read(&path)?;
+            debug!(event = "store_file_loaded", path = %path.display(), bytes = bytes.len());
             serde_json::from_slice(&bytes)?
         } else {
+            debug!(event = "store_file_missing", path = %path.display());
             StoreData::default()
         };
 
@@ -104,6 +107,7 @@ impl JsonStore {
 
     pub fn merge_backup(&self, path: &std::path::Path) -> Result<(), AppError> {
         let bytes = fs::read(path)?;
+        debug!(event = "store_backup_loaded", path = %path.display(), bytes = bytes.len());
         let incoming: StoreData = serde_json::from_slice(&bytes)?;
         let mut data = self.data.lock().expect("store lock poisoned");
         for (player_id, pools) in incoming.players {
@@ -121,6 +125,7 @@ impl JsonStore {
             fs::create_dir_all(parent)?;
         }
         let bytes = serde_json::to_vec_pretty(data)?;
+        debug!(event = "store_file_writing", path = %self.path.display(), bytes = bytes.len());
         fs::write(&self.path, bytes)?;
         Ok(())
     }

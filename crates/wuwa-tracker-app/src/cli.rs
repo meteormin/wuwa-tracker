@@ -291,7 +291,7 @@ pub fn config(args: ConfigArgs, config: &wuwa_tracker_core::Config) -> Result<()
             }
             let mut saved = settings::load(&config.settings_path)?;
             if path.is_some() {
-                saved.path = path;
+                saved.scan_path = path;
             }
             if format.is_some() {
                 saved.format = format;
@@ -316,9 +316,9 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
     let saved = settings::load(&config.settings_path)?;
     println!("Settings: {}", config.settings_path.display());
     print_setting(
-        "path",
+        "scan_path",
         saved
-            .path
+            .scan_path
             .as_ref()
             .map(|path| (path.display().to_string(), "saved"))
             .unwrap_or_else(|| ("(unset)".to_string(), "default")),
@@ -362,7 +362,7 @@ fn print_setting(name: &str, value: (String, &str)) {
 }
 
 fn resolve_path(path: Option<PathBuf>, saved: &settings::Settings) -> Result<PathBuf> {
-    path.or_else(|| saved.path.clone())
+    path.or_else(|| saved.scan_path.clone())
         .context("provide --path or save one with `wuwa-tracker config set --path <PATH>`")
 }
 
