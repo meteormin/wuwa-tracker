@@ -291,7 +291,7 @@ pub fn config(args: ConfigArgs, config: &wuwa_tracker_core::Config) -> Result<()
             }
             let mut saved = settings::load(&config.settings_path)?;
             if path.is_some() {
-                saved.path = path;
+                saved.scan_path = path;
             }
             if format.is_some() {
                 saved.format = format;
@@ -316,9 +316,9 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
     let saved = settings::load(&config.settings_path)?;
     println!("Settings: {}", config.settings_path.display());
     print_setting(
-        "path",
+        "scan_path",
         saved
-            .path
+            .scan_path
             .as_ref()
             .map(|path| (path.display().to_string(), "saved"))
             .unwrap_or_else(|| ("(unset)".to_string(), "default")),
@@ -362,7 +362,7 @@ fn print_setting(name: &str, value: (String, &str)) {
 }
 
 fn resolve_path(path: Option<PathBuf>, saved: &settings::Settings) -> Result<PathBuf> {
-    path.or_else(|| saved.path.clone())
+    path.or_else(|| saved.scan_path.clone())
         .context("provide --path or save one with `wuwa-tracker config set --path <PATH>`")
 }
 
@@ -438,21 +438,12 @@ pub fn db(args: DbArgs, service: Service) -> Result<()> {
         }
         DbCommand::Characters { player_id } => {
             let summaries = service.character_summaries(player_id)?;
-            print_db_characters_row(
-                "ID",
-                "Name",
-                "Count",
-                "Breakthrough",
-                "Astrite",
-                "Last",
-                "Banners",
-            );
+            print_db_characters_row("ID", "Name", "Count", "Astrite", "Last", "Banners");
             for summary in summaries {
                 print_db_characters_row(
                     &summary.resource_id.to_string(),
                     &summary.name,
                     &summary.copies.to_string(),
-                    &summary.breakthrough.to_string(),
                     &format_number(summary.spent_astrite),
                     &summary.last_time,
                     &summary.banners.join(", "),
@@ -509,17 +500,15 @@ fn print_db_characters_row(
     id: &str,
     name: &str,
     copies: &str,
-    breakthrough: &str,
     astrite: &str,
     last: &str,
     banners: &str,
 ) {
     println!(
-        "{} {} {} {} {} {} {}",
+        "{} {} {} {} {} {}",
         pad_display(id, DB_CHARACTERS_ID_WIDTH),
         pad_display(name, DB_CHARACTERS_NAME_WIDTH),
         pad_display(copies, 6),
-        pad_display(breakthrough, 12),
         pad_display(astrite, 10),
         pad_display(last, 20),
         banners

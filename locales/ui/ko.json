@@ -69,8 +69,6 @@
     "characters.count": "총 {count}명",
     "characters.empty": "조회된 5성 캐릭터 기록이 없습니다.",
     "characters.empty_desc": "공명자 배너 기록을 트래킹하면 캐릭터 통계가 표시됩니다.",
-    "characters.breakthrough": "돌파",
-    "characters.breakthrough_value": "{count}돌파",
     "characters.copies": "획득 횟수",
     "characters.spent_astrite": "사용된 별의 소리",
     "characters.banner_count": "등장 배너 수",

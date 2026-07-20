@@ -1,0 +1,8 @@
+target
+.git
+.vscode
+data
+docs
+.cache
+.github
+logs

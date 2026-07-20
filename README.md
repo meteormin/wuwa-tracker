@@ -170,7 +170,7 @@ cargo run -p wuwa-tracker --no-default-features --bin wuwa-tracker-cli -- --dbpa
 
 ## Logging
 
-기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`입니다. App layer는 `tracing` event를 발생시킵니다. 일반 CLI 콘솔은 기본적으로 ERROR 이상, `serve` 콘솔과 파일 및 GUI runtime은 INFO 이상을 기록합니다. `RUST_LOG` 또는 `WUWA_TRACKER_LOG_LEVEL` 환경 변수를 지정하면 모든 subscriber의 runtime filter를 변경할 수 있으며, 둘 다 존재하면 `RUST_LOG`를 우선합니다.
+기본 application log 경로는 `~/.wuwa-tracker/wuwa-tracker.log`입니다. App service는 핵심 작업의 성공과 실패를 `INFO`와 `ERROR`로 기록하고, 파일 및 네트워크 I/O 모듈은 외부 상태 진단 정보를 `DEBUG`와 `TRACE`로 기록합니다. 일반 CLI 콘솔은 기본적으로 ERROR 이상, `serve` 콘솔과 파일 및 GUI runtime은 INFO 이상을 기록합니다. `RUST_LOG` 또는 `WUWA_TRACKER_LOG_LEVEL` 환경 변수를 지정하면 모든 subscriber의 runtime filter를 변경할 수 있으며, 둘 다 존재하면 `RUST_LOG`를 우선합니다.
 
 ```bash
 RUST_LOG=debug cargo run -p wuwa-tracker --no-default-features --bin wuwa-tracker-cli -- db stats

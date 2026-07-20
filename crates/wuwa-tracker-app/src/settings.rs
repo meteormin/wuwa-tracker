@@ -4,6 +4,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use tracing::debug;
 
 pub const DEFAULT_FORMAT: &str = "html";
 pub const DEFAULT_OUTPUT: &str = "report";
@@ -12,7 +13,8 @@ pub const DEFAULT_LANG: &str = "ko";
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
-    pub path: Option<PathBuf>,
+    #[serde(alias = "path")]
+    pub scan_path: Option<PathBuf>,
     pub format: Option<String>,
     pub output: Option<PathBuf>,
     pub lang: Option<String>,
@@ -21,8 +23,14 @@ pub struct Settings {
 
 pub fn load(path: &Path) -> Result<Settings> {
     match fs::read(path) {
-        Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Settings::default()),
+        Ok(bytes) => {
+            debug!(event = "settings_loaded", path = %path.display(), bytes = bytes.len());
+            Ok(serde_json::from_slice(&bytes)?)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            debug!(event = "settings_missing", path = %path.display());
+            Ok(Settings::default())
+        }
         Err(error) => Err(error.into()),
     }
 }
@@ -32,12 +40,16 @@ pub fn save(path: &Path, settings: &Settings) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
     fs::write(path, serde_json::to_vec_pretty(settings)?)?;
+    debug!(event = "settings_saved", path = %path.display());
     Ok(())
 }
 
 pub fn clear(path: &Path) -> Result<()> {
     match fs::remove_file(path) {
-        Ok(()) => Ok(()),
+        Ok(()) => {
+            debug!(event = "settings_cleared", path = %path.display());
+            Ok(())
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error.into()),
     }
@@ -58,7 +70,7 @@ mod tests {
                 .as_nanos()
         ));
         let settings = Settings {
-            path: Some(PathBuf::from("game")),
+            scan_path: Some(PathBuf::from("game")),
             format: Some("json".to_string()),
             output: Some(PathBuf::from("out")),
             lang: Some("en".to_string()),
@@ -69,10 +81,17 @@ mod tests {
         let loaded = load(&path).unwrap();
         clear(&path).unwrap();
 
-        assert_eq!(loaded.path, settings.path);
+        assert_eq!(loaded.scan_path, settings.scan_path);
         assert_eq!(loaded.format, settings.format);
         assert_eq!(loaded.output, settings.output);
         assert_eq!(loaded.lang, settings.lang);
         assert_eq!(loaded.interval_secs, settings.interval_secs);
+    }
+
+    #[test]
+    fn settings_accept_legacy_path() {
+        let settings: Settings = serde_json::from_str(r#"{"path":"game"}"#).unwrap();
+
+        assert_eq!(settings.scan_path, Some(PathBuf::from("game")));
     }
 }
