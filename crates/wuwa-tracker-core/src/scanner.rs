@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
     time::SystemTime,
 };
+use tracing::{debug, trace};
 
 pub fn scan_url(
     root: &Path,
@@ -19,13 +20,17 @@ pub fn scan_url(
 
     let url_regex = new_url_regex(resources_url)?;
     let paths = existing_log_files(&expand_paths(&root, candidates))?;
+    debug!(event = "scan_candidates_found", root = %root.display(), files = paths.len());
     for path in paths {
-        let content = fs::read(path)?;
+        let content = fs::read(&path)?;
+        trace!(event = "scan_file_read", path = %path.display(), bytes = content.len());
         if let Some(url) = find_last_url_bytes(&content, &url_regex) {
+            debug!(event = "scan_url_found", path = %path.display(), encoding = "plain");
             return Ok(url);
         }
         let decoded = decode_obfuscated_log(&content);
         if let Some(url) = find_last_url_bytes(&decoded, &url_regex) {
+            debug!(event = "scan_url_found", path = %path.display(), encoding = "obfuscated");
             return Ok(url);
         }
     }

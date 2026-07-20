@@ -1,5 +1,6 @@
 use crate::error::AppError;
 use std::{collections::BTreeMap, time::Duration};
+use tracing::debug;
 use url::Url;
 use wuwa_tracker_types::{FetchResult, GachaResponse, GachaType, LocaleData, Payload, Record};
 
@@ -69,9 +70,19 @@ impl TrackerClient {
             payload.card_pool_type = gacha_type.id;
             match self.fetch_records(&payload).await {
                 Ok(items) => {
+                    debug!(
+                        event = "tracker_pool_fetched",
+                        pool_type = gacha_type.id,
+                        records = items.len(),
+                    );
                     records.insert(gacha_type.key.clone(), items);
                 }
                 Err(error) => {
+                    debug!(
+                        event = "tracker_pool_fetch_failed",
+                        pool_type = gacha_type.id,
+                        error = %error,
+                    );
                     last_error = Some(error);
                 }
             }
@@ -114,14 +125,16 @@ impl TrackerClient {
             self.resources_url.trim_end_matches('/'),
             lang
         );
-        Ok(self
+        let locale = self
             .client
             .get(endpoint)
             .send()
             .await?
             .error_for_status()?
             .json::<LocaleData>()
-            .await?)
+            .await?;
+        debug!(event = "tracker_locale_fetched", lang);
+        Ok(locale)
     }
 }
 
