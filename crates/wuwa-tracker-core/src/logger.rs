@@ -12,6 +12,10 @@ const MAX_LOG_BYTES: u64 = 10 * 1024 * 1024;
 const MAX_LOG_FILES: usize = 10;
 
 #[derive(Debug)]
+/// JSON Lines 형식으로 기록하고 크기 기준 rotation을 수행하는 파일 로거입니다.
+///
+/// 하나의 인스턴스에서 발생하는 쓰기와 rotation은 직렬화됩니다. 여러 프로세스나 서로
+/// 다른 인스턴스가 같은 파일을 공유하는 경우는 동기화하지 않습니다.
 pub struct AppLogger {
     path: PathBuf,
     max_bytes: u64,
@@ -20,6 +24,7 @@ pub struct AppLogger {
 }
 
 impl AppLogger {
+    /// 기본 10 MiB 제한과 최대 10개 보관 정책을 사용하는 로거를 생성합니다.
     pub fn new(path: PathBuf) -> Self {
         Self::with_rotation(path, MAX_LOG_BYTES, MAX_LOG_FILES)
     }
@@ -33,6 +38,13 @@ impl AppLogger {
         }
     }
 
+    /// 구조화 필드를 포함한 로그 이벤트를 기록합니다.
+    ///
+    /// `timestamp`, `level`, `event` 필드는 로거가 생성한 값으로 덮어씁니다.
+    ///
+    /// # Errors
+    ///
+    /// 로그 디렉터리 생성, rotation 또는 파일 쓰기에 실패하면 [`AppError`]를 반환합니다.
     pub fn log(&self, level: &str, event: &str, fields: &[(&str, Value)]) -> Result<(), AppError> {
         let mut entry = Map::new();
         for (key, value) in fields {
@@ -41,6 +53,13 @@ impl AppLogger {
         self.log_entry(level, event, entry)
     }
 
+    /// 소유권을 가진 JSON map을 로그 이벤트로 기록합니다.
+    ///
+    /// `timestamp`, `level`, `event` 필드는 로거가 생성한 값으로 덮어씁니다.
+    ///
+    /// # Errors
+    ///
+    /// 로그 디렉터리 생성, rotation 또는 파일 쓰기에 실패하면 [`AppError`]를 반환합니다.
     pub fn log_entry(
         &self,
         level: &str,

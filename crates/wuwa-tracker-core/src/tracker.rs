@@ -7,6 +7,7 @@ use wuwa_tracker_types::{FetchResult, GachaResponse, GachaType, LocaleData, Payl
 const HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone)]
+/// 게임 리소스와 뽑기 기록 API에 접근하는 HTTP client입니다.
 pub struct TrackerClient {
     client: reqwest::Client,
     resources_url: String,
@@ -27,6 +28,11 @@ impl TrackerClient {
         }
     }
 
+    /// URL의 query 또는 fragment query에서 API 요청 payload를 추출합니다.
+    ///
+    /// # Errors
+    ///
+    /// URL을 파싱할 수 없거나 필수 식별자가 없으면 [`AppError`]를 반환합니다.
     pub fn parse_payload_from_url(&self, input: &str) -> Result<Payload, AppError> {
         let parsed = Url::parse(input.trim().replace('\\', "").as_str())?;
         let query = if let Some(fragment) = parsed.fragment() {
@@ -59,6 +65,14 @@ impl TrackerClient {
         Ok(payload)
     }
 
+    /// 설정된 모든 배너의 기록을 조회합니다.
+    ///
+    /// 일부 배너 조회가 실패해도 하나 이상 성공하면 성공한 데이터만 반환합니다. 모든 배너가
+    /// 실패한 경우 마지막 오류를 반환합니다.
+    ///
+    /// # Errors
+    ///
+    /// 모든 배너 조회가 실패하면 해당 API 또는 네트워크 오류를 반환합니다.
     pub async fn fetch_all_records(
         &self,
         mut payload: Payload,
@@ -118,6 +132,13 @@ impl TrackerClient {
         Ok(response.data)
     }
 
+    /// 지정한 언어의 게임 locale을 원격 리소스에서 가져옵니다.
+    ///
+    /// 빈 언어 코드는 한국어(`ko`)로 처리합니다.
+    ///
+    /// # Errors
+    ///
+    /// HTTP 요청, 상태 검사 또는 JSON 역직렬화에 실패하면 [`AppError`]를 반환합니다.
     pub async fn fetch_gacha_locale(&self, lang: &str) -> Result<LocaleData, AppError> {
         let lang = if lang.is_empty() { "ko" } else { lang };
         let endpoint = format!(
@@ -138,6 +159,7 @@ impl TrackerClient {
     }
 }
 
+/// URL의 query 또는 fragment query에서 언어 코드를 찾습니다.
 pub fn extract_lang(input: &str) -> Option<String> {
     let parsed = Url::parse(input.trim()).ok()?;
     if let Some(value) = parsed
@@ -152,6 +174,9 @@ pub fn extract_lang(input: &str) -> Option<String> {
         .find_map(|(key, value)| (key == "lang").then(|| value.into_owned()))
 }
 
+/// 내장된 게임 locale을 로드합니다.
+///
+/// 영어(`en`) 이외의 언어 코드는 한국어 locale로 처리합니다.
 pub fn load_local_gacha_locale(lang: &str) -> Result<LocaleData, AppError> {
     let source = if lang == "en" {
         include_str!("../../../locales/en.json")

@@ -1,3 +1,5 @@
+//! 내장 번역과 브라우저 locale 선택 상태를 관리합니다.
+
 use leptos::prelude::*;
 use std::collections::BTreeMap;
 
@@ -20,6 +22,7 @@ impl Locale {
 }
 
 #[derive(Clone, Copy)]
+/// 현재 locale과 번역 map을 함께 갱신하는 reactive handle입니다.
 pub struct I18n {
     locale: RwSignal<Locale>,
     translations: RwSignal<BTreeMap<String, String>>,
@@ -47,6 +50,7 @@ impl I18n {
     }
 
     pub fn text(self, key: &str) -> String {
+        // 누락된 번역은 key를 노출해 UI에서 바로 발견할 수 있게 합니다.
         self.translations
             .with(|items| items.get(key).cloned())
             .unwrap_or_else(|| key.to_string())
@@ -62,6 +66,7 @@ impl I18n {
 }
 
 fn initial_locale() -> Locale {
+    // 사용자의 명시적 선택을 브라우저 언어보다 우선합니다.
     if let Some(storage) = window().local_storage().ok().flatten() {
         match storage.get_item("locale").ok().flatten().as_deref() {
             Some("ko") => return Locale::Ko,

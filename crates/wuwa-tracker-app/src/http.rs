@@ -78,6 +78,7 @@ pub async fn serve(args: ServeArgs, service: Service) -> Result<()> {
         if !webui_assets::has_assets() {
             anyhow::bail!("WebUI assets are not embedded. Build them first with `make build`.");
         }
+        // CSR route를 새로고침해도 client router가 처리할 수 있도록 index로 fallback합니다.
         app = app.fallback(get(webui_asset));
     }
 
@@ -238,6 +239,7 @@ impl From<AppError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        // 공개 오류는 호출자가 수정할 수 있는 정도에 따라 HTTP status를 구분합니다.
         let status = match self.0 {
             AppError::MissingPlayerId
             | AppError::EmptyUploadData

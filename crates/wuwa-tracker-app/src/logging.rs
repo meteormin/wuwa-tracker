@@ -17,6 +17,14 @@ use wuwa_tracker_core::logger::AppLogger;
 
 const ENV_LOG_LEVEL: &str = "WUWA_TRACKER_LOG_LEVEL";
 
+/// 파일 로그와 선택적 콘솔 로그를 전역 `tracing` subscriber로 초기화합니다.
+///
+/// `RUST_LOG`, `WUWA_TRACKER_LOG_LEVEL`, 전달된 기본값 순으로 filter를 선택합니다. 파일
+/// 이벤트는 JSON Lines로 기록하며 콘솔 이벤트만 compact 형식을 사용합니다.
+///
+/// # Errors
+///
+/// 전역 subscriber가 이미 설정됐거나 subscriber 초기화에 실패하면 오류를 반환합니다.
 pub fn init(log_path: &Path, console_level: Option<&str>) -> Result<()> {
     let file_layer = FileLogLayer::new(log_path.to_path_buf());
 
@@ -85,6 +93,7 @@ where
             Value::String(metadata.target().to_string()),
         );
 
+        // 로깅 실패를 다시 tracing으로 보고하면 같은 layer가 재귀 호출될 수 있습니다.
         let _ = self
             .logger
             .log_entry(level_name(metadata.level()), &event_name, visitor.fields);

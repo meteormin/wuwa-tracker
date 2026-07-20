@@ -2,6 +2,7 @@ use crate::config::Config;
 use wuwa_tracker_types::{FiveStarRecord, GachaType, Record, Stats};
 
 #[derive(Debug, Clone)]
+/// 배너 규칙과 재화 설정을 적용해 뽑기 통계를 계산합니다.
 pub struct StatsCalculator {
     standard_five_star_resources: Vec<i32>,
     astrite_per_pull: usize,
@@ -15,6 +16,10 @@ impl StatsCalculator {
         }
     }
 
+    /// 최신순으로 정렬된 기록에서 pity, 획득률과 운 점수를 계산합니다.
+    ///
+    /// 반환되는 원본 기록과 5성 목록도 최신순을 유지합니다. 운 점수는 픽업 획득까지 이어진
+    /// 빗나감과 확정 획득을 하나의 주기로 계산합니다.
     pub fn calc(&self, records: &[Record], gacha_type: &GachaType) -> Stats {
         let mut stats = Stats {
             gacha_type: gacha_type.id,
@@ -43,6 +48,7 @@ impl StatsCalculator {
 
             match record.quality_level {
                 5 => {
+                    // 빗나감이 없는 배너에서는 모든 5성을 픽업 획득으로 취급합니다.
                     let is_pick_up = !gacha_type.has_off_banner_drop
                         || !self
                             .standard_five_star_resources
