@@ -1,4 +1,4 @@
-.PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check clippy test ci build release run serve version release-dry-run bump-patch bump-minor bump-major release-tag clean distclean
+.PHONY: help setup webui-install webui-build webui-check webui-dev fmt fmt-check check cli-check clippy test audit ci build release run serve version release-dry-run bump-patch bump-minor bump-major release-tag clean distclean
 
 APP := wuwa-tracker
 CLI_BIN := wuwa-tracker-cli
@@ -26,10 +26,13 @@ help:
 	@echo "Checks:"
 	@echo "  make fmt             Format Rust code"
 	@echo "  make fmt-check       Check Rust formatting"
-	@echo "  make check           cargo check + WebUI type check"
+	@echo "  make webui-check     Check WebUI types"
+	@echo "  make check           cargo check"
+	@echo "  make cli-check       Check the CLI-only build"
 	@echo "  make clippy          cargo clippy"
 	@echo "  make test            cargo test"
-	@echo "  make ci              fmt-check + WebUI + CLI-only check + clippy + test"
+	@echo "  make audit           Audit Cargo dependencies for vulnerabilities"
+	@echo "  make ci              fmt-check + WebUI + CLI-only check + clippy + audit + test"
 	@echo ""
 	@echo "Build:"
 	@echo "  make build           Build WebUI and debug Rust binaries"
@@ -70,20 +73,28 @@ fmt:
 fmt-check:
 	$(CARGO) fmt --all -- --check
 
-check: webui-check webui-build
+check:
 	$(CARGO) check --workspace
 
-clippy: webui-build
-	$(CARGO) clippy --workspace --all-targets -- -D warnings
-
-test: webui-build
-	$(CARGO) test --workspace
-
-ci: fmt-check webui-check webui-build
+cli-check:
 	$(CARGO) check -p $(APP) --no-default-features --bin $(CLI_BIN)
-	$(CARGO) check --workspace
+
+clippy:
 	$(CARGO) clippy --workspace --all-targets -- -D warnings
+
+test:
 	$(CARGO) test --workspace
+
+audit:
+	$(CARGO) audit
+
+ci: fmt-check webui-build
+	$(MAKE) cli-check
+	$(MAKE) webui-check
+	$(MAKE) check
+	$(MAKE) clippy
+	$(MAKE) audit
+	$(MAKE) test
 
 build: webui-build
 	$(CARGO) build --workspace
