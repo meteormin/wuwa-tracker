@@ -39,5 +39,8 @@ jobs:
       - name: Install Trunk
         run: cargo install trunk --locked --version 0.21.14
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --version 0.22.2
+
       - name: Check
         run: make ci
