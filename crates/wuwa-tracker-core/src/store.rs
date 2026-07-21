@@ -5,12 +5,16 @@ use tracing::debug;
 use wuwa_tracker_types::Record;
 
 #[derive(Debug)]
+/// 플레이어별 기록을 하나의 JSON 파일에 보관하는 프로세스 내 저장소입니다.
+///
+/// 메모리 상태는 mutex로 보호하지만 여러 프로세스의 동시 쓰기는 지원하지 않습니다.
 pub struct JsonStore {
     path: PathBuf,
     data: Mutex<StoreData>,
 }
 
 #[derive(Debug, Clone)]
+/// 현재 저장소 파일과 메모리 데이터의 요약입니다.
 pub struct StoreStats {
     pub path: PathBuf,
     pub exists: bool,
@@ -26,6 +30,11 @@ pub struct StoreData {
 }
 
 impl JsonStore {
+    /// 기존 JSON 파일을 읽거나 파일이 없으면 빈 저장소를 생성합니다.
+    ///
+    /// # Errors
+    ///
+    /// 파일 읽기 또는 JSON 역직렬화에 실패하면 [`AppError`]를 반환합니다.
     pub fn new(path: PathBuf) -> Result<Self, AppError> {
         let data = if path.exists() {
             let bytes = fs::read(&path)?;
@@ -42,6 +51,11 @@ impl JsonStore {
         })
     }
 
+    /// 기존 기록과 새 기록을 최신순으로 병합한 뒤 전체 저장소 파일을 갱신합니다.
+    ///
+    /// # Errors
+    ///
+    /// 저장소 파일을 직렬화하거나 쓰지 못하면 [`AppError`]를 반환합니다.
     pub fn save_gacha_records(
         &self,
         player_id: &str,
@@ -55,6 +69,7 @@ impl JsonStore {
         self.flush(&data)
     }
 
+    /// 플레이어나 배너가 없으면 오류 대신 빈 목록을 반환합니다.
     pub fn get_gacha_records(
         &self,
         player_id: &str,
@@ -100,11 +115,17 @@ impl JsonStore {
         })
     }
 
+    /// 현재 저장소를 복원 가능한 JSON 바이트로 직렬화합니다.
     pub fn export_backup(&self) -> Result<Vec<u8>, AppError> {
         let data = self.data.lock().expect("store lock poisoned");
         Ok(serde_json::to_vec_pretty(&*data)?)
     }
 
+    /// 백업 파일을 현재 데이터에 병합하고 전체 저장소 파일을 갱신합니다.
+    ///
+    /// # Errors
+    ///
+    /// 백업 읽기, JSON 역직렬화 또는 저장소 쓰기에 실패하면 [`AppError`]를 반환합니다.
     pub fn merge_backup(&self, path: &std::path::Path) -> Result<(), AppError> {
         let bytes = fs::read(path)?;
         debug!(event = "store_backup_loaded", path = %path.display(), bytes = bytes.len());

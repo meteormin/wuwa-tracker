@@ -20,6 +20,9 @@ use wuwa_tracker_types::{
 };
 
 #[derive(Clone)]
+/// 모든 진입점이 공유하는 애플리케이션 작업과 운영 로그의 경계입니다.
+///
+/// clone된 인스턴스는 저장소와 현재 locale 상태를 공유합니다.
 pub struct Service {
     config: Arc<Config>,
     store: Arc<JsonStore>,
@@ -37,6 +40,11 @@ pub struct BannerRecordCount {
 }
 
 impl Service {
+    /// 설정에 지정된 JSON 저장소를 열고 외부 API client를 준비합니다.
+    ///
+    /// # Errors
+    ///
+    /// 저장소 파일을 읽거나 역직렬화하지 못하면 [`AppError`]를 반환합니다.
     pub fn new(config: Config) -> Result<Self, AppError> {
         let calc = StatsCalculator::new(&config);
         let store = Arc::new(JsonStore::new(config.db_path.clone())?);
@@ -60,6 +68,7 @@ impl Service {
         &self.config
     }
 
+    /// 원격 locale이 준비되지 않았으면 설정 언어의 내장 locale을 사용합니다.
     pub fn resource_types(&self) -> ResourceTypes {
         let locale = self
             .locale
@@ -190,6 +199,9 @@ impl Service {
         result
     }
 
+    /// 원격 locale을 우선하고 내장 요청 언어, 내장 한국어 순으로 fallback합니다.
+    ///
+    /// locale 준비 실패는 기존 locale을 유지하는 비치명적 오류로 처리합니다.
     pub async fn prepare_locale(&self, lang: &str) {
         let lang = if lang.trim().is_empty() {
             self.config.language.as_str()
@@ -217,6 +229,11 @@ impl Service {
         }
     }
 
+    /// 수집 데이터를 저장하고 해당 플레이어의 전체 통계를 반환합니다.
+    ///
+    /// # Errors
+    ///
+    /// 플레이어 ID나 기록이 없거나 저장소 처리에 실패하면 [`AppError`]를 반환합니다.
     pub fn upload(&self, fetch_result: FetchResult) -> Result<StatsResponse, AppError> {
         let player_id = fetch_result.payload.player_id.trim().to_string();
         let total_records = count_records(&fetch_result.records);
@@ -295,6 +312,13 @@ impl Service {
         Ok(response)
     }
 
+    /// URL에서 모든 배너 기록을 수집해 저장하고 최신 통계를 반환합니다.
+    ///
+    /// 수집한 URL의 언어 코드가 있으면 통계 계산 전에 locale도 갱신합니다.
+    ///
+    /// # Errors
+    ///
+    /// URL 검증, API 조회 또는 저장소 처리에 실패하면 [`AppError`]를 반환합니다.
     pub async fn track_url(&self, url: impl AsRef<str>) -> Result<StatsResponse, AppError> {
         let result = match self.fetch_and_save_inner(url.as_ref()).await {
             Ok(fetch_result) => self.get_stats_inner(&fetch_result.payload.player_id),
@@ -310,6 +334,11 @@ impl Service {
         result
     }
 
+    /// URL에서 모든 배너 기록을 수집해 저장하고 원본 수집 결과를 반환합니다.
+    ///
+    /// # Errors
+    ///
+    /// URL 검증, API 조회 또는 저장소 처리에 실패하면 [`AppError`]를 반환합니다.
     pub async fn fetch_and_save(&self, target_url: &str) -> Result<FetchResult, AppError> {
         let result = self.fetch_and_save_inner(target_url).await;
         match &result {
@@ -405,6 +434,14 @@ impl Service {
         result
     }
 
+    /// 현재 형식과 배너별 map만 있는 legacy 형식의 수집 파일을 모두 읽습니다.
+    ///
+    /// legacy 파일은 `<player-id>-...` 파일명의 첫 구간을 플레이어 ID로 사용하며, 구간이
+    /// 없으면 전체 file stem을 사용합니다.
+    ///
+    /// # Errors
+    ///
+    /// 파일 읽기나 두 형식의 JSON 역직렬화에 실패하면 [`AppError`]를 반환합니다.
     pub fn load_fetch_result_file(&self, path: impl AsRef<Path>) -> Result<FetchResult, AppError> {
         let path = path.as_ref();
         let result = self.load_fetch_result_file_inner(path);

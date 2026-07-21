@@ -8,6 +8,15 @@ use std::{
 };
 use tracing::{debug, trace};
 
+/// 게임 루트 또는 로그 파일에서 가장 최근에 기록된 뽑기 URL을 찾습니다.
+///
+/// 디렉터리를 받으면 존재하는 후보 파일을 수정 시각이 최신인 순서로 검사합니다. 일반 텍스트와
+/// 게임 클라이언트가 난독화한 로그를 모두 지원합니다.
+///
+/// # Errors
+///
+/// 스캔 경로가 없거나 후보 파일을 읽을 수 없거나 유효한 URL을 찾지 못하면 [`AppError`]를
+/// 반환합니다.
 pub fn scan_url(
     root: &Path,
     candidates: &[PathBuf],
@@ -105,6 +114,7 @@ fn find_last_url(content: &str, url_regex: &Regex) -> Option<String> {
 }
 
 fn decode_obfuscated_log(data: &[u8]) -> Vec<u8> {
+    // 게임 클라이언트 로그는 하위 nibble의 홀짝에 따라 서로 다른 XOR 키를 사용합니다.
     data.iter()
         .map(|b| {
             if (b & 0x0F) % 2 == 1 {

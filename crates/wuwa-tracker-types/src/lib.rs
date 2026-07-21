@@ -1,10 +1,14 @@
+//! crate 경계를 넘어 직렬화되는 뽑기 도메인 모델과 API 계약을 정의합니다.
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// 캐릭터 기록을 포함하는 배너 type ID입니다.
 pub const CHARACTER_BANNER_TYPES: [i32; 6] = [1, 3, 5, 6, 8, 10];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// 뽑기 기록 API 요청에 필요한 URL payload입니다.
 pub struct Payload {
     pub player_id: String,
     pub server_id: String,
@@ -16,8 +20,10 @@ pub struct Payload {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// API 요청 payload와 배너별 수집 기록을 함께 보존하는 데이터입니다.
 pub struct FetchResult {
     pub payload: Payload,
+    /// key는 [`GachaType::key`]이며 각 기록은 최신순입니다.
     pub records: BTreeMap<String, Vec<Record>>,
 }
 
@@ -31,6 +37,7 @@ pub struct GachaResponse {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// 게임 locale에서 사용하는 자원 종류와 배너 이름입니다.
 pub struct LocaleData {
     #[serde(default)]
     pub character: String,
@@ -38,11 +45,13 @@ pub struct LocaleData {
     pub weapon: String,
     #[serde(default)]
     pub item: String,
+    /// key는 [`GachaType::key`], 값은 해당 locale의 배너 이름입니다.
     pub select_list: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// 뽑기 API가 반환하는 단일 획득 기록입니다.
 pub struct Record {
     pub card_pool_type: String,
     pub resource_id: i32,
@@ -55,6 +64,7 @@ pub struct Record {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// 5성 획득과 해당 획득까지 누적된 pity입니다.
 pub struct FiveStarRecord {
     pub name: String,
     pub time: String,
@@ -64,17 +74,21 @@ pub struct FiveStarRecord {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// API 배너 식별자와 통계 계산 규칙입니다.
 pub struct GachaType {
     pub id: i32,
     pub key: String,
     pub has_off_banner_drop: bool,
     pub name: String,
+    /// 백분율 단위의 기본 5성 확률입니다.
     pub base_rate: f64,
+    /// 운 점수 계산에 사용하는 픽업 5성 기대 뽑기 횟수입니다.
     pub expected_pulls: i32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// 배너 하나의 뽑기 기록과 파생 통계입니다.
 pub struct Stats {
     pub gacha_type: i32,
     pub gacha_name: String,
@@ -84,22 +98,28 @@ pub struct Stats {
     pub current_pity4: i32,
     pub base_rate: f64,
     pub expected_pulls: i32,
+    /// 최신순으로 정렬된 5성 획득 목록입니다.
     pub five_stars: Vec<FiveStarRecord>,
+    /// 최신순으로 정렬된 원본 기록입니다.
     pub records: Vec<Record>,
     pub avg_pulls: f64,
+    /// 실제 5성 획득률이며 백분율 단위입니다.
     pub actual_rate: f64,
+    /// 기대 뽑기 횟수를 실제 뽑기 횟수로 나눈 상대 점수이며 100이 기준입니다.
     pub luck_score: f64,
     pub has_five_star: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+/// 여러 배너에 흩어진 5성 캐릭터 획득 기록의 요약입니다.
 pub struct CharacterSummary {
     pub resource_id: i32,
     pub name: String,
     pub quality_level: i32,
     pub resource_type: String,
     pub copies: usize,
+    /// 해당 캐릭터 획득까지 소비한 것으로 추정되는 별의 소리입니다.
     pub spent_astrite: usize,
     pub banner_count: usize,
     pub banners: Vec<String>,
@@ -112,6 +132,10 @@ struct CharacterTotal {
     banners: BTreeMap<i32, String>,
 }
 
+/// 캐릭터 배너의 최신순 기록을 캐릭터별 요약으로 집계합니다.
+///
+/// 각 획득 비용은 직전 5성 이후의 뽑기 횟수를 기준으로 계산합니다. 결과는 등급, 획득 횟수,
+/// 최근 획득 시각, 이름 순으로 정렬합니다.
 pub fn character_summaries(
     stats: &[Stats],
     character_resource_type: &str,
@@ -177,6 +201,7 @@ pub fn character_summaries(
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// 운 점수에 대응하는 UI 상태의 시작 구간입니다.
 pub struct LuckScoreThreshold {
     pub min_score: f64,
     pub state: String,
