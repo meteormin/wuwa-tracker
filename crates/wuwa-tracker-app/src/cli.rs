@@ -1,6 +1,6 @@
 use crate::{service::Service, settings};
 use anyhow::{Context, Result};
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 use std::{
     fs,
     io::Write,
@@ -116,21 +116,29 @@ pub struct ConfigArgs {
 pub enum ConfigCommand {
     #[command(about = "Show resolved CLI defaults")]
     Show,
-    #[command(about = "Save CLI defaults")]
+    #[command(about = "Set a CLI default")]
     Set {
-        #[arg(short, long, help = "Game root directory or log file path to scan")]
-        path: Option<PathBuf>,
-        #[arg(long, help = "Report format: html, json, or csv")]
-        format: Option<String>,
-        #[arg(short = 'o', long = "output", help = "Output file path or basename")]
-        output: Option<PathBuf>,
-        #[arg(long, help = "Report language code")]
-        lang: Option<String>,
-        #[arg(long, visible_alias = "interval", help = "Polling interval in seconds")]
-        interval_secs: Option<u64>,
+        #[arg(help = "Configuration key")]
+        key: ConfigKey,
+        #[arg(help = "Value to save")]
+        value: String,
     },
     #[command(about = "Clear saved CLI defaults")]
     Clear,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ConfigKey {
+    #[value(name = "scan.path")]
+    ScanPath,
+    #[value(name = "report.format")]
+    ReportFormat,
+    #[value(name = "report.output")]
+    ReportOutput,
+    #[value(name = "report.language")]
+    ReportLanguage,
+    #[value(name = "autorun.interval")]
+    AutorunInterval,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -155,8 +163,8 @@ pub enum DbCommand {
 }
 
 pub fn scan(args: ScanArgs, service: Service) -> Result<()> {
-    let saved = settings::load(&service.config().settings_path)?;
-    let path = resolve_path(args.path, &saved)?;
+    let user_settings = settings::load(&service.config().settings_path)?;
+    let path = resolve_path(args.path, &user_settings)?;
     let response = service.scan(&path)?;
     println!("{}", response.url);
     if args.clipboard {
@@ -170,10 +178,10 @@ pub async fn report(args: ReportArgs, service: Service) -> Result<()> {
     if args.url.is_some() == args.file.is_some() {
         anyhow::bail!("provide exactly one of --url or --file");
     }
-    let saved = settings::load(&service.config().settings_path)?;
-    let format = resolve_format(args.format, &saved);
-    let output = resolve_output(args.output, &saved);
-    let lang = resolve_lang(args.lang, &saved);
+    let user_settings = settings::load(&service.config().settings_path)?;
+    let format = resolve_format(args.format, &user_settings);
+    let output = resolve_output(args.output, &user_settings);
+    let lang = resolve_lang(args.lang, &user_settings);
 
     let stats = if let Some(file) = args.file {
         let fetch_result = service.load_fetch_result_file(&file)?;
@@ -198,20 +206,20 @@ pub async fn report(args: ReportArgs, service: Service) -> Result<()> {
 }
 
 pub async fn run(args: RunArgs, service: Service) -> Result<()> {
-    let saved = settings::load(&service.config().settings_path)?;
+    let user_settings = settings::load(&service.config().settings_path)?;
     let url = match args.url {
         Some(url) => url,
         None => {
-            let path = resolve_path(args.path, &saved)?;
+            let path = resolve_path(args.path, &user_settings)?;
             service.scan(&path)?.url
         }
     };
     fetch_and_write_report(
         &service,
         &url,
-        &resolve_format(args.format, &saved),
-        &resolve_output(args.output, &saved),
-        &resolve_lang(args.lang, &saved),
+        &resolve_format(args.format, &user_settings),
+        &resolve_output(args.output, &user_settings),
+        &resolve_lang(args.lang, &user_settings),
         args.verbose,
     )
     .await?;
@@ -219,18 +227,18 @@ pub async fn run(args: RunArgs, service: Service) -> Result<()> {
 }
 
 pub async fn autorun(args: AutorunArgs, service: Service) -> Result<()> {
-    let saved = settings::load(&service.config().settings_path)?;
+    let user_settings = settings::load(&service.config().settings_path)?;
     let interval = Duration::from_secs(
         args.interval_secs
-            .or(saved.autorun_interval_secs)
+            .or(user_settings.autorun_interval_secs)
             .unwrap_or(service.config().autorun_interval_secs)
             .max(1),
     );
     let mut last_url = String::new();
-    let path = resolve_path(args.path, &saved)?;
-    let format = resolve_format(args.format, &saved);
-    let output = resolve_output(args.output, &saved);
-    let lang = resolve_lang(args.lang, &saved);
+    let path = resolve_path(args.path, &user_settings)?;
+    let format = resolve_format(args.format, &user_settings);
+    let output = resolve_output(args.output, &user_settings);
+    let lang = resolve_lang(args.lang, &user_settings);
 
     loop {
         match service.scan(&path) {
@@ -279,79 +287,79 @@ pub fn config(args: ConfigArgs, config: &wuwa_tracker_core::Config) -> Result<()
             println!("Settings cleared: {}", config.settings_path.display());
             Ok(())
         }
-        ConfigCommand::Set {
-            path,
-            format,
-            output,
-            lang,
-            interval_secs,
-        } => {
-            if let Some(format) = format.as_deref() {
-                ReportFormat::from_str(format)?;
-            }
-            let mut saved = settings::load(&config.settings_path)?;
-            if path.is_some() {
-                saved.scan_path = path;
-            }
-            if format.is_some() {
-                saved.report_format = format;
-            }
-            if output.is_some() {
-                saved.report_output = output;
-            }
-            if lang.is_some() {
-                saved.report_language = lang;
-            }
-            if interval_secs.is_some() {
-                saved.autorun_interval_secs = interval_secs;
-            }
-            settings::save(&config.settings_path, &saved)?;
+        ConfigCommand::Set { key, value } => {
+            let mut user_settings = settings::load(&config.settings_path)?;
+            set_config_value(&mut user_settings, key, value)?;
+            settings::save(&config.settings_path, &user_settings)?;
             println!("Settings saved: {}", config.settings_path.display());
             Ok(())
         }
     }
 }
 
+fn set_config_value(
+    settings: &mut settings::Settings,
+    key: ConfigKey,
+    value: String,
+) -> Result<()> {
+    match key {
+        ConfigKey::ScanPath => settings.scan_path = Some(value.into()),
+        ConfigKey::ReportFormat => {
+            ReportFormat::from_str(&value)?;
+            settings.report_format = Some(value);
+        }
+        ConfigKey::ReportOutput => settings.report_output = Some(value.into()),
+        ConfigKey::ReportLanguage => settings.report_language = Some(value),
+        ConfigKey::AutorunInterval => {
+            settings.autorun_interval_secs =
+                Some(value.parse().context(
+                    "autorun.interval must be a non-negative integer number of seconds",
+                )?);
+        }
+    }
+    Ok(())
+}
+
 fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
-    let saved = settings::load(&config.settings_path)?;
+    let user_settings = settings::load(&config.settings_path)?;
     println!("Settings: {}", config.settings_path.display());
     print_setting(
-        "scan_path",
-        saved
+        "scan.path",
+        user_settings
             .scan_path
             .as_ref()
-            .map(|path| (path.display().to_string(), "saved"))
+            .map(|path| (path.display().to_string(), "custom"))
             .unwrap_or_else(|| ("(unset)".to_string(), "default")),
     );
     print_setting(
-        "format",
-        saved
+        "report.format",
+        user_settings
             .report_format
             .clone()
-            .map(|value| (value, "saved"))
+            .map(|value| (value, "custom"))
             .unwrap_or_else(|| (settings::DEFAULT_FORMAT.to_string(), "default")),
     );
     print_setting(
-        "output",
-        saved
+        "report.output",
+        user_settings
             .report_output
             .as_ref()
-            .map(|path| (path.display().to_string(), "saved"))
+            .map(|path| (path.display().to_string(), "custom"))
             .unwrap_or_else(|| (settings::DEFAULT_OUTPUT.to_string(), "default")),
     );
     print_setting(
-        "lang",
-        saved
+        "report.language",
+        user_settings
             .report_language
             .clone()
-            .map(|value| (value, "saved"))
+            .map(|value| (value, "custom"))
             .unwrap_or_else(|| (settings::DEFAULT_LANG.to_string(), "default")),
     );
     print_setting(
-        "interval",
-        saved
+        "autorun.interval",
+        user_settings
             .autorun_interval_secs
-            .map(|value| (value.to_string(), "saved"))
+            .map(|value| (value.to_string(), "custom"))
             .unwrap_or_else(|| (config.autorun_interval_secs.to_string(), "default")),
     );
     Ok(())
@@ -361,25 +369,25 @@ fn print_setting(name: &str, value: (String, &str)) {
     println!("{}: {} ({})", name, value.0, value.1);
 }
 
-fn resolve_path(path: Option<PathBuf>, saved: &settings::Settings) -> Result<PathBuf> {
-    path.or_else(|| saved.scan_path.clone())
-        .context("provide --path or save one with `wuwa-tracker config set --path <PATH>`")
+fn resolve_path(path: Option<PathBuf>, user_settings: &settings::Settings) -> Result<PathBuf> {
+    path.or_else(|| user_settings.scan_path.clone())
+        .context("provide --path or save one with `wuwa-tracker config set scan.path <PATH>`")
 }
 
-fn resolve_format(format: Option<String>, saved: &settings::Settings) -> String {
+fn resolve_format(format: Option<String>, user_settings: &settings::Settings) -> String {
     format
-        .or_else(|| saved.report_format.clone())
+        .or_else(|| user_settings.report_format.clone())
         .unwrap_or_else(|| settings::DEFAULT_FORMAT.to_string())
 }
 
-fn resolve_output(output: Option<PathBuf>, saved: &settings::Settings) -> PathBuf {
+fn resolve_output(output: Option<PathBuf>, user_settings: &settings::Settings) -> PathBuf {
     output
-        .or_else(|| saved.report_output.clone())
+        .or_else(|| user_settings.report_output.clone())
         .unwrap_or_else(|| PathBuf::from(settings::DEFAULT_OUTPUT))
 }
 
-fn resolve_lang(lang: Option<String>, saved: &settings::Settings) -> String {
-    lang.or_else(|| saved.report_language.clone())
+fn resolve_lang(lang: Option<String>, user_settings: &settings::Settings) -> String {
+    lang.or_else(|| user_settings.report_language.clone())
         .unwrap_or_else(|| settings::DEFAULT_LANG.to_string())
 }
 
@@ -641,6 +649,22 @@ fn command_exists(name: &str) -> bool {
 mod tests {
     use super::*;
     use wuwa_tracker_types::Stats;
+
+    #[test]
+    fn config_set_updates_one_named_value() {
+        let mut settings = settings::Settings::default();
+
+        set_config_value(&mut settings, ConfigKey::ReportFormat, "json".to_string()).unwrap();
+
+        assert_eq!(settings.report_format.as_deref(), Some("json"));
+        assert!(settings.scan_path.is_none());
+        assert!(set_config_value(
+            &mut settings,
+            ConfigKey::AutorunInterval,
+            "invalid".to_string()
+        )
+        .is_err());
+    }
 
     #[test]
     fn stats_summary_omits_raw_records() {
