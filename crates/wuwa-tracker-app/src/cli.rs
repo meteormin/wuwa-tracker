@@ -222,7 +222,7 @@ pub async fn autorun(args: AutorunArgs, service: Service) -> Result<()> {
     let saved = settings::load(&service.config().settings_path)?;
     let interval = Duration::from_secs(
         args.interval_secs
-            .or(saved.interval_secs)
+            .or(saved.autorun_interval_secs)
             .unwrap_or(service.config().autorun_interval_secs)
             .max(1),
     );
@@ -294,16 +294,16 @@ pub fn config(args: ConfigArgs, config: &wuwa_tracker_core::Config) -> Result<()
                 saved.scan_path = path;
             }
             if format.is_some() {
-                saved.format = format;
+                saved.report_format = format;
             }
             if output.is_some() {
-                saved.output = output;
+                saved.report_output = output;
             }
             if lang.is_some() {
-                saved.lang = lang;
+                saved.report_language = lang;
             }
             if interval_secs.is_some() {
-                saved.interval_secs = interval_secs;
+                saved.autorun_interval_secs = interval_secs;
             }
             settings::save(&config.settings_path, &saved)?;
             println!("Settings saved: {}", config.settings_path.display());
@@ -326,7 +326,7 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
     print_setting(
         "format",
         saved
-            .format
+            .report_format
             .clone()
             .map(|value| (value, "saved"))
             .unwrap_or_else(|| (settings::DEFAULT_FORMAT.to_string(), "default")),
@@ -334,7 +334,7 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
     print_setting(
         "output",
         saved
-            .output
+            .report_output
             .as_ref()
             .map(|path| (path.display().to_string(), "saved"))
             .unwrap_or_else(|| (settings::DEFAULT_OUTPUT.to_string(), "default")),
@@ -342,7 +342,7 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
     print_setting(
         "lang",
         saved
-            .lang
+            .report_language
             .clone()
             .map(|value| (value, "saved"))
             .unwrap_or_else(|| (settings::DEFAULT_LANG.to_string(), "default")),
@@ -350,7 +350,7 @@ fn show_config(config: &wuwa_tracker_core::Config) -> Result<()> {
     print_setting(
         "interval",
         saved
-            .interval_secs
+            .autorun_interval_secs
             .map(|value| (value.to_string(), "saved"))
             .unwrap_or_else(|| (config.autorun_interval_secs.to_string(), "default")),
     );
@@ -368,18 +368,18 @@ fn resolve_path(path: Option<PathBuf>, saved: &settings::Settings) -> Result<Pat
 
 fn resolve_format(format: Option<String>, saved: &settings::Settings) -> String {
     format
-        .or_else(|| saved.format.clone())
+        .or_else(|| saved.report_format.clone())
         .unwrap_or_else(|| settings::DEFAULT_FORMAT.to_string())
 }
 
 fn resolve_output(output: Option<PathBuf>, saved: &settings::Settings) -> PathBuf {
     output
-        .or_else(|| saved.output.clone())
+        .or_else(|| saved.report_output.clone())
         .unwrap_or_else(|| PathBuf::from(settings::DEFAULT_OUTPUT))
 }
 
 fn resolve_lang(lang: Option<String>, saved: &settings::Settings) -> String {
-    lang.or_else(|| saved.lang.clone())
+    lang.or_else(|| saved.report_language.clone())
         .unwrap_or_else(|| settings::DEFAULT_LANG.to_string())
 }
 
