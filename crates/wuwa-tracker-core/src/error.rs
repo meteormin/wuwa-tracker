@@ -25,6 +25,8 @@ pub enum AppError {
     NoValidRecords,
     #[error("player not found")]
     PlayerNotFound,
+    #[error("embedded database error: {0}")]
+    Database(String),
     #[error(transparent)]
     Http(#[from] reqwest::Error),
     #[error(transparent)]

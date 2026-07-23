@@ -60,7 +60,7 @@ impl Default for Config {
                 PathBuf::from("Client/Client.log"),
                 PathBuf::from("Client.log"),
             ],
-            db_path: app_dir.join("store.json"),
+            db_path: app_dir.join("store.redb"),
             log_path: app_dir.join("wuwa-tracker.log"),
             settings_path: app_dir.join("settings.json"),
             autorun_interval_secs: 60,
@@ -102,7 +102,7 @@ mod tests {
     fn default_config_sets_runtime_paths() {
         let config = Config::default();
 
-        assert!(config.db_path.ends_with("store.json"));
+        assert!(config.db_path.ends_with("store.redb"));
         assert!(config.log_path.ends_with("wuwa-tracker.log"));
         assert!(config.settings_path.ends_with("settings.json"));
         assert_eq!(config.autorun_interval_secs, 60);
