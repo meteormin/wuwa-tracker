@@ -253,6 +253,7 @@ impl IntoResponse for ApiError {
             AppError::PlayerNotFound => StatusCode::NOT_FOUND,
             AppError::NoValidRecords => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Io(_)
+            | AppError::Database(_)
             | AppError::Json(_)
             | AppError::Http(_)
             | AppError::Url(_)
@@ -281,7 +282,7 @@ fn error_key(error: &AppError) -> &'static str {
         }
         AppError::UnsupportedReportFormat(_) => "err.unsupported_report_format",
         AppError::NoValidRecords | AppError::Template(_) => "err.report_generation_failed",
-        AppError::PlayerNotFound => "err.database_query_failed",
+        AppError::PlayerNotFound | AppError::Database(_) => "err.database_query_failed",
         AppError::Http(_) | AppError::Io(_) => "app.network_error",
     }
 }

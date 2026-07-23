@@ -11,7 +11,7 @@ use wuwa_tracker_core::{
     reporter::{self, ReportFormat},
     scanner,
     stats::StatsCalculator,
-    store::{JsonStore, StoreStats},
+    store::{RedbStore, StoreStats},
     tracker::{self, TrackerClient},
 };
 use wuwa_tracker_types::{
@@ -25,7 +25,7 @@ use wuwa_tracker_types::{
 /// clone된 인스턴스는 저장소와 현재 locale 상태를 공유합니다.
 pub struct Service {
     config: Arc<Config>,
-    store: Arc<JsonStore>,
+    store: Arc<RedbStore>,
     calc: StatsCalculator,
     tracker: TrackerClient,
     locale: Arc<RwLock<Option<LocaleData>>>,
@@ -40,14 +40,14 @@ pub struct BannerRecordCount {
 }
 
 impl Service {
-    /// 설정에 지정된 JSON 저장소를 열고 외부 API client를 준비합니다.
+    /// 설정에 지정된 내장 저장소를 열고 외부 API client를 준비합니다.
     ///
     /// # Errors
     ///
-    /// 저장소 파일을 읽거나 역직렬화하지 못하면 [`AppError`]를 반환합니다.
+    /// 저장소 파일을 열지 못하면 [`AppError`]를 반환합니다.
     pub fn new(config: Config) -> Result<Self, AppError> {
         let calc = StatsCalculator::new(&config);
-        let store = Arc::new(JsonStore::new(config.db_path.clone())?);
+        let store = Arc::new(RedbStore::new(config.db_path.clone())?);
         let tracker = TrackerClient::new(config.resources_url.clone(), config.tracking_url.clone());
         let service = Self {
             config: Arc::new(config),
