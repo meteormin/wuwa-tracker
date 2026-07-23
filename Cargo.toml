@@ -8,7 +8,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.2.2"
+version = "1.3.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/meteormin/wuwa-tracker"
@@ -19,6 +19,8 @@ askama = "0.16"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 dirs = "6"
+postcard = { version = "1", features = ["alloc"] }
+redb = "4"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 regex = "1"
 serde = { version = "1", features = ["derive"] }

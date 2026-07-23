@@ -22,7 +22,7 @@ const ENV_LOG_PATH: &str = "WUWA_TRACKER_LOG_PATH";
 #[command(name = "wuwa-tracker")]
 #[command(about = "Wuwa Tracker")]
 pub struct Cli {
-    #[arg(long = "dbpath", global = true, help = "Local JSON store path")]
+    #[arg(long = "dbpath", global = true, help = "Local embedded database path")]
     db_path: Option<PathBuf>,
     #[arg(long = "logpath", global = true, help = "Application log file path")]
     log_path: Option<PathBuf>,
