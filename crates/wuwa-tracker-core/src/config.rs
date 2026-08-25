@@ -44,6 +44,8 @@ impl Default for Config {
                 gacha_type(9, "weaponNovice", false, 55),
                 gacha_type(10, "characterCollaboration", true, 80),
                 gacha_type(11, "weaponCollaboration", false, 55),
+                gacha_type(12, "characterMemory", true, 80),
+                gacha_type(13, "weaponMemory", false, 55)
             ],
             luck_score_thresholds: vec![
                 threshold(0.0, "worst"),
